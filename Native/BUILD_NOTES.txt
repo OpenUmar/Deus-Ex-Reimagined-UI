@@ -1,0 +1,42 @@
+RINative.dll build notes
+========================
+Cross-compiled with clang (target i686-pc-windows-msvc) + lld-link, against the
+Deus Ex headers in Headers\DxHeaders.zip (patched copy) and import libraries
+generated from the shipped Core/Engine/Extension/MSVCRT DLLs.
+
+Flags that must match the 2001 engine build:
+  -fpack-struct=4      Deus Ex was built with /Zp4 (Engine.dll reads UTexture::Mips
+                       at +0xA4; FMipmap is 40 bytes). Without it, any class with a
+                       DOUBLE (e.g. UBitmap) is laid out differently.
+  -Xclang -fno-wchar   TCHAR is unsigned short (VC6), mangled as G, not _W
+  -DUNICODE -D_UNICODE the engine is a Unicode build
+  -fno-rtti -fno-exceptions -D_CPPUNWIND -DDO_GUARD=0
+  -fms-compatibility-version=12
+
+No C runtime is linked: RIEntry.cpp runs static initialisers (native class
+registration) itself. Native function names carry an RINative prefix because
+the engine looks them up through its case-insensitive name table.
+
+Layout checks that pass with these flags (see tex2.cpp in the build notes):
+  UTexture::Mips 0xA4, sizeof(FMipmap) 40, XWindow parent 0x138,
+  firstChild 0x13C, nextSibling 0x148, XRootWindow initCount 0x5D4.
+
+Build 49 (rooted glyph sheets) was rebuilt from Headers\DxHeaders.zip with these
+header edits (needed by clang 18):
+  Core/Inc/UnMem.h       default args moved from the friend operator new
+                         declarations to the inline definitions
+  Engine/Inc/UnActor.h   GetTopOwner: Top declared before the for loop
+  Core/Inc/UnObjBas.h    IMPLEMENT_CLASS: &TClass::StaticConstructor
+  Core/Inc/UnTemplate.h  FString without CORE_API, Engine/Inc/UnAudio.h
+                         FSoundData without ENGINE_API (else clang marks the
+                         template bases TArray<TCHAR> / TLazyArray<BYTE>
+                         dllimport, and Core/Engine don't export them)
+  include names matched case-insensitively (UnCid.h -> UnCId.h)
+Import libs: llvm-readobj --coff-exports X.dll -> X.def -> llvm-dlltool -m i386.
+Compile: clang++ --target=i686-pc-windows-msvc -fms-compatibility -fms-extensions
+  -fms-compatibility-version=12 -fpack-struct=4 -Xclang -fno-wchar -DUNICODE
+  -D_UNICODE -fno-rtti -fno-exceptions -D_CPPUNWIND -DDO_GUARD=0 -O2
+  -fno-builtin -fno-stack-protector -mno-sse
+Link: lld-link /dll /entry:RIDllEntry /nodefaultlib /base:0x10000000
+Layout re-checked: UTexture::Mips 0xA4, FMipmap 40, XWindow parent 0x138,
+  firstChild 0x13C, nextSibling 0x148, XRootWindow initCount 0x5D4.

@@ -1,0 +1,21 @@
+# Build outputs
+System/*.u
+*.log
+Native/build_*/
+*.dll
+*.dll.new
+# Backups made by patch scripts
+_bak_*/
+*.bak
+*.tmp.bak
+# Scratch previews
+_*.png
+# AE's own code (reference only, not part of this mod)
+AE_Source_Reference/
+# Large generated / third-party binaries (models, HD texture remasters, archives)
+Tools/esrgan/*.onnx
+Tools/esrgan/*.pth
+Tools/esrgan/*.zip
+Tools/__pycache__/
+Tools/esrgan/__pycache__/
+Source/RIVanillaHD/Textures/

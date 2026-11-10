@@ -1,0 +1,639 @@
+//=============================================================================
+// RIConView
+// Third-person conversations (ConWindowActive), drawn to the Dialogue
+// artboard: the speaker and line centred in the lower band, replies as
+// numbered rows, credits top right. AE's ConWindowActive keeps running the
+// conversation (letterbox, camera, timing, choices, items received); its
+// speech text and choice buttons are hidden and drawn here instead, and
+// clicks / keys are passed on to it exactly as AE expects them.
+//=============================================================================
+class RIConView extends Window;
+
+var ConWindowActive Con;
+var float Age, LineAge, ChoiceAge;
+var float S;
+var bool  bReady;
+var int   Sel;
+var int   LastNumChoices;
+var string LastLine;
+
+// Reply rows from the last frame (for the mouse)
+var float RowX, RowY[10], RowW, RowH;
+var int   NumRows;
+var int   HoverRow;
+
+var bool bBandsCleared;
+
+// Received (box 0) / Given (box 1): AE's boxes are hidden as soon as they
+// appear; what they hold is copied here (12 items each, flattened) and shown
+// for as long as AE would have shown it
+var Texture BoxIcon[24];
+var string  BoxLabel[24];
+var int     BoxQty[24];
+var byte    BoxDeclined[24];
+var int     BoxNum[2];
+var string  BoxTitle[2];
+var float   BoxAge[2];
+var float   BoxLife[2];
+
+var localized string CreditsLabel;
+
+event InitWindow()
+{
+	Super.InitWindow();
+	SetSelectability(True);
+	bTickEnabled = True;
+	HoverRow = -1;
+}
+
+function AttachTo(ConWindowActive NewCon)
+{
+	Con = NewCon;
+	SetConfiguration(0, 0, Con.width, Con.height);
+	HideConParts();
+	ClearBands();
+}
+
+// No black letterbox. AE sizes its bands from these two fractions and
+// squeezes the 3D view to fit between them; at zero the view stays full
+// screen, so nothing has to be undone each frame (which caused a stutter).
+// This view draws the text in the same area the lower band used to take.
+// Cinematics keep AE's letterbox.
+function ClearBands()
+{
+	if (Con.bForcePlay || bBandsCleared)
+		return;
+	bBandsCleared = True;
+	Con.lowerFinalHeightPercent = 0;
+	Con.upperFinalHeightPercent = 0;
+	if (Con.lowerConWindow != None)
+		Con.lowerConWindow.SetBackground(None);
+	if (Con.upperConWindow != None)
+		Con.upperConWindow.SetBackground(None);
+	Con.CalculateWindowSizes();
+}
+
+// Where AE's bands would have been (fractions of the screen)
+function float LowerFrac()
+{
+	return Con.default.lowerFinalHeightPercent;
+}
+
+function float UpperFrac()
+{
+	return Con.default.upperFinalHeightPercent;
+}
+
+event WindowReady()
+{
+	Super.WindowReady();
+	bReady = True;
+}
+
+// AE's speech text, credits text and choice buttons stay alive but hidden
+function HideConParts()
+{
+	local int i;
+
+	if (Con == None)
+		return;
+	if ((Con.winSpeech != None) && Con.winSpeech.IsVisible(False))
+		Con.winSpeech.Hide();
+	for (i = 0; i < Con.numChoices; i++)
+		if ((Con.conChoices[i] != None) && Con.conChoices[i].IsVisible(False))
+			Con.conChoices[i].Hide();
+	if ((Con.upperConWindow != None) && (Con.upperConWindow.txtLabel != None) && Con.upperConWindow.txtLabel.IsVisible(False))
+		Con.upperConWindow.txtLabel.Hide();
+	if ((Con.upperConWindow != None) && (Con.upperConWindow.txtCredits != None) && Con.upperConWindow.txtCredits.IsVisible(False))
+		Con.upperConWindow.txtCredits.Hide();
+}
+
+// ----------------------------------------------------------------------
+// Text helpers
+// ----------------------------------------------------------------------
+
+// AE joins appended lines with carriage returns; RIText wraps on "|n"
+static function string Lines(string T)
+{
+	local string R;
+	local int i, c;
+
+	R = "";
+	for (i = 0; i < Len(T); i++)
+	{
+		c = Asc(Mid(T, i, 1));
+		// a line break is CR, LF or CR LF (AE's item text uses bare LF)
+		if (c == 13)
+			R = R $ "|n";
+		else if (c == 10)
+		{
+			if ((i == 0) || (Asc(Mid(T, i - 1, 1)) != 13))
+				R = R $ "|n";
+		}
+		else
+			R = R $ Mid(T, i, 1);
+	}
+	return R;
+}
+
+// "1. Text" / "~ Text" -> "Text"
+static function string ChoiceText(string T)
+{
+	local int p;
+
+	if (Left(T, 1) == "~")
+		T = Mid(T, 1);
+	else
+	{
+		p = InStr(T, ". ");
+		if ((p > 0) && (p <= 2) && (int(Left(T, p)) > 0 || Left(T, p) == "0"))
+			T = Mid(T, p + 2);
+	}
+	while (Left(T, 1) == " ")
+		T = Mid(T, 1);
+	return T;
+}
+
+function string Speaker()
+{
+	local string N;
+
+	if ((Con.winSpeech == None) || (Con.winSpeech.txtName == None))
+		return "";
+	N = Con.winSpeech.txtName.GetText();
+	if (Right(N, 2) == ": ")
+		N = Left(N, Len(N) - 2);
+	return N;
+}
+
+function string SpeechLine()
+{
+	if ((Con.winSpeech == None) || (Con.winSpeech.txtSpeech == None))
+		return "";
+	return Lines(Con.winSpeech.txtSpeech.GetText());
+}
+
+// ----------------------------------------------------------------------
+// Input: replies with Up / Down / Enter; everything else goes to AE
+// ----------------------------------------------------------------------
+
+function bool Choosing()
+{
+	return (Con != None) && (Con.numChoices > 0) && !Con.bForcePlay;
+}
+
+function PickChoice(int i)
+{
+	if ((i < 0) || (i >= Con.numChoices) || (Con.conChoices[i] == None))
+		return;
+	PlaySound(Sound'Menu_Press', 0.25);
+	Con.ButtonActivated(Con.conChoices[i]);
+}
+
+event bool VirtualKeyPressed(EInputKey key, bool bRepeat)
+{
+	if (Con == None)
+		return False;
+	if (Choosing())
+	{
+		if ((key == IK_Up) || (key == IK_MouseWheelUp))
+		{
+			Sel = Max(0, Sel - 1);
+			PlaySound(Sound'Menu_Focus', 0.2);
+			return True;
+		}
+		if ((key == IK_Down) || (key == IK_MouseWheelDown))
+		{
+			Sel = Min(Con.numChoices - 1, Sel + 1);
+			PlaySound(Sound'Menu_Focus', 0.2);
+			return True;
+		}
+		if (((key == IK_Enter) || (key == IK_Space)) && !bRepeat)
+		{
+			PickChoice(Sel);
+			return True;
+		}
+	}
+	return Con.VirtualKeyPressed(key, bRepeat);
+}
+
+function int RowAt(float X, float Y)
+{
+	local int i;
+
+	for (i = 0; i < NumRows; i++)
+		if ((X >= RowX) && (X < RowX + RowW) && (Y >= RowY[i]) && (Y < RowY[i] + RowH))
+			return i;
+	return -1;
+}
+
+event MouseMoved(float newX, float newY)
+{
+	local int r;
+
+	r = RowAt(newX, newY);
+	if ((r != -1) && (r != HoverRow))
+	{
+		Sel = r;
+		PlaySound(Sound'Menu_Focus', 0.15);
+	}
+	HoverRow = r;
+}
+
+event bool MouseButtonPressed(float pointX, float pointY, EInputKey button, int numClicks)
+{
+	return True;
+}
+
+event bool MouseButtonReleased(float pointX, float pointY, EInputKey button, int numClicks)
+{
+	local int r;
+
+	if (Con == None)
+		return False;
+	if (Choosing())
+	{
+		r = RowAt(pointX, pointY);
+		if (r >= 0)
+			PickChoice(r);
+		return True;
+	}
+	// No choices: a click advances the conversation (AE's behaviour)
+	return Con.MouseButtonReleased(pointX, pointY, button, numClicks);
+}
+
+event Tick(float deltaSeconds)
+{
+	local string L;
+
+	Age += deltaSeconds;
+	LineAge += deltaSeconds;
+	ChoiceAge += deltaSeconds;
+	if (Con == None)
+		return;
+
+	if ((width != Con.width) || (height != Con.height))
+		SetConfiguration(0, 0, Con.width, Con.height);
+	HideConParts();
+	ClearBands();
+	CaptureBox(Con.winReceived, 0);
+	CaptureBox(Con.winTaken, 1);
+	BoxAge[0] += deltaSeconds;
+	BoxAge[1] += deltaSeconds;
+
+	if (bReady && Con.IsVisible() && (GetRootWindow().GetFocusWindow() != Self)
+		&& (DeusExRootWindow(GetRootWindow()).GetTopWindow() == None))
+		SetFocusWindow(Self);
+
+	L = SpeechLine();
+	if (L != LastLine)
+	{
+		LastLine = L;
+		LineAge = 0;
+	}
+	if (Con.numChoices != LastNumChoices)
+	{
+		LastNumChoices = Con.numChoices;
+		ChoiceAge = 0;
+		Sel = 0;
+	}
+	Sel = Clamp(Sel, 0, Max(0, Con.numChoices - 1));
+}
+
+// AE's "Received" / "Given" boxes: when AE shows one, copy what it holds
+// and hide it (its own look and position clash with this layout)
+function CaptureBox(HUDReceivedDisplay R, int B)
+{
+	local int i, n;
+	local HUDReceivedDisplayItem It;
+	local string T;
+
+	if ((R == None) || !R.IsVisible(False))
+		return;
+	n = 0;
+	for (i = 0; (i < R.displayItemNum) && (i < 60) && (n < 12); i++)
+	{
+		It = R.displayItems[i];
+		if (It == None)
+			continue;
+		BoxIcon[B * 12 + n] = It.itemIcon;
+		BoxLabel[B * 12 + n] = It.itemLabel;
+		BoxQty[B * 12 + n] = Max(1, It.itemQuantity);
+		BoxDeclined[B * 12 + n] = byte(It.bItemDeclined);
+		n++;
+	}
+	if (n == 0)
+		return;
+	BoxNum[B] = n;
+	T = "";
+	if (R.txtReceived != None)
+		T = R.txtReceived.GetText();
+	if (Right(T, 1) == ":")
+		T = Left(T, Len(T) - 1);
+	if (T == "")
+	{
+		if (B == 0)
+			T = "Received";
+		else
+			T = "Given";
+	}
+	BoxTitle[B] = Caps(T);
+	BoxAge[B] = 0;
+	BoxLife[B] = FMax(2.0, R.displayLength);
+	R.Hide();
+}
+
+// ----------------------------------------------------------------------
+// Drawing
+// ----------------------------------------------------------------------
+
+function Color C3(float R, float G, float B, float a)
+{
+	return Class'RIUtil'.static.Col(R * a, G * a, B * a);
+}
+
+// The original game's gold (sampled from AE's screens)
+function Color Amber(float a)      { return C3(230, 195, 117, a); }
+function Color AmberHi(float a)    { return C3(255, 232, 150, a); }
+function Color AmberDim(float a)   { return C3(126, 105, 50, a); }
+function Color WarmText(float a)   { return C3(245, 236, 214, a); }
+
+function AmberRow(GC gc, float X, float Y, float W, float H, float a)
+{
+	gc.SetStyle(DSTY_Translucent);
+	gc.SetTileColor(C3(70, 58, 26, a));
+	gc.DrawStretchedTexture(X, Y, W, H, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
+	Class'RIText'.static.Box(gc, X, Y, W, H, C3(200, 170, 96, a));
+	Class'RISkin'.static.FillC(gc, X, Y, 1.5, H, AmberHi(a));
+}
+
+event DrawWindow(GC gc)
+{
+	local float a, bandY, bandH, y, h, w, x, tw, ca, ra, cx;
+	local int i, n;
+	local string L, Who, T;
+	local Window Low, Up;
+
+	Class'RITheme'.static.SetMode(2);   // dialogue follows the HUD theme
+
+	NumRows = 0;
+	if (Con == None)
+		return;
+	S = height / 1080.0;
+	gc.EnableSmoothing(True);
+
+	Low = Con.lowerConWindow;
+	Up  = Con.upperConWindow;
+	if (Low == None)
+		return;
+	if (Con.bForcePlay)
+	{
+		// Cinematic: AE's letterbox, text in its lower bar
+		bandY = Low.y;
+		bandH = height - bandY;
+		if (bandH <= 1)
+			return;
+		a = FClamp(bandH / FMax(1, Low.height), 0, 1);
+	}
+	else
+	{
+		bandH = int(height * LowerFrac());
+		bandY = height - bandH;
+		a = FClamp(Con.currentWindowPos, 0, 1);
+		if (a <= 0.01)
+			return;
+	}
+
+	// Lower band: see-through, darkened towards the bottom so text reads
+	gc.SetStyle(DSTY_Modulated);
+	gc.DrawStretchedTexture(0, bandY - 120 * S, width, bandH + 120 * S, 0, 0, 8, 256, Texture'ReimaginedUI.UI.RI_FadeV');
+	gc.DrawStretchedTexture(0, bandY, width, bandH, 0, 0, 8, 256, Texture'ReimaginedUI.UI.RI_FadeV');
+
+
+	// Upper band: credits on the right
+	if ((Up != None) && !Con.bForcePlay && (Con.player != None))
+	{
+		T = string(Con.player.Credits);
+		tw = Class'RIText'.static.Width(Class'RIFontHead', T, 0.62);
+		cx = width - 96 * S - tw;
+		y = FMax(0, (height * UpperFrac() - 40 * S) * 0.5);
+		Class'RIText'.static.DrawIn(gc, Class'RIFontHead', cx, y, tw, 40 * S, T, AmberHi(a), 0, 0.62);
+		L = Caps(CreditsLabel);
+		tw = Class'RIText'.static.Width(Class'RIFontSmall', L, 0.75);
+		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', cx - 14 * S - tw, y, tw, 40 * S, L, Amber(a), 0, 0.75);
+	}
+
+	DrawReceived(gc, bandY, a);
+
+	if (Choosing())
+	{
+		// Replies: numbered rows, centred, 960 wide
+		n = Con.numChoices;
+		RowW = FMin(960 * S, width - 120 * S);
+		RowX = (width - RowW) * 0.5;
+		RowH = 54 * S;
+		h = n * RowH + (n - 1) * 8 * S;
+		y = bandY + FMax(16 * S, (bandH - h) * 0.5);
+		if (y + h > height - 12 * S)
+		{
+			RowH = FMax(36 * S, (height - 24 * S - bandY - (n - 1) * 6 * S) / n);
+			y = bandY + 12 * S;
+		}
+		if (Class'RIVP'.static.On())
+			Class'RIVP'.static.Panel(gc, RowX - 18 * S, y - 14 * S, RowW + 36 * S, n * (RowH + 8 * S) - 8 * S + 28 * S, 14 * S, a);
+		for (i = 0; i < n; i++)
+		{
+			if (Con.conChoices[i] == None)
+				continue;
+			ra = a * Class'RIUtil'.static.Phase(ChoiceAge, 0.04 * i, 0.25);
+			RowY[i] = y;
+			NumRows = i + 1;
+			if (Class'RIVP'.static.On())
+				Class'RIVP'.static.Btn(gc, RowX, y, RowW, RowH, i == Sel, ra);
+			else if (i == Sel)
+				AmberRow(gc, RowX, y, RowW, RowH, ra);
+			// Number in a box
+			if (i == Sel)
+			{
+				Class'RISkin'.static.Box2(gc, RowX + 20 * S, y + (RowH - 30 * S) * 0.5, 30 * S, 30 * S, AmberHi(ra));
+				Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', RowX + 20 * S, y + (RowH - 30 * S) * 0.5, 30 * S, 30 * S,
+					Mid("1234567890", i, 1), AmberHi(ra), 1, 0.7);
+			}
+			else
+			{
+				Class'RISkin'.static.Box2(gc, RowX + 20 * S, y + (RowH - 30 * S) * 0.5, 30 * S, 30 * S, AmberDim(ra));
+				Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', RowX + 20 * S, y + (RowH - 30 * S) * 0.5, 30 * S, 30 * S,
+					Mid("1234567890", i, 1), Amber(ra), 1, 0.7);
+			}
+			T = ChoiceText(Con.conChoices[i].GetText());
+			T = Class'RIText'.static.Fit(Class'RIFontBody', T, RowW - 90 * S, 0.84);
+			if (i == Sel)
+				Class'RIText'.static.DrawIn(gc, Class'RIFontBody', RowX + 68 * S + (1 - ra) * 10 * S, y, RowW - 90 * S, RowH, T, WarmText(ra), 0, 0.84);
+			else
+				Class'RIText'.static.DrawIn(gc, Class'RIFontBody', RowX + 68 * S + (1 - ra) * 10 * S, y, RowW - 90 * S, RowH, T, C3(220, 196, 140, ra), 0, 0.84);
+			y += RowH + 8 * S;
+		}
+		return;
+	}
+
+	// Speaker and line, centred
+	Who = Speaker();
+	L = LastLine;
+	if (L == "")
+		return;
+	ca = a * Class'RIUtil'.static.Phase(LineAge, 0.0, 0.18);
+	w = FMin(1440 * S, width - 160 * S);
+	x = (width - w) * 0.5;
+	h = Class'RIText'.static.DrawWrapped(None, Class'RIFontBody', 0, 0, w, L, C3(0, 0, 0, 0), 1.0, 1.4);
+	y = bandY + FMax(14 * S, (bandH - h - 34 * S) * 0.5);
+	if (Class'RIVP'.static.On())
+	{
+		// Vanilla+: no box; the name small and gold with a short rule under
+		// it, the line centred over the band's own soft fade
+		if (Who != "")
+		{
+			tw = Class'RIText'.static.Width(Class'RIFontSmall', Caps(Who), 0.72);
+			Class'RIText'.static.Draw(gc, Class'RIFontSmall', (width - tw) * 0.5, y, Caps(Who), Amber(ca), 0.72);
+			Class'RISkin'.static.FillC(gc, width * 0.5 - 18 * S, y + 25 * S, 36 * S, 2 * S, AmberDim(ca));
+			y += 38 * S;
+		}
+		DrawCentered(gc, x, y + (1 - ca) * 6 * S, w, L, WarmText(ca));
+		return;
+	}
+	if (Who != "")
+	{
+		tw = Class'RIText'.static.Width(Class'RIFontSmall', Caps(Who), 0.8);
+		Class'RIText'.static.Draw(gc, Class'RIFontSmall', (width - tw) * 0.5, y, Caps(Who), Amber(ca), 0.8);
+		y += 34 * S;
+	}
+	DrawCentered(gc, x, y + (1 - ca) * 6 * S, w, L, WarmText(ca));
+}
+
+// Received / Given, stacked above the text band: a small amber heading,
+// then one line per item (icon, name, x qty). No box or shadow.
+function DrawReceived(GC gc, float BandTop, float a)
+{
+	local float y;
+
+	// Same place as in play: right side, a third of the way down
+	y = 340 * S;
+	y = DrawItemBox(gc, 0, y, a);
+	y = DrawItemBox(gc, 1, y, a);
+}
+
+function float DrawItemBox(GC gc, int B, float Top, float a)
+{
+	local int i, k;
+	local float ba, y;
+
+	if ((BoxNum[B] <= 0) || (BoxAge[B] > BoxLife[B]))
+		return Top;
+	ba = a * FClamp(BoxAge[B] / 0.15, 0, 1) * FClamp((BoxLife[B] - BoxAge[B]) / 0.5, 0, 1);
+	if (ba <= 0.01)
+		return Top;
+
+	// Icon, name and quantity per row, right-aligned over a soft shadow
+	y = Top;
+	Class'RISubs'.static.ToastTitle(gc, width - 40 * S, y, S, BoxTitle[B], ba);
+	y += 30 * S;
+	for (i = 0; i < BoxNum[B]; i++)
+	{
+		k = B * 12 + i;
+		y += Class'RISubs'.static.ToastRow(gc, width - 40 * S, y, S, BoxIcon[k], BoxLabel[k], BoxQty[k], BoxDeclined[k] != 0, ba);
+	}
+	return y + 16 * S;
+}
+
+// Shadow without hard edges: thin darkening layers stacked, each a bit
+// smaller, so it's darkest behind the text and fades out on every side
+function SoftShadow(GC gc, float Y, float H, float W, float a)
+{
+	local int i;
+	local float inX, inY;
+
+	for (i = 0; i < 9; i++)
+	{
+		inX = i * W * 0.07;
+		inY = i * 6 * S;
+		if (H - inY * 2 <= 2)
+			break;
+		Class'RISkin'.static.DrawDim(gc, 0, Y - 28 * S + inY, W - inX, H + 56 * S - inY * 2, 0.11 * a);
+	}
+}
+
+function string ItemText(HUDReceivedDisplayItem It)
+{
+	local string L;
+
+	L = Caps(It.itemLabel);
+	if (It.itemQuantity > 1)
+		L = L $ "  x" $ It.itemQuantity;
+	return L;
+}
+
+// Word-wrapped, each line centred
+function DrawCentered(GC gc, float X, float Y, float W, string T, Color C)
+{
+	local string Para, Rest, Line, Word, Try;
+	local int p;
+	local float lh, tw;
+	local bool bMore;
+
+	lh = Class'RIText'.static.LineHeight(Class'RIFontBody', 1.0) * 1.4;
+	Rest = T;
+	bMore = True;
+	while (bMore)
+	{
+		p = InStr(Rest, "|n");
+		if (p >= 0)
+		{
+			Para = Left(Rest, p);
+			Rest = Mid(Rest, p + 2);
+		}
+		else
+		{
+			Para = Rest;
+			Rest = "";
+			bMore = False;
+		}
+		Line = "";
+		while (Para != "")
+		{
+			p = InStr(Para, " ");
+			if (p >= 0)
+			{
+				Word = Left(Para, p);
+				Para = Mid(Para, p + 1);
+			}
+			else
+			{
+				Word = Para;
+				Para = "";
+			}
+			if (Line == "")
+				Try = Word;
+			else
+				Try = Line @ Word;
+			if ((Line != "") && (Class'RIText'.static.Width(Class'RIFontBody', Try, 1.0) > W))
+			{
+				tw = Class'RIText'.static.Width(Class'RIFontBody', Line, 1.0);
+				Class'RIText'.static.Draw(gc, Class'RIFontBody', X + (W - tw) * 0.5, Y, Line, C, 1.0);
+				Y += lh;
+				Line = Word;
+			}
+			else
+				Line = Try;
+		}
+		if (Line != "")
+		{
+			tw = Class'RIText'.static.Width(Class'RIFontBody', Line, 1.0);
+			Class'RIText'.static.Draw(gc, Class'RIFontBody', X + (W - tw) * 0.5, Y, Line, C, 1.0);
+		}
+		Y += lh;
+	}
+}
+
+defaultproperties
+{
+     CreditsLabel="Credits"
+}
