@@ -63,7 +63,7 @@ function string MedLine()
 	if ((MedBot() == None) || (MedBot().medBot == None))
 		return "";
 	if (MedBot().medBot.CanHeal())
-		return Sprintf(MedReadyLabel, int(MedBot().medBot.healAmount));
+		return Sprintf(MedReadyLabel, MedBot().medBot.healAmount);
 	return MedChargingLabel;
 }
 
