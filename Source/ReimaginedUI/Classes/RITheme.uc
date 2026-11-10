@@ -14,7 +14,8 @@
 // colours) are left alone.
 //
 // The GMDX defaults (Menu: MJ12, HUD: Amber) and AE's "Default" leave the
-// designed palette exactly as it is.
+// designed palette as it is in Sleek and Modern (Amber gold); Vanilla+
+// shows it in the original game's neutral grey (see Map).
 //=============================================================================
 class RITheme extends Object
 	abstract;
@@ -175,7 +176,18 @@ static function Color Map(Color C)
 	if (default.Mode == 2)
 	{
 		if (!default.bHudOn)
-			return C;
+		{
+			// Vanilla+ defaults to the original game's neutral HUD (its Default
+			// theme: greys and white); Sleek and Modern keep GMDX's Amber gold.
+			// The gold palette loses its colour and keeps its lightness, so the
+			// layout's light and dark relationships are unchanged.
+			if (Class'RIRootWindow'.default.ScreenStyle != 1)
+				return C;
+			ToHSV(C.R, C.G, C.B, H, Sa, V);
+			if ((Sa < 0.15) || (H < 34) || (H > 58))
+				return C;
+			return FromHSV(H, 0, V);
+		}
 		ToHSV(C.R, C.G, C.B, H, Sa, V);
 		if ((Sa < 0.15) || (H < 34) || (H > 58))
 			return C;
