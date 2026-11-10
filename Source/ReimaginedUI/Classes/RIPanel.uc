@@ -1118,6 +1118,14 @@ event DrawWindow(GC gc)
 	a = Class'RIUtil'.static.Phase(Age, 0.0, 0.3);
 	gc.EnableSmoothing(True);
 
+	// Augmentique's Outfit Settings opens from the in-game Outfit page: the
+	// menus' blue palette is mapped to the persona gold while it draws
+	if (Screen.IsA('OutfitSettingsMenu'))
+	{
+		Class'RITheme'.static.SetMode(1);
+		Class'RITheme'.default.bGoldMenus = True;
+	}
+
 	if (bStandalone)
 		DrawOwnFrame(gc, a);
 

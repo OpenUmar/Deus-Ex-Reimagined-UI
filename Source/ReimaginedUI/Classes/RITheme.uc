@@ -19,6 +19,7 @@
 class RITheme extends Object
 	abstract;
 
+var bool  bGoldMenus;        // a menu screen that belongs to the game (Augmentique's Outfit Settings): its blue turns gold
 var int   Mode;              // 0 none, 1 menu palette (blue), 2 persona palette (gold), 3 main menu (blue, never Vanilla+)
 var bool  bMenuOn, bHudOn;   // a non-default theme is selected
 var float MenuHue, MenuSat, HudHue, HudSat;
@@ -33,6 +34,7 @@ const HUD_SAT  = 0.6;
 static function SetMode(int M)
 {
 	default.Mode = M;
+	default.bGoldMenus = False;
 }
 
 // Read both themes (cheap; called from the root's Tick a few times a second)
@@ -154,7 +156,7 @@ static function Color Map(Color C)
 	{
 		// Vanilla+: the menus' blue palette turns to the HUD's gold (or the
 		// HUD theme's colour), so the menus match the in-game screens
-		if ((default.Mode == 1) && Class'RIVP'.static.InMenus())
+		if ((default.Mode == 1) && (Class'RIVP'.static.InMenus() || default.bGoldMenus))
 		{
 			ToHSV(C.R, C.G, C.B, H, Sa, V);
 			if ((Sa < 0.08) || (H < 185) || (H > 255))

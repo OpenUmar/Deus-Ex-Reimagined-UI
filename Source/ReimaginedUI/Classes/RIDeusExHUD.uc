@@ -23,6 +23,19 @@ event InitWindow()
 {
 	Super.InitWindow();
 
+	// The crosshair, drawn thin (AE's when the HUD is on Classic)
+	if (cross != None)
+		cross.Destroy();
+	cross = Crosshair(NewChild(Class'RICrosshair'));
+
+	// Augmentation display (vision, targeting, drone feed), its boxes restyled;
+	// kept under the other HUD windows as AE has it
+	if (augDisplay != None)
+		augDisplay.Destroy();
+	augDisplay = AugmentationDisplayWindow(NewChild(Class'RIAugDisplay'));
+	augDisplay.SetWindowAlignments(HALIGN_Full, VALIGN_Full);
+	augDisplay.Lower();
+
 	if (frobDisplay != None)
 		frobDisplay.Destroy();
 	frobDisplay = FrobDisplayWindow(NewChild(Class'RIFrobDisplay'));

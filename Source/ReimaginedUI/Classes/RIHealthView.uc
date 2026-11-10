@@ -25,10 +25,47 @@ var float AnchorX[6], AnchorY[6], CardX[6], CardY[6];
 var float StatusAge;
 var Wound TraumaSel;
 
+var localized string MedTitle, MedHealLabel, MedReadyLabel, MedChargingLabel, MedHealedLabel;
 var localized string HealthTitle, StatusTitle, OverallLabel, MedkitsLabel, HealLabel, HealAllLabel;
 var localized string StepsLabel, DistanceLabel, TimeLabel, LocationLabel, ClassicLabel, HealedLabel;
 var localized string PartNames[6];
 var localized string HintText, TraumasLabel, TraumasOffLabel, AfflictedLabel, CureLabel, CuredLabel, KitsLabel;
+
+function HUDMedBotHealthScreen MedBot()
+{
+	return HUDMedBotHealthScreen(Screen);
+}
+
+// The med bot can heal now (charged, and there's damage to heal)
+function bool MedReady()
+{
+	return (MedBot() != None) && (MedBot().medBot != None) && MedBot().medBot.CanHeal() && MedBot().IsPlayerDamaged();
+}
+
+// Heal All button: medkits, or the bot on a med bot page
+function string HealAllText()
+{
+	if (MedBot() != None)
+		return MedHealLabel;
+	return HealAllLabel;
+}
+
+function bool HealAllLive()
+{
+	if (MedBot() != None)
+		return MedReady();
+	return MedkitCount() > 0;
+}
+
+// The bot's state, under the title on a med bot page
+function string MedLine()
+{
+	if ((MedBot() == None) || (MedBot().medBot == None))
+		return "";
+	if (MedBot().medBot.CanHeal())
+		return Sprintf(MedReadyLabel, int(MedBot().medBot.healAmount));
+	return MedChargingLabel;
+}
 
 function PersonaScreenHealth Health()
 {
@@ -98,6 +135,20 @@ function HealAll()
 {
 	local int i, pts;
 
+	if (MedBot() != None)
+	{
+		if (!MedReady())
+		{
+			PlaySound(Sound'Menu_Cancel', 0.25);
+			return;
+		}
+		MedBot().MedBotHealPlayer();
+		for (i = 0; i < 6; i++)
+			Flash[i] = 1.0;
+		StatusMsg = MedHealedLabel;
+		StatusAge = 0;
+		return;
+	}
 	if (MedkitCount() <= 0)
 	{
 		PlaySound(Sound'Menu_Cancel', 0.25);
@@ -224,7 +275,13 @@ function DrawPage(GC gc, float a)
 		DrawVPPage(gc, a);
 		return;
 	}
-	Heading(gc, OX + 140 * S, 170 * S, 1000 * S, HealthTitle, a);
+	if (MedBot() != None)
+	{
+		Heading(gc, OX + 140 * S, 170 * S, 1000 * S, MedTitle, a);
+		Class'RIText'.static.Draw(gc, Class'RIFontSmall', OX + 140 * S, 214 * S, Caps(MedLine()), AAcc(a), 0.8);
+	}
+	else
+		Heading(gc, OX + 140 * S, 170 * S, 1000 * S, HealthTitle, a);
 
 	// Body: AE's 219 x 357 figure, scaled up and centred in the left area
 	bh = 700 * S;
@@ -419,7 +476,7 @@ function DrawStatus(GC gc, float a)
 	// Actions: Heal all, Cure (the selected trauma)
 	y = 240 * S + h - 74 * S;
 	bw = (w - 12 * S) / 2;
-	DrawBtn(gc, x, y, bw, 50 * S, HealAllLabel, MedkitCount() > 0, HoverId == HOT_HEALALL, MedkitCount() > 0, a);
+	DrawBtn(gc, x, y, bw, 50 * S, HealAllText(), HealAllLive(), HoverId == HOT_HEALALL, HealAllLive(), a);
 	AddHot(HOT_HEALALL, x, y, bw, 50 * S);
 	DrawBtn(gc, x + bw + 12 * S, y, bw, 50 * S, CureLabel, CanCure(TraumaSel), HoverId == HOT_CURE, False, a);
 	AddHot(HOT_CURE, x + bw + 12 * S, y, bw, 50 * S);
@@ -600,7 +657,7 @@ function DrawVPStatus(GC gc, float a)
 	}
 	T = Caps(MedkitsLabel) @ string(MedkitCount());
 	Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', OX + 1182 * S, 756 * S, 350 * S, 30 * S, T, ATxt(a), 0, 0.6);
-	DrawBtn(gc, OX + 1182 * S, 800 * S, 168 * S, 40 * S, HealAllLabel, MedkitCount() > 0, HoverId == HOT_HEALALL, MedkitCount() > 0, a);
+	DrawBtn(gc, OX + 1182 * S, 800 * S, 168 * S, 40 * S, HealAllText(), HealAllLive(), HoverId == HOT_HEALALL, HealAllLive(), a);
 	AddHot(HOT_HEALALL, OX + 1182 * S, 800 * S, 168 * S, 40 * S);
 	DrawBtn(gc, OX + 1362 * S, 800 * S, 168 * S, 40 * S, CureLabel, CanCure(TraumaSel), HoverId == HOT_CURE, False, a);
 	AddHot(HOT_CURE, OX + 1362 * S, 800 * S, 168 * S, 40 * S);
@@ -622,6 +679,11 @@ defaultproperties
      MedkitsLabel="Medkits"
      HealLabel="Heal"
      HealAllLabel="Heal all"
+     MedTitle="Medical Bot"
+     MedHealLabel="Med bot heal"
+     MedReadyLabel="Med bot ready: restores %d points"
+     MedChargingLabel="Med bot recharging"
+     MedHealedLabel="The med bot patched you up"
      StepsLabel="Steps taken"
      DistanceLabel="Distance"
      TimeLabel="Time monitored"

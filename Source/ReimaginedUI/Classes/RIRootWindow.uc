@@ -57,6 +57,26 @@ event InitWindow()
 	Super.InitWindow();
 	bTickEnabled = True;
 	ReplaceHud();
+
+	// The scope / binocular view, restyled (AE's under the classic options)
+	if (scopeView != None)
+		scopeView.Destroy();
+	scopeView = DeusExScopeView(NewChild(Class'RIScopeView', False));
+	scopeView.SetWindowAlignments(HALIGN_Full, VALIGN_Full, 0, 0);
+
+	ApplyCursor(Self);
+}
+
+// The rebuilt arrow cursor (tip at 32,32 of its 64 x 64 texture), tinted
+// like AE's; set on the root and on every screen pushed (AE's screens set
+// their own in StyleChanged)
+function ApplyCursor(Window W)
+{
+	if (W == None)
+		return;
+	if (bClassicMenus && bClassicScreens)
+		return;
+	W.SetDefaultCursor(Texture'ReimaginedUI.UI.RI_Cursor', None, 32, 32, Class'RIUtil'.static.Raw(255, 241, 214));
 }
 
 // Swap AE's DeusExHUD (just made by Super.InitWindow) for RIDeusExHUD, which
@@ -366,14 +386,37 @@ function MaskBackground(bool bMask)
 		SetBackground(None);
 }
 
+// In-game devices (keypads, computers, ATMs, bots) get the rebuilt look in
+// the Sleek style only; Vanilla+ and Classic screens keep AE's for now
+function bool IsDeviceStyle()
+{
+	return !bClassicScreens && !Class'RIPersonaView'.default.bClassic && (ScreenStyle == 0);
+}
+
+// A device window at the top of the stack: dimmed plainly, no menu glow
+function bool IsDeviceWindow(Window W)
+{
+	return (RIKeypadContainer(W) != None) || (RIRechargeWindow(W) != None) || ((NetworkTerminal(W) != None) && IsDeviceStyle());
+}
+
 function Class<DeusExBaseWindow> RemapScreen(Class<DeusExBaseWindow> Requested)
 {
 	// In-game devices rebuilt natively, Sleek style only for now (Vanilla+
 	// and Classic screens keep AE's own until they get their own design)
-	if (!bClassicScreens && !Class'RIPersonaView'.default.bClassic && (ScreenStyle == 0))
+	if (IsDeviceStyle())
 	{
 		if (Requested == Class'DeusEx.HUDKeypadContainerWindow')
 			return Class'RIKeypadContainer';
+		if (Requested == Class'DeusEx.NetworkTerminalPersonal')
+			return Class'RITermPersonal';
+		if (Requested == Class'DeusEx.NetworkTerminalPublic')
+			return Class'RITermPublic';
+		if (Requested == Class'DeusEx.NetworkTerminalSecurity')
+			return Class'RITermSecurity';
+		if (Requested == Class'DeusEx.ATMWindow')
+			return Class'RITermATM';
+		if (Requested == Class'DeusEx.HUDRechargeWindow')
+			return Class'RIRechargeWindow';
 	}
 
 	// Classic menus: AE's own, plus the Interface entry in its settings list
@@ -395,6 +438,8 @@ function Class<DeusExBaseWindow> RemapScreen(Class<DeusExBaseWindow> Requested)
 		return Class'RIMenuSelectDifficulty';
 	if (Requested == Class'DeusEx.MenuScreenNewGame')
 		return Class'RIMenuScreenNewGame';
+	if (Requested == Class'DeusEx.CreditsWindow')
+		return Class'RICreditsWindow';
 
 	return Requested;
 }
@@ -434,6 +479,7 @@ function DeusExBaseWindow PushWindow(
 	local RIPersonaView Persona;
 	local Class<RIPersonaView> PersonaClass;
 	local Class<DeusExBaseWindow> Cls;
+	local RITerminalSkin TermSkin;
 
 	Cls   = RemapScreen(newWindowClass);
 	Shell = FindSettingsShell();
@@ -449,6 +495,18 @@ function DeusExBaseWindow PushWindow(
 	{
 		GuardInitCount("Push");
 		return None;
+	}
+	ApplyCursor(NewWin);
+
+	// Computers and ATMs (Sleek): AE's screens, re-skinned in gold from inside
+	if ((NetworkTerminal(NewWin) != None) && IsDeviceStyle())
+	{
+		TermSkin = RITerminalSkin(NewWin.NewChild(Class'RITerminalSkin'));
+		TermSkin.Term = NetworkTerminal(NewWin);
+		TermSkin.SetConfiguration(0, 0, NewWin.width, NewWin.height);
+		TermSkin.Lower();
+		GuardInitCount("Push " $ ClassOf(NewWin));
+		return NewWin;
 	}
 
 	// Classic in-game screens: AE's own pages, untouched
@@ -641,7 +699,7 @@ event DrawWindow(GC gc)
 		if (Top.IsA('PersonaScreenOutfits') && (bClassicScreens || Class'RIPersonaView'.default.bClassic))
 			return;
 		// In-game devices (keypad): a plain dim, without the menus' cool glow
-		if (RIKeypadContainer(Top) != None)
+		if (IsDeviceWindow(Top))
 		{
 			if (bAEMask && !IsIntroMap())
 				Class'RISkin'.static.DrawDim(gc, 0, 0, width, height, 0.55 * MenuFadeEased());
@@ -652,6 +710,12 @@ event DrawWindow(GC gc)
 		return;
 	}
 
+	// Augmentique's Outfit Settings belongs to the in-game screens: plain dim
+	if (Top.IsA('OutfitSettingsMenu') && InGameMenus())
+	{
+		Class'RISkin'.static.DrawDim(gc, 0, 0, width, height, 0.55 * MenuFadeEased());
+		return;
+	}
 	if (InGameMenus())
 		Class'RISkin'.static.DrawGameDim(gc, width, height, MenuFadeEased(), BackdropTime);
 	else if (RIMenuMain(Top) == None)

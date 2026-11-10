@@ -102,6 +102,10 @@ class RITextures extends Object
 #exec TEXTURE IMPORT NAME=VPH_Belt12_1 FILE=Textures\VPH_Belt12_1.pcx GROUP=VPlus MIPS=Off
 #exec TEXTURE IMPORT NAME=VPH_Belt12_2 FILE=Textures\VPH_Belt12_2.pcx GROUP=VPlus MIPS=Off
 #exec TEXTURE IMPORT NAME=VPH_Belt12_L FILE=Textures\VPH_Belt12_L.pcx GROUP=VPlus MIPS=Off
+// In-game devices and views (Sleek)
+#exec TEXTURE IMPORT NAME=RI_Cursor FILE=Textures\RI_Cursor.pcx GROUP=UI MIPS=Off FLAGS=2
+#exec TEXTURE IMPORT NAME=RI_ScopeMask FILE=Textures\RI_ScopeMask.pcx GROUP=UI MIPS=Off
+#exec TEXTURE IMPORT NAME=RI_BinocMask FILE=Textures\RI_BinocMask.pcx GROUP=UI MIPS=Off
 
 defaultproperties
 {

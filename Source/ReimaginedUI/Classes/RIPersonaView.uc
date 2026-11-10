@@ -378,9 +378,23 @@ function PersonaNavBarWindow Nav()
 	return PersonaNavBarWindow(Screen.winNavBar);
 }
 
+// The med bot's own nav (Health / Augmentations), when this is a med bot page
+function HUDMedBotNavBarWindow MedNav()
+{
+	return HUDMedBotNavBarWindow(Screen.winNavBar);
+}
+
 function BuildTabs()
 {
 	NumTabs = 0;
+	if (MedNav() != None)
+	{
+		AddTab(TAB_HEALTH);
+		AddTab(TAB_AUGS);
+		AddTab(TAB_EXIT);
+		NumSubs = 0;
+		return;
+	}
 	AddTab(TAB_INV);
 	AddTab(TAB_HEALTH);
 	AddTab(TAB_AUGS);
@@ -496,6 +510,19 @@ function GoScreen(int Id)
 
 	if (Id == ActiveTab)
 		return;
+	if (MedNav() != None)
+	{
+		if (Id == TAB_HEALTH)
+			B = MedNav().btnHealth;
+		else if (Id == TAB_AUGS)
+			B = MedNav().btnAugs;
+		if (B != None)
+		{
+			PlaySound(Sound'Menu_Press', 0.25);
+			MedNav().ButtonActivated(B);
+		}
+		return;
+	}
 	if (Nav() == None)
 		return;
 	if (Id == TAB_INV)         B = Nav().btnInventory;
@@ -1205,6 +1232,14 @@ function CycleMain(int Dir)
 	local int i, Here, Cur;
 
 	Cur = MainOf(ActiveTab);
+	if (MedNav() != None)
+	{
+		if (Cur == TAB_HEALTH)
+			GoTab(TAB_AUGS);
+		else
+			GoTab(TAB_HEALTH);
+		return;
+	}
 	Here = 0;
 	for (i = 0; i < 5; i++)
 		if (MainAt(i) == Cur)

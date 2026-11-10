@@ -8,17 +8,21 @@
 class RISkin extends ExtensionObject
 	abstract;
 
+var bool bGold;     // see TextIdle()
+
 // ----------------------------------------------------------------------
 // Palette
 // ----------------------------------------------------------------------
 
-static final function Color TextIdle()     { return Class'RIUtil'.static.Col(190, 194, 238); }
-static final function Color TextHot()      { return Class'RIUtil'.static.Col(255, 255, 255); }
-static final function Color TextDim()      { return Class'RIUtil'.static.Col(84, 88, 136); }
-static final function Color TextHeader()   { return Class'RIUtil'.static.Col(95, 200, 255); }
-static final function Color ButtonTint()   { return Class'RIUtil'.static.Col(95, 104, 255); }
-static final function Color Highlight()    { return Class'RIUtil'.static.Col(52, 56, 160); }
-static final function Color FocusLine()   { return Class'RIUtil'.static.Col(166, 170, 255); }
+// bGold: set round a skin pass for in-game devices (computers, ATMs, bots),
+// which take the persona gold instead of the menus' blue
+static final function Color TextIdle()     { if (default.bGold) return Class'RIUtil'.static.Col(230, 195, 117); return Class'RIUtil'.static.Col(190, 194, 238); }
+static final function Color TextHot()      { if (default.bGold) return Class'RIUtil'.static.Col(255, 241, 194); return Class'RIUtil'.static.Col(255, 255, 255); }
+static final function Color TextDim()      { if (default.bGold) return Class'RIUtil'.static.Col(110, 92, 46); return Class'RIUtil'.static.Col(84, 88, 136); }
+static final function Color TextHeader()   { if (default.bGold) return Class'RIUtil'.static.Col(242, 211, 107); return Class'RIUtil'.static.Col(95, 200, 255); }
+static final function Color ButtonTint()   { if (default.bGold) return Class'RIUtil'.static.Col(176, 146, 72); return Class'RIUtil'.static.Col(95, 104, 255); }
+static final function Color Highlight()    { if (default.bGold) return Class'RIUtil'.static.Col(76, 62, 26); return Class'RIUtil'.static.Col(52, 56, 160); }
+static final function Color FocusLine()   { if (default.bGold) return Class'RIUtil'.static.Col(230, 195, 117); return Class'RIUtil'.static.Col(166, 170, 255); }
 
 // ----------------------------------------------------------------------
 // Safe hiding. The engine readies new windows (WindowReady) by walking only
@@ -158,6 +162,12 @@ static function SkinWidget(Window W)
 		return;
 	}
 
+	if (default.bGold && (PersonaBorderButtonWindow(W) != None))
+	{
+		SetPersonaButton(PersonaBorderButtonWindow(W));
+		return;
+	}
+
 	List = MenuUIListWindow(W);
 	if (List != None)
 	{
@@ -179,7 +189,10 @@ static function SkinWidget(Window W)
 
 	if (MenuUIHelpWindow(W) != None)
 	{
-		MenuUIHelpWindow(W).colText = Class'RIUtil'.static.Col(176, 182, 236);
+		if (default.bGold)
+			MenuUIHelpWindow(W).colText = TextIdle();
+		else
+			MenuUIHelpWindow(W).colText = Class'RIUtil'.static.Col(176, 182, 236);
 		MenuUIHelpWindow(W).SetTextColor(MenuUIHelpWindow(W).colText);
 		return;
 	}
@@ -211,10 +224,80 @@ static function SkinWidget(Window W)
 	{
 		MenuUIScrollAreaWindow(W).upButton.SetButtonColors(ButtonTint(), ButtonTint(), ButtonTint(), ButtonTint(), ButtonTint(), ButtonTint());
 		MenuUIScrollAreaWindow(W).downButton.SetButtonColors(ButtonTint(), ButtonTint(), ButtonTint(), ButtonTint(), ButtonTint(), ButtonTint());
-		MenuUIScrollAreaWindow(W).vScale.SetScaleColor(Class'RIUtil'.static.Col(40, 44, 120));
+		if (default.bGold)
+			MenuUIScrollAreaWindow(W).vScale.SetScaleColor(Highlight());
+		else
+			MenuUIScrollAreaWindow(W).vScale.SetScaleColor(Class'RIUtil'.static.Col(40, 44, 120));
 		MenuUIScrollAreaWindow(W).vScale.SetThumbColor(FocusLine());
 		return;
 	}
+}
+
+// Persona buttons (Ice Breaker, bots): the outlined button, gold
+static function SetPersonaButton(PersonaBorderButtonWindow Btn)
+{
+	Btn.Left_Textures[0].Tex     = Texture'ReimaginedUI.UI.RI_OutL';   Btn.Left_Textures[0].Width   = 2;
+	Btn.Left_Textures[1].Tex     = Texture'ReimaginedUI.UI.RI_OutLP';  Btn.Left_Textures[1].Width   = 2;
+	Btn.Center_Textures[0].Tex   = Texture'ReimaginedUI.UI.RI_OutC';   Btn.Center_Textures[0].Width = 2;
+	Btn.Center_Textures[1].Tex   = Texture'ReimaginedUI.UI.RI_OutCP';  Btn.Center_Textures[1].Width = 2;
+	Btn.Right_Textures[0].Tex    = Texture'ReimaginedUI.UI.RI_OutR';   Btn.Right_Textures[0].Width  = 2;
+	Btn.Right_Textures[1].Tex    = Texture'ReimaginedUI.UI.RI_OutRP';  Btn.Right_Textures[1].Width  = 2;
+	Btn.bTranslucent  = True;
+	Btn.colButtonFace = ButtonTint();
+	Btn.colText[0] = TextIdle();
+	Btn.colText[1] = TextHot();
+	Btn.colText[2] = TextHot();
+	Btn.colText[3] = TextDim();
+}
+
+// ----------------------------------------------------------------------
+// In-game devices (Sleek): AE's widgets restyled in the persona gold, AE's
+// frame pieces hidden (RITerminalSkin draws the panel behind them)
+// ----------------------------------------------------------------------
+
+static function SkinComputer(ComputerUIWindow S)
+{
+	local int i;
+
+	if (S == None)
+		return;
+	default.bGold = True;
+	SafeHide(S.winTitle);
+	SafeHide(S.winLeftEdge);
+	SafeHide(S.winRightEdge);
+	if (S.winClient != None)
+		for (i = 0; i < arrayCount(S.winClient.clientTextures); i++)
+			if (S.winClient.clientTextures[i] != None)
+				S.winClient.SetClientTexture(i, Texture'ReimaginedUI.UI.RI_Clear');
+	SkinTree(S);
+	default.bGold = False;
+}
+
+// AE's HUD-style device windows (Ice Breaker, account list): their own
+// background and border art is swapped for clear, the widgets go gold
+static function SkinDeviceTree(Window W)
+{
+	default.bGold = True;
+	SkinTree(W);
+	default.bGold = False;
+}
+
+// The Sleek device panel (keypad, notes, computers, bots): soft shade round
+// it, darkened and lightly filled, hairline gold edge, an accent bar on the
+// top-left, and an optional Michroma title in a strip above. K = UI units per
+// 1080p pixel (0.5 at 1080p in root units; pass the window's own scale).
+static function GoldPanel(GC gc, float X, float Y, float W, float H, float K, float a, optional string Title)
+{
+	gc.SetStyle(DSTY_Modulated);
+	gc.DrawStretchedTexture(X - 60 * K, Y - 60 * K, W + 120 * K, H + 120 * K, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_ShadeC');
+	Class'RIVP'.static.Dim(gc, X, Y, W, H);
+	Class'RIVP'.static.Dim(gc, X, Y, W, H);
+	FillC(gc, X, Y, W, H, Class'RIUtil'.static.Col(12 * a, 10 * a, 4 * a));
+	Class'RIText'.static.Box(gc, X, Y, W, H, Class'RIUtil'.static.Col(126 * a, 105 * a, 50 * a));
+	FillC(gc, X, Y, FMin(120 * K, W), 3 * K, Class'RIVP'.static.Acc(a));
+	if (Title != "")
+		Class'RIText'.static.Draw(gc, Class'RIFontHead', X + 2 * K, Y - 34 * K, Caps(Title),
+			Class'RIUtil'.static.Col(255 * a, 241 * a, 194 * a), 1.24 * K);
 }
 
 // The message in a message box sits in winClient, inside the box itself

@@ -15,8 +15,12 @@ const HOT_ACTIVATE = 50;
 const HOT_UPGRADE  = 51;
 const HOT_CELL     = 52;
 const HOT_CLASSIC  = 53;
+const HOT_INSTALL  = 54;      // med bot: install the chosen aug
+const HOT_CANAUG   = 60;      // + index: an aug offered by a canister (med bot)
 
 var int   Sel;
+var HUDMedBotAugItemButton CanBtn[24];     // med bot: the canisters' aug choices, in draw order
+var int   NumCanBtn;
 var float DescAge;
 var float DescScroll, DescScrollTarget, DescMax, DescTop, DescBottom;
 
@@ -27,7 +31,13 @@ var localized string AugsTitle, EnergyLabel, CansLabel, CellsLabel, LevelLabel, 
 var localized string ActivateLabel, DeactivateLabel, UpgradeLabel, MaxedLabel, CellLabel, ClassicLabel;
 var localized string LocNames[7];
 var localized string TypeNames[4];
+var localized string MedTitle, MedPick, MedNoCans, InstallLabel, ReplaceLabel, HasItLabel, SlotFullLabel, CanLabel;
 var localized string EmptyLabel, PickLabel, OnLabel, HintText, KeyLabel, NoKeyLabel, RebindLabel;
+
+function HUDMedBotAddAugsScreen MBA()
+{
+	return HUDMedBotAddAugsScreen(Screen);
+}
 
 function PersonaScreenAugmentations Augs()
 {
@@ -117,6 +127,25 @@ function PageClick(int Id, EInputKey button, int numClicks)
 {
 	if (button != IK_LeftMouse)
 		return;
+	// Med bot: only the canister panel acts (the installed list is for viewing)
+	if (MBA() != None)
+	{
+		if ((Id >= HOT_CANAUG) && (Id < HOT_CANAUG + NumCanBtn) && (CanBtn[Id - HOT_CANAUG] != None))
+		{
+			MBA().SelectAugmentation(CanBtn[Id - HOT_CANAUG]);
+			PlaySound(Sound'Menu_Press', 0.2);
+			if ((numClicks >= 2) && MBA().btnInstall.IsSensitive())
+				MBA().InstallAugmentation();
+		}
+		else if ((Id == HOT_INSTALL) && MBA().btnInstall.IsSensitive())
+			MBA().InstallAugmentation();
+		else if ((Id >= HOT_AUG) && (Id < HOT_AUG + 13))
+		{
+			SelectAug(Id - HOT_AUG);
+			PlaySound(Sound'Menu_Press', 0.2);
+		}
+		return;
+	}
 	if ((Id >= HOT_AUG) && (Id < HOT_AUG + 13))
 	{
 		SelectAug(Id - HOT_AUG);
@@ -361,6 +390,110 @@ function DrawLocCard(GC gc, int L, float X, float Y, float W, float a)
 	}
 }
 
+// Med bot: the canisters in the player's inventory, each offering two augs.
+// Picking one and installing goes through AE's own SelectAugmentation /
+// InstallAugmentation, so slot, respec and duplicate rules are unchanged.
+function DrawMedBot(GC gc, float a)
+{
+	local float x, y, w, h, rh, bottom;
+	local Window C;
+	local HUDMedBotAugCanWindow Can;
+	local HUDMedBotAugItemButton B;
+	local Augmentation Aug;
+	local int k;
+	local bool bSel, bHot, bLive;
+	local string Tag, L;
+
+	x = OX + 1180 * S;
+	y = 240 * S;
+	w = 600 * S;
+	h = 700 * S;
+	Panel(gc, x, y, w, h, a);
+	x += 26 * S;
+	w -= 52 * S;
+	y += 24 * S;
+	bottom = 240 * S + h - 90 * S;
+	Class'RIText'.static.Draw(gc, Class'RIFontHead', x, y, Caps(MedTitle), ATxt(a), 0.62);
+	y += 36 * S;
+	Class'RIText'.static.Draw(gc, Class'RIFontSmall', x, y, MedPick, ALbl(a), 0.72);
+	y += 34 * S;
+
+	NumCanBtn = 0;
+	rh = 52 * S;
+	if (MBA().winAugsTile != None)
+	{
+		for (C = MBA().winAugsTile.GetBottomChild(); C != None; C = C.GetHigherSibling())
+		{
+			Can = HUDMedBotAugCanWindow(C);
+			if ((Can == None) || (y + 26 * S + rh * 2 > bottom))
+				continue;
+			L = CanLabel;
+			if (Can.augCan != None)
+				L = Can.augCan.ItemName;
+			Class'RIText'.static.Draw(gc, Class'RIFontSmall', x, y, Caps(L), ALbl(a), 0.68);
+			Fill(gc, x, y + 22 * S, w, 1 * S, ADim(a));
+			y += 30 * S;
+			for (k = 0; k < 2; k++)
+			{
+				if (k == 0)
+					B = Can.btnAug1;
+				else
+					B = Can.btnAug2;
+				if ((B == None) || (NumCanBtn >= 24))
+					continue;
+				Aug = B.GetAugmentation();
+				if (Aug == None)
+					continue;
+				CanBtn[NumCanBtn] = B;
+				bSel = (MBA().selectedAugButton == B);
+				bHot = (HoverId == HOT_CANAUG + NumCanBtn);
+				bLive = !((B.bHasIt || B.bSlotFull) && !B.bCanRespec);
+				if (bSel)
+					SelRow(gc, x, y, w, rh - 6 * S, a);
+				else if (bHot)
+					Fill(gc, x, y, w, rh - 6 * S, C3(30, 25, 11, a));
+				if (Aug.icon != None)
+				{
+					gc.SetStyle(DSTY_Masked);
+					if (bLive)
+						gc.SetTileColor(C3(255, 255, 255, a));
+					else
+						gc.SetTileColor(C3(110, 110, 110, a));
+					Class'RIHD'.static.DrawStretched(gc, x + 6 * S, y + 4 * S, 38 * S, 38 * S, 0, 0, Aug.icon.USize, Aug.icon.VSize, Aug.icon);
+				}
+				if (bLive)
+					Class'RIText'.static.Draw(gc, Class'RIFontBody', x + 56 * S, y + 6 * S, Class'RIText'.static.Fit(Class'RIFontBody', Aug.AugmentationName, w - 220 * S, 0.8), ATxt(a), 0.8);
+				else
+					Class'RIText'.static.Draw(gc, Class'RIFontBody', x + 56 * S, y + 6 * S, Class'RIText'.static.Fit(Class'RIFontBody', Aug.AugmentationName, w - 220 * S, 0.8), ALbl(a * 0.7), 0.8);
+				Tag = "";
+				if (B.bCanRespec)
+					Tag = ReplaceLabel;
+				else if (B.bHasIt)
+					Tag = HasItLabel;
+				else if (B.bSlotFull)
+					Tag = SlotFullLabel;
+				else
+					Tag = LocNames[Clamp(int(Aug.AugmentationLocation), 0, 6)];
+				Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', x, y, w - 12 * S, rh - 6 * S, Caps(Tag), AAcc(a * 0.85), 2, 0.64);
+				AddHot(HOT_CANAUG + NumCanBtn, x, y, w, rh - 6 * S);
+				NumCanBtn++;
+				y += rh;
+			}
+			y += 10 * S;
+		}
+	}
+	if (NumCanBtn == 0)
+		Class'RIText'.static.DrawWrapped(gc, Class'RIFontBody', x, y, w, MedNoCans, ALbl(a), 0.8);
+
+	// Install (or Replace, for a respec) along the bottom
+	L = InstallLabel;
+	if ((HUDMedBotAugItemButton(MBA().selectedAugButton) != None) && HUDMedBotAugItemButton(MBA().selectedAugButton).bCanRespec)
+		L = ReplaceLabel;
+	bLive = MBA().btnInstall.IsSensitive();
+	DrawBtn(gc, x, bottom + 20 * S, w, 50 * S, L, bLive, HoverId == HOT_INSTALL, bLive, a);
+	AddHot(HOT_INSTALL, x, bottom + 20 * S, w, 50 * S);
+}
+
 function DrawDetail(GC gc, float a)
 {
 	local float x, y, w, h, da, f, bw, th, sh, kh;
@@ -368,6 +501,11 @@ function DrawDetail(GC gc, float a)
 	local string T;
 	local int cans, cells, st;
 
+	if (MBA() != None)
+	{
+		DrawMedBot(gc, a);
+		return;
+	}
 	x = OX + 1180 * S;
 	y = 240 * S;
 	w = 600 * S;
@@ -599,6 +737,14 @@ function DrawVPDetail(GC gc, float a)
 defaultproperties
 {
      AugsTitle="Augmentations"
+     MedTitle="Medical Bot"
+     MedPick="Choose an augmentation from a canister, then install it."
+     MedNoCans="No augmentation canisters in your inventory."
+     InstallLabel="Install"
+     ReplaceLabel="Replace"
+     HasItLabel="Installed"
+     SlotFullLabel="Slot full"
+     CanLabel="Augmentation canister"
      EnergyLabel="Bioelectric energy"
      CansLabel="Upgrade canisters"
      CellsLabel="Bioelectric cells"

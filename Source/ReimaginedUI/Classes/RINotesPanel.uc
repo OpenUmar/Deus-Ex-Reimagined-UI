@@ -56,6 +56,55 @@ function CreateNotesList()
 		currentNote = Shown[0];
 }
 
+// NetworkTerminal.AddNotesWindow with this panel in place of AE's (same
+// note choice: the logins / PINs this computer or ATM knows)
+static function AddTerminalNotes(NetworkTerminal T)
+{
+	local DeusExNote codeNotes[10];
+	local DeusExNote note;
+	local int numCodes, i;
+	local Computers C;
+	local ATM A;
+	local DeusExPlayer P;
+
+	P = T.player;
+	if ((P == None) || !P.bShowCodeNotes || P.RandomizerEnabled())
+		return;
+	C = Computers(T.compOwner);
+	A = ATM(T.compOwner);
+	if (C != None)
+	{
+		for (i = 0; i < 8; i++)
+		{
+			note = P.GetCodeNote(C.GetUserName(i), C.GetPassword(i), true);
+			if (note != None)
+				codeNotes[numCodes++] = note;
+		}
+	}
+	else if (A != None)
+	{
+		for (i = 0; i < 8; i++)
+		{
+			note = P.GetCodeNote(A.GetAccountNumber(i), A.GetPIN(i), true);
+			if (note != None)
+				codeNotes[numCodes++] = note;
+		}
+	}
+	if ((numCodes == 0) && ((!P.bHardCoreMode && (P.iNoKeypadCheese == 0)) || P.bGMDXDebug))
+		return;
+	if (!P.HasAnyNotes())
+		return;
+	if (T.winNotes == None)
+		T.winNotes = HUDKeypadNotesWindow(T.NewChild(Class'RINotesPanel'));
+	for (i = 0; i < numCodes; i++)
+		T.winNotes.AddNote(codeNotes[i]);
+	T.winNotes.SetEditable(!P.bAutofillPasswords);
+	T.winNotes.CreateNotesList();
+	T.winNotes.StyleChanged();
+	T.winNotes.SetParentWindow(T);
+	T.winNotes.Hide();
+}
+
 function float UIS()
 {
 	return GetRootWindow().height / 1080.0;
