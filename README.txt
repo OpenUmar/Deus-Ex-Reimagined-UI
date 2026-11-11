@@ -1,4 +1,4 @@
-Reimagined UI - add-on for GMDX: Augmented Edition (personal use)
+Reimagined UI - add-on for Deus Ex
 UI concept after Tanit Mesa's "Deus Ex 2000: Reimagined - UX/UI" (ArtStation).
 =================================================================
 
