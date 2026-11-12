@@ -206,7 +206,7 @@ static function float SubHeight(float W, float K, string Speaker, string T)
 // ----------------------------------------------------------------------
 
 static function float ToastRow(GC gc, float RightX, float Y, float K, Texture Icon, string Label, int Qty,
-	bool bDeclined, float a)
+	bool bDeclined, float a, optional bool bInBox)
 {
 	local float iw, ih, rh, lw, qw, rowW, x0;
 	local string Q;
@@ -220,7 +220,11 @@ static function float ToastRow(GC gc, float RightX, float Y, float K, Texture Ic
 	qw = Class'RIText'.static.Width(Class'RIFontHead', Q, 0.52);
 	rowW = 14 * K + iw + 14 * K + lw + 14 * K + qw + 16 * K;
 	x0 = RightX - rowW;
-	if (Class'RIVP'.static.On())
+	if (bInBox)
+	{
+		// drawn inside ToastBox's frame: no panel of its own
+	}
+	else if (Class'RIVP'.static.On())
 	{
 		Class'RIVP'.static.Panel(gc, x0, Y, rowW, rh - 4 * K, 8 * K, a);
 	}
@@ -249,6 +253,43 @@ static function float ToastRow(GC gc, float RightX, float Y, float K, Texture Ic
 	Class'RIText'.static.DrawIn(gc, Class'RIFontHead', x0 + 42 * K + iw + lw, Y, qw + 4 * K, ih + 6 * K, Q,
 		Class'RIUtil'.static.Col(242 * a, 211 * a, 107 * a), 0, 0.52);
 	return rh;
+}
+
+// Width of one ToastRow (the same sum ToastRow makes)
+static function float ToastRowW(float K, string Label, int Qty)
+{
+	local float lw, qw;
+
+	lw = Class'RIText'.static.Width(Class'RIFontBody', Caps(Label), 0.76);
+	qw = Class'RIText'.static.Width(Class'RIFontHead', "x" $ string(Max(1, Qty)), 0.52);
+	return 14 * K + 42 * K + 14 * K + lw + 14 * K + qw + 16 * K;
+}
+
+static function float ToastBoxH(float K, int Rows)
+{
+	return 46 * K + Rows * 47 * K + 6 * K;
+}
+
+// Vanilla+: one box holding the whole list (it grows a row per item as
+// more come in), right edge at RightX: the game darkened behind, the
+// mechanical frame with the original DX trim, the title over a rule.
+// RowsW is the widest row. Returns the left edge for the rows; they start
+// at Top + 46 * K.
+static function float ToastBox(GC gc, float RightX, float Top, float K, string Title, float RowsW, int Rows, float a)
+{
+	local float w, h, x0;
+
+	Title = Caps(Title);
+	w = FMax(RowsW, Class'RIText'.static.Width(Class'RIFontSmall', Title, 0.66) + 40 * K) + 12 * K;
+	w = FMax(w, 260 * K);
+	h = ToastBoxH(K, Rows);
+	x0 = RightX - w;
+	Class'RIVP'.static.Dim(gc, x0 + 3 * K, Top + 3 * K, w - 6 * K, h - 6 * K);
+	Class'RIVP'.static.Frame(gc, x0, Top, w, h, 12 * K, a);
+	Class'RIText'.static.Draw(gc, Class'RIFontSmall', x0 + 20 * K, Top + 12 * K, Title,
+		Class'RIUtil'.static.Col(242 * a, 211 * a, 107 * a), 0.66);
+	Class'RIText'.static.HLine(gc, x0 + 20 * K, Top + 38 * K, w - 40 * K, Class'RIUtil'.static.Col(126 * a, 105 * a, 50 * a));
+	return x0 + 6 * K;
 }
 
 static function ToastTitle(GC gc, float RightX, float Y, float K, string Title, float a)

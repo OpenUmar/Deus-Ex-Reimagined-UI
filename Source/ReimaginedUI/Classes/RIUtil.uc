@@ -5,6 +5,65 @@
 class RIUtil extends Object
 	abstract;
 
+// ----------------------------------------------------------------------
+// Properties by name. Each base mod adds its own settings and fields (AE's
+// bHardCoreMode, bShowMarkers, ...). Reading them by name compiles against
+// any DeusEx.u: on a base without the property the text is empty, so a
+// flag reads False and a number reads 0.
+// ----------------------------------------------------------------------
+
+static final function bool PHas(Object O, string N)
+{
+	return (O != None) && (O.GetPropertyText(N) != "");
+}
+
+static final function string PStr(Object O, string N)
+{
+	if (O == None)
+		return "";
+	return O.GetPropertyText(N);
+}
+
+static final function bool PBool(Object O, string N)
+{
+	if (O == None)
+		return False;
+	return O.GetPropertyText(N) ~= "True";
+}
+
+static final function int PInt(Object O, string N)
+{
+	if (O == None)
+		return 0;
+	return int(O.GetPropertyText(N));
+}
+
+static final function PSetBool(Object O, string N, bool B)
+{
+	if (PHas(O, N))
+		O.SetPropertyText(N, string(B));
+}
+
+// Flips a flag and returns its new value
+static final function bool PToggle(Object O, string N)
+{
+	PSetBool(O, N, !PBool(O, N));
+	return PBool(O, N);
+}
+
+// Play time as hh:mm:ss (AE's Health screen format)
+static final function string ClockTime(int Seconds)
+{
+	return Two(Seconds / 3600) $ ":" $ Two((Seconds / 60) % 60) $ ":" $ Two(Seconds % 60);
+}
+
+static final function string Two(int N)
+{
+	if (N < 10)
+		return "0" $ string(N);
+	return string(N);
+}
+
 static final function Color Col(float R, float G, float B)
 {
 	local Color C;

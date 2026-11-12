@@ -23,7 +23,7 @@ var float Flash[6];
 var string StatusMsg;
 var float AnchorX[6], AnchorY[6], CardX[6], CardY[6];
 var float StatusAge;
-var Wound TraumaSel;
+var Object TraumaSel;      // a trauma (base feature), read through RIBase
 
 var localized string MedTitle, MedHealLabel, MedReadyLabel, MedChargingLabel, MedHealedLabel;
 var localized string HealthTitle, StatusTitle, OverallLabel, MedkitsLabel, HealLabel, HealAllLabel;
@@ -124,7 +124,7 @@ function HealOne(int i)
 	pts = Health().HealPart(Health().regionWindows[i]);
 	Player.PopHealth(Health().playerHealth[0], Health().playerHealth[1], Health().playerHealth[2],
 		Health().playerHealth[3], Health().playerHealth[4], Health().playerHealth[5]);
-	Player.ResetAim();
+	Class'RIBase'.static.ResetAim(Player);
 	Health().EnableButtons();
 	Flash[i] = 1.0;
 	StatusMsg = Sprintf(HealedLabel, pts);
@@ -193,21 +193,19 @@ function PageClick(int Id, EInputKey button, int numClicks)
 
 function int TraumaCount()
 {
-	if ((Player.WoundManager == None) || !Player.bWoundSystem)
-		return 0;
-	return Player.WoundManager.GetWoundNumber();
+	return Class'RIBase'.static.TraumaCount(Player);
 }
 
-function Wound TraumaAt(int i)
+function Object TraumaAt(int i)
 {
 	if ((i < 0) || (i >= TraumaCount()))
 		return None;
-	return Player.WoundManager.GetWoundByIndex(i);
+	return Class'RIBase'.static.TraumaAt(Player, i);
 }
 
-function bool CanCure(Wound W)
+function bool CanCure(Object W)
 {
-	return (W != None) && W.HasWound() && (MedkitCount() > 0) && (MedkitCount() >= W.GetRequiredMedkits());
+	return (W != None) && Class'RIBase'.static.TraumaActive(W) && (MedkitCount() > 0) && (MedkitCount() >= Class'RIBase'.static.TraumaKits(W));
 }
 
 // The same steps AE's Cure Trauma button takes
@@ -218,11 +216,10 @@ function Cure()
 		PlaySound(Sound'Menu_Cancel', 0.25);
 		return;
 	}
-	Health().RemoveTraumaMedkits(TraumaSel);
-	TraumaSel.RemoveWound();
+	Class'RIBase'.static.TraumaCure(Health(), TraumaSel);
 	Health().UpdateMedKits();
 	Health().EnableButtons();
-	StatusMsg = Sprintf(CuredLabel, TraumaSel.WoundName);
+	StatusMsg = Sprintf(CuredLabel, Class'RIBase'.static.TraumaName(TraumaSel));
 	StatusAge = 0;
 }
 
@@ -461,11 +458,14 @@ function DrawStatus(GC gc, float a)
 		Loc = Info.MissionLocation;
 	StatLine(gc, x, y, w, LocationLabel, Loc, a);
 	y += 34 * S;
-	StatLine(gc, x, y, w, StepsLabel, string(Player.stepCount), a);
-	y += 34 * S;
-	StatLine(gc, x, y, w, DistanceLabel, string(int(Player.stepCount * 0.0005)) $ " mi", a);
-	y += 34 * S;
-	StatLine(gc, x, y, w, TimeLabel, Health().BuildElapsedPlayTimeString(int(Player.saveTime)), a);
+	if (Class'RIUtil'.static.PHas(Player, "stepCount"))
+	{
+		StatLine(gc, x, y, w, StepsLabel, string(Class'RIUtil'.static.PInt(Player, "stepCount")), a);
+		y += 34 * S;
+		StatLine(gc, x, y, w, DistanceLabel, string(int(Class'RIUtil'.static.PInt(Player, "stepCount") * 0.0005)) $ " mi", a);
+		y += 34 * S;
+	}
+	StatLine(gc, x, y, w, TimeLabel, Class'RIUtil'.static.ClockTime(int(Player.saveTime)), a);
 	y += 48 * S;
 
 	DrawTraumas(gc, x, y, w, 240 * S + h - 120 * S, a);
@@ -475,11 +475,17 @@ function DrawStatus(GC gc, float a)
 
 	// Actions: Heal all, Cure (the selected trauma)
 	y = 240 * S + h - 74 * S;
-	bw = (w - 12 * S) / 2;
+	if (Class'RIBase'.static.Has("Traumas"))
+		bw = (w - 12 * S) / 2;
+	else
+		bw = w;
 	DrawBtn(gc, x, y, bw, 50 * S, HealAllText(), HealAllLive(), HoverId == HOT_HEALALL, HealAllLive(), a);
 	AddHot(HOT_HEALALL, x, y, bw, 50 * S);
-	DrawBtn(gc, x + bw + 12 * S, y, bw, 50 * S, CureLabel, CanCure(TraumaSel), HoverId == HOT_CURE, False, a);
-	AddHot(HOT_CURE, x + bw + 12 * S, y, bw, 50 * S);
+	if (Class'RIBase'.static.Has("Traumas"))
+	{
+		DrawBtn(gc, x + bw + 12 * S, y, bw, 50 * S, CureLabel, CanCure(TraumaSel), HoverId == HOT_CURE, False, a);
+		AddHot(HOT_CURE, x + bw + 12 * S, y, bw, 50 * S);
+	}
 }
 
 // One row per trauma: icon, name, "afflicted" (and the medkits a cure
@@ -488,11 +494,14 @@ function DrawTraumas(GC gc, float X, float Y, float W, float Bottom, float a)
 {
 	local int i, n, kits;
 	local float rh, f;
-	local Wound Wd;
+	local Object Wd;
 	local bool bSel;
 	local string R;
 	local Color BC;
+	local Texture WIc;
 
+	if (!Class'RIBase'.static.Has("Traumas"))
+		return;
 	Class'RIText'.static.Draw(gc, Class'RIFontSmall', X, Y, Caps(TraumasLabel), AAcc(a), 0.7);
 	Class'RIText'.static.HLine(gc, X, Y + 22 * S, W, ADim(a));
 	Y += 30 * S;
@@ -505,11 +514,11 @@ function DrawTraumas(GC gc, float X, float Y, float W, float Bottom, float a)
 	for (i = 0; (i < TraumaCount()) && (i < 16); i++)
 	{
 		Wd = TraumaAt(i);
-		if ((Wd == None) || Wd.bNoDisplay)
+		if ((Wd == None) || Class'RIBase'.static.TraumaHidden(Wd))
 			continue;
 		if (Y + rh > Bottom)
 			break;
-		if ((TraumaSel == None) && Wd.HasWound())
+		if ((TraumaSel == None) && Class'RIBase'.static.TraumaActive(Wd))
 			TraumaSel = Wd;
 		bSel = (Wd == TraumaSel);
 		if (bSel)
@@ -518,31 +527,32 @@ function DrawTraumas(GC gc, float X, float Y, float W, float Bottom, float a)
 			Class'RIText'.static.Box(gc, X, Y, W, rh - 3 * S, AEdge(a));
 		AddHot(HOT_TRAUMA + i, X, Y, W, rh - 3 * S);
 
-		if (Wd.WoundIcon != None)
+		WIc = Class'RIBase'.static.TraumaIcon(Wd);
+		if (WIc != None)
 		{
 			gc.SetStyle(DSTY_Masked);
 			gc.SetTileColor(C3(255, 255, 255, a));
-			Class'RIHD'.static.DrawStretched(gc, X + 4 * S, Y + 2 * S, 25 * S, 25 * S, 0, 0, Wd.WoundIcon.USize, Wd.WoundIcon.VSize, Wd.WoundIcon);
+			Class'RIHD'.static.DrawStretched(gc, X + 4 * S, Y + 2 * S, 25 * S, 25 * S, 0, 0, WIc.USize, WIc.VSize, WIc);
 		}
-		Class'RIText'.static.DrawIn(gc, Class'RIFontBody', X + 38 * S, Y, W * 0.5, rh - 6 * S, Wd.WoundName, ATxt(a), 0, 0.7);
+		Class'RIText'.static.DrawIn(gc, Class'RIFontBody', X + 38 * S, Y, W * 0.5, rh - 6 * S, Class'RIBase'.static.TraumaName(Wd), ATxt(a), 0, 0.7);
 
-		f = FClamp(float(Wd.GetDamage()) / FMax(1, Wd.DamageThreshold), 0, 1);
-		if (Wd.HasWound())
+		f = FClamp(float(Class'RIBase'.static.TraumaDamage(Wd)) / FMax(1, Class'RIBase'.static.TraumaThreshold(Wd)), 0, 1);
+		if (Class'RIBase'.static.TraumaActive(Wd))
 		{
-			kits = Wd.GetRequiredMedkits();
+			kits = Class'RIBase'.static.TraumaKits(Wd);
 			R = Caps(AfflictedLabel) $ "  -  " $ string(kits) @ Caps(KitsLabel);
 			BC = C3(230, 70, 50, a);
 			f = 1;
 		}
 		else
 		{
-			R = string(Wd.GetDamage()) $ " / " $ string(Wd.DamageThreshold);
+			R = string(Class'RIBase'.static.TraumaDamage(Wd)) $ " / " $ string(Class'RIBase'.static.TraumaThreshold(Wd));
 			if (f > 0.66)
 				BC = C3(240, 150, 50, a);
 			else
 				BC = AAcc(a);
 		}
-		if (Wd.HasWound())
+		if (Class'RIBase'.static.TraumaActive(Wd))
 			Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', X + W * 0.5, Y, W * 0.5 - 8 * S, rh - 8 * S, R, C3(255, 120, 90, a), 2, 0.56);
 		else
 			Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', X + W * 0.5, Y, W * 0.5 - 8 * S, rh - 8 * S, R, ALbl(a), 2, 0.56);
@@ -634,11 +644,14 @@ function DrawVPStatus(GC gc, float a)
 		Loc = Info.MissionLocation;
 	StatLine(gc, x, y, w, LocationLabel, Loc, a);
 	y += 36 * S;
-	StatLine(gc, x, y, w, StepsLabel, string(Player.stepCount), a);
-	y += 36 * S;
-	StatLine(gc, x, y, w, DistanceLabel, string(int(Player.stepCount * 0.0005)) $ " mi", a);
-	y += 36 * S;
-	StatLine(gc, x, y, w, TimeLabel, Health().BuildElapsedPlayTimeString(int(Player.saveTime)), a);
+	if (Class'RIUtil'.static.PHas(Player, "stepCount"))
+	{
+		StatLine(gc, x, y, w, StepsLabel, string(Class'RIUtil'.static.PInt(Player, "stepCount")), a);
+		y += 36 * S;
+		StatLine(gc, x, y, w, DistanceLabel, string(int(Class'RIUtil'.static.PInt(Player, "stepCount") * 0.0005)) $ " mi", a);
+		y += 36 * S;
+	}
+	StatLine(gc, x, y, w, TimeLabel, Class'RIUtil'.static.ClockTime(int(Player.saveTime)), a);
 	y += 50 * S;
 	DrawTraumas(gc, x, y, w, 650 * S, a);
 
@@ -659,8 +672,11 @@ function DrawVPStatus(GC gc, float a)
 	Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', OX + 1182 * S, 756 * S, 350 * S, 30 * S, T, ATxt(a), 0, 0.6);
 	DrawBtn(gc, OX + 1182 * S, 800 * S, 168 * S, 40 * S, HealAllText(), HealAllLive(), HoverId == HOT_HEALALL, HealAllLive(), a);
 	AddHot(HOT_HEALALL, OX + 1182 * S, 800 * S, 168 * S, 40 * S);
-	DrawBtn(gc, OX + 1362 * S, 800 * S, 168 * S, 40 * S, CureLabel, CanCure(TraumaSel), HoverId == HOT_CURE, False, a);
-	AddHot(HOT_CURE, OX + 1362 * S, 800 * S, 168 * S, 40 * S);
+	if (Class'RIBase'.static.Has("Traumas"))
+	{
+		DrawBtn(gc, OX + 1362 * S, 800 * S, 168 * S, 40 * S, CureLabel, CanCure(TraumaSel), HoverId == HOT_CURE, False, a);
+		AddHot(HOT_CURE, OX + 1362 * S, 800 * S, 168 * S, 40 * S);
+	}
 }
 
 function StatLine(GC gc, float X, float Y, float W, string L, string V, float a)

@@ -7,7 +7,7 @@ class RITermATM extends ATMWindow;
 
 function AddNotesWindow()
 {
-	Class'RINotesPanel'.static.AddTerminalNotes(Self);
+	Class'RIBase'.static.AddTerminalNotes(Self);
 }
 
 defaultproperties

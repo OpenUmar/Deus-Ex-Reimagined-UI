@@ -27,6 +27,7 @@ var float NavX, NavY, NavW, NavButtonH, NavGap;
 var float ContentX, ContentY, ContentW, ContentH;
 
 var localized string HeaderText;
+var localized string InterfaceLabel, PreviousLabel;
 var localized string EmptyText;
 var localized string UnsavedTitle;
 var localized string UnsavedText;
@@ -47,18 +48,59 @@ function CreateControls()
 {
 }
 
+// One entry of the settings list: the base's categories (their buttons as the
+// base defines them), then Interface where the base had Previous Menu, then
+// Previous Menu. False past the end.
+static function bool SetupSettingsButton(MenuSettings M, int i, out string N)
+{
+	local int p;
+
+	for (p = 0; p < arrayCount(M.buttonDefaults); p++)
+		if (Class'MenuSettings'.default.buttonDefaults[p].action == MA_Previous)
+			break;
+	if (p >= arrayCount(M.buttonDefaults) - 1)
+		return False;
+	if (i < p)
+	{
+		N = Class'RIBase'.static.SettingsName(i);
+		return N != "";
+	}
+	if (i == p)
+	{
+		M.buttonDefaults[i].action = MA_MenuScreen;
+		M.buttonDefaults[i].invoke = Class'RIMenuScreenInterface';
+		if (p > 0)
+			M.buttonDefaults[i].y = Class'MenuSettings'.default.buttonDefaults[p - 1].y + 36;
+		N = default.InterfaceLabel;
+	}
+	else if (i == p + 1)
+	{
+		M.buttonDefaults[i].action = MA_Previous;
+		M.buttonDefaults[i].invoke = None;
+		M.buttonDefaults[i].y = M.buttonDefaults[p].y + 37;
+		N = default.PreviousLabel;
+	}
+	else
+		return False;
+	Class'RIBase'.static.SetSettingsName(M, i, N);
+	return True;
+}
+
 function CreateMenuButtons()
 {
 	local int i;
 	local RIMenuButton btn;
+	local string N;
 
+	// The base's categories plus Interface, then Previous Menu (RIBase fills
+	// in buttonDefaults, since each base has its own list)
 	for (i = 0; i < arrayCount(buttonDefaults); i++)
 	{
-		if (NewButtonNames[i] == "")
+		if (!SetupSettingsButton(Self, i, N))
 			break;
 
 		btn = RIMenuButton(NewChild(Class'RIMenuButton'));
-		btn.SetButtonText(NewButtonNames[i]);
+		btn.SetButtonText(N);
 		btn.TextScale = 0.9;
 		btn.Slot = i;
 		winButtons[i] = btn;
@@ -391,10 +433,8 @@ event DrawWindow(GC gc)
 defaultproperties
 {
      FirstCategory=2
-     NewButtonNames(7)="Interface"
-     NewButtonNames(8)="Previous Menu"
-     buttonDefaults(7)=(Y=265,Action=MA_MenuScreen,Invoke=Class'ReimaginedUI.RIMenuScreenInterface')
-     buttonDefaults(8)=(Y=302,Action=MA_Previous)
+     InterfaceLabel="Interface"
+     PreviousLabel="Previous Menu"
      HeaderText="SETTINGS"
      EmptyText="SELECT A CATEGORY"
      UnsavedTitle="Unapplied changes"

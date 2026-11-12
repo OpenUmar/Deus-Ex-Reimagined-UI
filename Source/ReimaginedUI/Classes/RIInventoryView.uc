@@ -179,7 +179,7 @@ function HUDObjectBelt HudBelt()
 
 function int BeltCount()
 {
-	if (Player.bBiggerBelt)
+	if (Class'RIUtil'.static.PBool(Player, "bBiggerBelt"))
 		return 12;
 	return 10;
 }
@@ -277,18 +277,16 @@ function bool CanDropOn(Inventory D, Inventory T)
 		return WeaponMod(D).CanUpgradeWeapon(DeusExWeapon(T));
 	if ((DeusExAmmo(D) != None) && (DeusExWeapon(T) != None))
 		return DeusExWeapon(T).CanLoadAmmoType(DeusExAmmo(D));
-	if ((BioelectricCell(D) != None) && (WeaponNanoSword(T) != None))
-		return !WeaponNanoSword(T).chargeManager.IsFull();
-	if ((BioelectricCell(D) != None) && (ChargedPickup(T) != None))
-		return !ChargedPickup(T).IsDisposable() && (ChargedPickup(T).Charge < ChargedPickup(T).default.Charge);
+	// Recharging with a bioelectric cell (base feature: GMDX AE's)
+	if (BioelectricCell(D) != None)
+		return Class'RIBase'.static.CanCharge(Player, T);
 	return False;
 }
 
 function bool DropOnto(Inventory D, Inventory T)
 {
 	local DeusExWeapon W;
-	local ChargedPickup ChT;
-	local float Mult;
+	local int Charged;
 	local string RMsg;
 	local int tx, ty;
 
@@ -301,7 +299,7 @@ function bool DropOnto(Inventory D, Inventory T)
 		if (!WeaponMod(D).CanUpgradeWeapon(W))
 			return DropRefused();
 		WeaponMod(D).ApplyMod(W);
-		Player.RemoveObjectFromBelt(D, True);
+		Class'RIBase'.static.RemoveFromBelt(Player, D);
 		Say(Sprintf(Class'PersonaScreenInventory'.default.WeaponUpgradedLabel, W.itemName));
 		SelItem = None;
 		WeaponMod(D).DestroyMod();
@@ -319,41 +317,20 @@ function bool DropOnto(Inventory D, Inventory T)
 		PlaySound(Sound'Menu_Press', 0.25);
 		return True;
 	}
-	if ((BioelectricCell(D) != None) && (WeaponNanoSword(T) != None))
+	if (BioelectricCell(D) != None)
 	{
-		if (WeaponNanoSword(T).chargeManager.IsFull())
+		Charged = Class'RIBase'.static.Charge(Player, T, RMsg);
+		if (Charged == 1)
 			return DropRefused();
-		WeaponNanoSword(T).chargeManager.Recharge(RMsg);
-		Say(RMsg);
-		Player.PlaySound(Sound'BioElectricHiss', SLOT_None,,, 256);
-		BioelectricCell(D).UseOnce();
-		RecreateBelts();
-		Select(T);
-		return True;
-	}
-	ChT = ChargedPickup(T);
-	if ((BioelectricCell(D) != None) && (ChT != None) && !ChT.IsDisposable())
-	{
-		if (ChT.Charge >= ChT.default.Charge)
-			return DropRefused();
-		Mult = ChT.default.ChargeMult;
-		if (Player.PerkManager.GetPerkWithClass(Class'DeusEx.PerkFieldRepair').bPerkObtained)
-			Mult *= 1.5;
-		ChT.Charge += Mult * ChT.default.Charge;
-		if (ChT.Charge >= ChT.default.Charge)
+		if (Charged == 2)
 		{
-			ChT.Charge = ChT.default.Charge;
-			Say(Class'ChargeManager'.default.msgFullyCharged);
+			Say(RMsg);
+			Player.PlaySound(Sound'BioElectricHiss', SLOT_None,,, 256);
+			BioelectricCell(D).UseOnce();
+			RecreateBelts();
+			Select(T);
+			return True;
 		}
-		else
-			Say(Sprintf(Class'ChargeManager'.default.msgRecharged, int(100 * Mult)));
-		ChT.bDrained = False;
-		ChT.bActivatable = True;
-		BioelectricCell(D).UseOnce();
-		Player.PlaySound(Sound'BioElectricHiss', SLOT_None,,, 256);
-		RecreateBelts();
-		Select(ChT);
-		return True;
 	}
 
 	// Same footprint: trade places
@@ -390,10 +367,8 @@ function RecreateBelts()
 {
 	if (Inv().invBelt == None)
 		return;
-	if (Inv().invBelt.objBelt != None)
-		Inv().invBelt.objBelt.RecreateBelt();
-	if (Inv().invBelt.hudBelt != None)
-		Inv().invBelt.hudBelt.RecreateBelt();
+	Class'RIBase'.static.RecreateBelt(Inv().invBelt.objBelt);
+	Class'RIBase'.static.RecreateBelt(Inv().invBelt.hudBelt);
 }
 
 // Room for I at col, row, counting every other item where it actually is.
@@ -434,7 +409,7 @@ function MoveTo(int col, int row)
 
 function bool Rotatable(Inventory I)
 {
-	return (DeusExWeapon(I) != None) && (I.invSlotsX != I.invSlotsY) && (I.invPosX >= 0);
+	return Class'RIBase'.static.Has("Rotation") && (DeusExWeapon(I) != None) && (I.invSlotsX != I.invSlotsY) && (I.invPosX >= 0);
 }
 
 // Turn the item's shape and icon, the way AE's drag rotation does
@@ -445,10 +420,7 @@ function TurnShape(DeusExWeapon W)
 	t = W.invSlotsX;
 	W.invSlotsX = W.invSlotsY;
 	W.invSlotsY = t;
-	W.invSlotsXtravel = W.invSlotsX;
-	W.invSlotsYtravel = W.invSlotsY;
-	W.bRotated = !W.bRotated;
-	W.UpdateLargeIcon();
+	Class'RIBase'.static.TurnIcon(W);
 	t = W.largeIconWidth;
 	W.largeIconWidth = W.largeIconHeight;
 	W.largeIconHeight = t;
@@ -1008,7 +980,7 @@ function DrawListPage(GC gc, float a)
 			Class'RIText'.static.DrawIn(gc, Class'RIFontHead', x + 84 * S, y + 6 * S, w - 304 * S, 32 * S,
 				Caps(Class'RIText'.static.Fit(Class'RIFontHead', Am.ItemName, w - 304 * S, 0.56)),
 				Class'RIUtil'.static.Mix(ATxt(a), C3(255, 255, 255, a), int(bSel)), 0, 0.56);
-			mx = Max(1, Player.GetAdjustedMaxAmmo(Am));
+			mx = Max(1, Class'RIBase'.static.MaxAmmo(Player, Am));
 			f = FClamp(float(Am.AmmoAmount) / float(mx), 0, 1);
 			Fill(gc, x + 84 * S, y + rh - 18 * S, w - 304 * S, 5 * S, C3(40, 33, 15, a));
 			Fill(gc, x + 84 * S, y + rh - 18 * S, (w - 304 * S) * f, 5 * S, AAcc(a));
@@ -1092,7 +1064,7 @@ function DrawListDetail(GC gc, float a)
 			Class'RIHD'.static.DrawStretched(gc, x + (w - iw * k) * 0.5, y + 10 * S + (180 * S - ih * k) * 0.5, iw * k, ih * k, 0, 0, iw, ih, Am.largeIcon);
 		}
 		y += 210 * S;
-		Class'RIText'.static.Draw(gc, Class'RIFontSmall', x, y, Caps(RoundsLabel) @ string(Am.AmmoAmount) $ " / " $ string(Player.GetAdjustedMaxAmmo(Am)), AAcc(da), 0.72);
+		Class'RIText'.static.Draw(gc, Class'RIFontSmall', x, y, Caps(RoundsLabel) @ string(Am.AmmoAmount) $ " / " $ string(Class'RIBase'.static.MaxAmmo(Player, Am)), AAcc(da), 0.72);
 		y += 34 * S;
 		D = Am.GetPropertyText("Description");
 		Class'RIText'.static.DrawWrapped(gc, Class'RIFontBody', x, y, w, Class'RIConView'.static.Lines(D), C3(230, 210, 165, da), 0.74, 1.38);
@@ -1117,7 +1089,7 @@ function DrawBelt(GC gc, float a)
 	local bool bHot;
 	local Texture T;
 	local string BName;
-	local float bx0, pitch;
+	local float bx0, pitch, pad;
 
 	cnt = BeltCount();
 	if (VPlus())
@@ -1125,8 +1097,9 @@ function DrawBelt(GC gc, float a)
 		// The board's ten slots
 		cnt = Min(cnt, 10);
 		pitch = 114.8 * S;
-		w = (BeltSlotW() + 4) * S;
-		bx0 = OX + (BeltSlotX(0) - 2) * S;
+		w = BeltSlotW() * S;
+		bx0 = OX + BeltSlotX(0) * S;
+		pad = 0;
 		y = 912 * S;
 		ih = 94 * S;
 	}
@@ -1137,6 +1110,7 @@ function DrawBelt(GC gc, float a)
 		bx0 = OX + 140 * S;
 		y = 860 * S;
 		ih = 70 * S;
+		pad = 2;
 		Class'RIText'.static.Draw(gc, Class'RIFontSmall', OX + 140 * S, y - 26 * S, Caps(BeltLabel), ALbl(a), 0.66);
 	}
 	for (n = 0; n < cnt; n++)
@@ -1145,38 +1119,38 @@ function DrawBelt(GC gc, float a)
 		I = BeltItem(n);
 		bHot = (HoverId == HOT_BELT + n);
 		if (!VPlus())
-			Fill(gc, sx + 2, y, w - 4, ih, C3(30, 25, 11, 0.55 * a));
+			Fill(gc, sx + pad, y, w - 2 * pad, ih, C3(30, 25, 11, 0.55 * a));
 		if (bDragging && bHot)
 		{
 			if (BeltSlotOpen(n))
 			{
 				CGlow(gc, sx - 6 * S, y - 6 * S, w + 12 * S, ih + 12 * S, C3(60, 50, 22, a));
-				Class'RISkin'.static.Box2(gc, sx + 2, y, w - 4, ih, AHi(a));
+				Class'RISkin'.static.Box2(gc, sx + pad, y, w - 2 * pad, ih, AHi(a));
 			}
 			else
-				Class'RISkin'.static.Box2(gc, sx + 2, y, w - 4, ih, ABad(a));
+				Class'RISkin'.static.Box2(gc, sx + pad, y, w - 2 * pad, ih, ABad(a));
 		}
 		else if ((I != None) && (I == SelItem))
-			SelRow(gc, sx + 2, y, w - 4, ih, a * Class'RIUtil'.static.EaseOut(FClamp(DescAge / 0.25, 0, 1)));
+			SelRow(gc, sx + pad, y, w - 2 * pad, ih, a * Class'RIUtil'.static.EaseOut(FClamp(DescAge / 0.25, 0, 1)));
 		else if (bHot && (I != None))
-			Class'RIText'.static.Box(gc, sx + 2, y, w - 4, ih, C3(150, 126, 62, a));
+			Class'RIText'.static.Box(gc, sx + pad, y, w - 2 * pad, ih, C3(150, 126, 62, a));
 		else if (VPlus())
 		{
 			// the board draws the slot
 		}
 		else if (I != None)
-			Class'RIText'.static.Box(gc, sx + 2, y, w - 4, ih, AEdge(a));
+			Class'RIText'.static.Box(gc, sx + pad, y, w - 2 * pad, ih, AEdge(a));
 		else
-			Class'RIText'.static.Box(gc, sx + 2, y, w - 4, ih, C3(70, 58, 28, a));
-		Class'RIText'.static.Draw(gc, Class'RIFontSmall', sx + 8 * S, y + 4 * S, Mid("1234567890-=", n, 1), AAcc(a), 0.6);
+			Class'RIText'.static.Box(gc, sx + pad, y, w - 2 * pad, ih, C3(70, 58, 28, a));
+		Class'RIText'.static.Draw(gc, Class'RIFontSmall', sx + 8 * S, y + 4 * S, Mid("0123456789-=", n, 1), AAcc(a), 0.6);
 
 		// Icon (AE's belt icons are 42 x 37 in the corner of the texture);
 		// an empty slot that remembers an item shows it dimmed
 		T = None;
 		if (I != None)
 			T = I.icon;
-		else if (Player.IsPlaceholder(n))
-			T = Player.GetPlaceholderIcon(n);
+		else
+			T = Class'RIBase'.static.BeltPlaceholder(Player, n);
 		if (T != None)
 		{
 			k = FMin((w - 16 * S) / 42.0, (ih - 24 * S) / 37.0);
@@ -1861,11 +1835,11 @@ function DrawVPDetail(GC gc, float a)
 		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', x, 670 * S, w, 30 * S, Msg,
 			C3(255, 120, 90, a * FClamp((2.5 - MsgAge) / 0.5, 0, 1)), 2, 0.56);
 
-	// four buttons flush under the grid (423 .. 953)
-	VPBtn(gc, 423, 122, LabelOf(Inv().btnEquip, "Equip"), (SelItem != None) && Live(Inv().btnEquip), HOT_EQUIP, a);
-	VPBtn(gc, 553, 100, LabelOf(Inv().btnUse, "Use"), (SelItem != None) && Live(Inv().btnUse), HOT_USE, a);
-	VPBtn(gc, 661, 112, LabelOf(Inv().btnDrop, "Drop"), (SelItem != None) && Live(Inv().btnDrop), HOT_DROP, a);
-	VPBtn(gc, 781, 172, LabelOf(Inv().btnChangeAmmo, "Change ammo"), (SelItem != None) && Live(Inv().btnChangeAmmo), HOT_AMMO, a);
+	// four buttons spanning the grid box under them (395 .. 982, 8 apart)
+	VPBtn(gc, 395, 135.7, LabelOf(Inv().btnEquip, "Equip"), (SelItem != None) && Live(Inv().btnEquip), HOT_EQUIP, a);
+	VPBtn(gc, 538.7, 111.3, LabelOf(Inv().btnUse, "Use"), (SelItem != None) && Live(Inv().btnUse), HOT_USE, a);
+	VPBtn(gc, 658, 124.6, LabelOf(Inv().btnDrop, "Drop"), (SelItem != None) && Live(Inv().btnDrop), HOT_DROP, a);
+	VPBtn(gc, 790.6, 191.4, LabelOf(Inv().btnChangeAmmo, "Change ammo"), (SelItem != None) && Live(Inv().btnChangeAmmo), HOT_AMMO, a);
 
 	// Keys and ammo boxes: click to list
 	if ((Player.KeyRing != None) && (Player.KeyRing.icon != None))
@@ -1924,7 +1898,7 @@ function DrawVPListDetail(GC gc, float a, float da)
 			Class'RIHD'.static.DrawStretched(gc, x + (w - iw * k) * 0.5, y + (150 * S - ih * k) * 0.5, iw * k, ih * k, 0, 0, iw, ih, Am.largeIcon);
 		}
 		y += 164 * S;
-		Class'RIText'.static.Draw(gc, Class'RIFontSmall', x, y, Caps(RoundsLabel) @ string(Am.AmmoAmount) $ " / " $ string(Player.GetAdjustedMaxAmmo(Am)), AAcc(da), 0.62);
+		Class'RIText'.static.Draw(gc, Class'RIFontSmall', x, y, Caps(RoundsLabel) @ string(Am.AmmoAmount) $ " / " $ string(Class'RIBase'.static.MaxAmmo(Player, Am)), AAcc(da), 0.62);
 		y += 30 * S;
 		D = Am.GetPropertyText("Description");
 		Class'RIText'.static.DrawWrapped(gc, Class'RIFontBody', x, y, w, Class'RIConView'.static.Lines(D), C3(230, 210, 165, da), 0.68, 1.34);
@@ -2018,7 +1992,7 @@ function string KindLine(Inventory I)
 		T = KindItem;
 	T = Caps(T);
 	if (I.bInObjectBelt && (I.beltPos >= 0) && (I.beltPos < 12))
-		T = T $ "  -  " $ Caps(SlotWord) @ Mid("1234567890-=", I.beltPos, 1);
+		T = T $ "  -  " $ Caps(SlotWord) @ Mid("0123456789-=", I.beltPos, 1);
 	if (Player.inHand == I)
 		T = T $ "  -  " $ Caps(EquippedWord);
 	return T;

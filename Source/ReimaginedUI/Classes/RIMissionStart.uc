@@ -39,6 +39,7 @@ event DrawWindow(GC gc)
 	local string Typed, Line, Rest;
 	local int p, n, mn;
 	local DeusExLevelInfo Info;
+	local DeusExPlayer DP;
 
 	if (!RIOn())
 		return;
@@ -83,7 +84,10 @@ event DrawWindow(GC gc)
 		Class'RISkin'.static.FillC(gc, x, y, 2 * S, h, Col(242, 211, 107, a));
 	}
 
-	Info = player.GetLevelInfo();
+	// (the original's mission text window keeps no player; AE's does)
+	DP = DeusExPlayer(GetPlayerPawn());
+	if (DP != None)
+		Info = DP.GetLevelInfo();
 	if (Info != None)
 		mn = Info.MissionNumber;
 	y += 20 * S;

@@ -147,8 +147,7 @@ function HideAE(DeusExHUD H)
 		H.compass.Hide();
 	if ((H.ammo != None) && H.ammo.IsVisible(False))
 		H.ammo.Hide();
-	if ((H.ammo2 != None) && H.ammo2.IsVisible(False))
-		H.ammo2.Hide();
+	Class'RIBase'.static.HideHudExtras(H);
 	if ((H.belt != None) && H.belt.IsVisible(False))
 		H.belt.Hide();
 	if ((H.activeItems != None) && H.activeItems.IsVisible(False))
@@ -171,8 +170,8 @@ function float PartValue(int i)
 {
 	switch (i)
 	{
-		case 0: return float(Player.HealthHead) / FMax(1, Player.default.HealthHead + Player.GetHeadHealthAdjustment());
-		case 1: return float(Player.HealthTorso) / FMax(1, Player.default.HealthTorso + Player.GetTorsoHealthAdjustment());
+		case 0: return float(Player.HealthHead) / FMax(1, Player.default.HealthHead + Class'RIBase'.static.HeadBonus(Player));
+		case 1: return float(Player.HealthTorso) / FMax(1, Player.default.HealthTorso + Class'RIBase'.static.TorsoBonus(Player));
 		case 2: return float(Player.HealthArmRight) / FMax(1, Player.default.HealthArmRight);
 		case 3: return float(Player.HealthArmLeft) / FMax(1, Player.default.HealthArmLeft);
 		case 4: return float(Player.HealthLegRight) / FMax(1, Player.default.HealthLegRight);
@@ -250,14 +249,14 @@ function DrawVitals(GC gc)
 	bw = 230 * S;
 	y = y0 + 22 * S;
 	// No health bar: the body monitor shows health, part by part
-	if (Player.bEnergyBarShowsReserve && (Player.AugmentationSystem != None))
+	if (Class'RIUtil'.static.PBool(Player, "bEnergyBarShowsReserve") && (Player.AugmentationSystem != None))
 	{
-		f = Player.Energy / FMax(1, Player.GetMaxEnergy(True));
-		r = Player.AugmentationSystem.CalcEnergyReserve() / 100.0;
+		f = Player.Energy / FMax(1, Class'RIBase'.static.MaxEnergy(Player, True));
+		r = Class'RIBase'.static.EnergyReserve(Player) / 100.0;
 	}
 	else
 	{
-		f = Player.Energy / FMax(1, Player.GetMaxEnergy());
+		f = Player.Energy / FMax(1, Class'RIBase'.static.MaxEnergy(Player, False));
 		r = 0;
 	}
 	DrawBar(gc, bx, y, bw, EnergyLabel, string(int(Player.Energy)), f, r, C3(110, 180, 240), C3(70, 90, 130));
@@ -265,7 +264,7 @@ function DrawVitals(GC gc)
 
 	// Stamina (GMDX's stamina system shares the breath timer); breath underwater
 	bWater = (Player.HeadRegion.Zone != None) && Player.HeadRegion.Zone.bWaterZone;
-	if (bWater || (Player.iStaminaSystem > 0) || Player.bHardCoreMode)
+	if (bWater || Class'RIBase'.static.StaminaShown(Player))
 	{
 		f = FClamp(Player.swimTimer / FMax(0.01, Player.swimDuration), 0, 1);
 		if (bWater)
@@ -276,7 +275,7 @@ function DrawVitals(GC gc)
 	}
 
 	// Stance (AE's setting: 0 off, 1 walk / run only, 2 all)
-	if (Player.iStanceHud > 0)
+	if (Class'RIUtil'.static.PInt(Player, "iStanceHud") > 0)
 	{
 		T = StanceText();
 		if (T != "")
@@ -293,14 +292,16 @@ function DrawPart(GC gc, int i, float X, float Y, float k, Texture T, float px, 
 		C = Class'RIUtil'.static.Raw(58, 24, 20);
 	gc.SetStyle(DSTY_Masked);
 	gc.SetTileColor(C);
-	Class'RIHD'.static.DrawStretched(gc, X + px * k, Y + py * k, pw * k, ph * k, 0, 0, pw, ph, T);
+	// on exact screen pixels: the engine's own call rounds each part to whole
+	// UI units, so the parts drifted apart (gaps at the shoulders and hips)
+	Class'RIHD'.static.DrawExact(gc, X + px * k, Y + py * k, pw * k, ph * k, 0, 0, pw, ph, T);
 }
 
 // The game's own total (DeusExPlayer.GenerateTotalHealth): 0 as soon as the
 // head or torso is gone, otherwise half limbs, half head and torso
 function float TotalHealth()
 {
-	return FClamp(float(Player.Health) / FMax(1, Player.GenerateTotalMaxHealth()), 0, 1);
+	return FClamp(float(Player.Health) / FMax(1, Class'RIBase'.static.TotalMaxHealth(Player)), 0, 1);
 }
 
 // Head or torso at zero kills, so the bar's colour follows the weaker of
@@ -324,9 +325,9 @@ function DrawBar(GC gc, float X, float Y, float W, string L, string V, float f, 
 
 function string StanceText()
 {
-	if (Player.iStanceHud == 1)
+	if (Class'RIUtil'.static.PInt(Player, "iStanceHud") == 1)
 	{
-		if (Player.IsCrouching() || Player.IsLeaning())
+		if (Class'RIBase'.static.IsCrouching(Player) || Player.IsLeaning())
 			return "";
 		if (Player.bIsWalking)
 			return WalkLabel;
@@ -336,7 +337,7 @@ function string StanceText()
 		return SwimLabel;
 	if (Player.IsLeaning())
 		return LeanLabel;
-	if (Player.IsCrouching())
+	if (Class'RIBase'.static.IsCrouching(Player))
 		return CrouchLabel;
 	if (Player.bIsWalking)
 		return WalkLabel;
@@ -421,12 +422,12 @@ function DrawAugs(GC gc)
 	if (Player.AugmentationSystem != None)
 		for (Aug = Player.AugmentationSystem.FirstAug; Aug != None; Aug = Aug.next)
 		{
-			if (!Aug.CanBeActivated() || (!Player.bHUDShowAllAugs && !Aug.bIsActive))
+			if (!Class'RIBase'.static.AugCanActivate(Aug) || (!Player.bHUDShowAllAugs && !Aug.bIsActive))
 				continue;
 			if (!bAny && !Class'RIVP'.static.On())
 				Shade(gc, -200 * S, y - 90 * S, 1000 * S, c + 170 * S);
 			bAny = True;
-			DrawAugCell(gc, x, y, c, AugIcon(Aug), Aug.bIsActive, HotKey(Aug.HotKeyNum), -1, Aug.GetAugColor(True));
+			DrawAugCell(gc, x, y, c, AugIcon(Aug), Aug.bIsActive, HotKey(Aug.HotKeyNum), -1, Class'RIBase'.static.AugColor(Aug, True));
 			x += c + 10 * S;
 			if (++n >= 12)
 				break;
@@ -517,7 +518,7 @@ function DrawBelt(GC gc)
 	H = Hud();
 	if ((H == None) || (H.belt == None))
 		return;
-	if (Player.bBiggerBelt)
+	if (Class'RIUtil'.static.PBool(Player, "bBiggerBelt"))
 		cnt = 12;
 	else
 		cnt = 10;
@@ -563,13 +564,13 @@ function DrawBelt(GC gc)
 			Fill(gc, x, y, sw, sh, C3(10, 8, 4));
 			Class'RIText'.static.Box(gc, x, y, sw, sh, C3(58, 48, 22));
 		}
-		Class'RIText'.static.Draw(gc, Class'RIFontSmall', x + 6 * S, y + 3 * S, Mid("1234567890-=", n, 1), C3(242, 211, 107), 0.54);
+		Class'RIText'.static.Draw(gc, Class'RIFontSmall', x + 6 * S, y + 3 * S, Mid("0123456789-=", n, 1), C3(242, 211, 107), 0.54);
 
 		T = None;
 		if (I != None)
 			T = I.icon;
-		else if (Player.IsPlaceholder(n))
-			T = Player.GetPlaceholderIcon(n);
+		else
+			T = Class'RIBase'.static.BeltPlaceholder(Player, n);
 		if (T != None)
 		{
 			k = FMin((sw - 12 * S) / 42.0, (sh - 26 * S) / 37.0);
@@ -616,7 +617,7 @@ function DrawWeapon(GC gc)
 	H = Hud();
 	if ((H == None) || (H.ammo == None))
 		return;
-	Inv = H.ammo.GetWeapon();
+	Inv = Class'RIBase'.static.HudWeapon(H.ammo);
 	if (Inv == None)
 		return;
 	W = DeusExWeapon(Inv);
@@ -625,14 +626,14 @@ function DrawWeapon(GC gc)
 	// Counts, as AE keeps them
 	if (W != None)
 	{
-		bReload = W.IsInState('Reload') && !W.bPerShellReload;
+		bReload = W.IsInState('Reload') && !Class'RIUtil'.static.PBool(W, "bPerShellReload");
 		if ((W.AmmoType != None) && !W.AmmoType.IsA('AmmoNone'))
 			Carried = W.AmmoType.AmmoAmount;
 		if ((W.ReloadCount > 1) || W.IsA('WeaponGEPGun') || (W.AmmoName == Class'Ammo20mm'))
 		{
 			bMag = True;
 			clip = W.AmmoLeftInClip();
-			Reserve = Max(0, W.NumRounds());
+			Reserve = Max(0, Class'RIBase'.static.ReserveRounds(W));
 			Big = string(clip);
 			bLow = ((W.ReloadCount > 1) && (clip <= W.ReloadCount / 2.0)) || (clip == 0);
 			bMulti = (W.ReloadCount > 1) && (W.ReloadCount <= 40);
@@ -751,7 +752,7 @@ function DrawWeapon(GC gc)
 		N = Inv.ItemName;
 	N = Caps(N);
 	if (Inv.bInObjectBelt && (Inv.beltPos >= 0) && (Inv.beltPos < 12))
-		N = N $ "   " $ Mid("1234567890-=", Inv.beltPos, 1);
+		N = N $ "   " $ Mid("0123456789-=", Inv.beltPos, 1);
 	Class'RIText'.static.DrawIn(gc, Class'RIFontHead', RX - 460 * S, NumY - 30 * S, 460 * S, 24 * S, N, C3(230, 195, 117), 2, 0.5);
 }
 
@@ -766,24 +767,26 @@ function DrawReceived(GC gc)
 {
 	local DeusExHUD H;
 	local HUDReceivedDisplay R;
-	local HUDReceivedDisplayItem It;
-	local int i, Rows;
+	local int i, n, Rows, Qty;
 	local float a, rh, y, RX;
-	local string T;
+	local string T, Lbl;
+	local Texture Ic;
+	local byte bDecl;
+	local float bw, bx;
 
 	H = Hud();
 	if (H == None)
 		return;
 	R = H.receivedItems;
-	if ((R == None) || !R.bTickEnabled || (R.displayItemNum <= 0))
+	if ((R == None) || !R.bTickEnabled)
+		return;
+	n = Class'RIBase'.static.ReceivedCount(R);
+	if (n <= 0)
 		return;
 	a = FClamp(R.displayTimer / 0.15, 0, 1) * FClamp((R.displayLength - R.displayTimer) / 0.5, 0, 1);
 	if (a <= 0.01)
 		return;
-	for (i = 0; (i < R.displayItemNum) && (i < 60); i++)
-		if (R.displayItems[i] != None)
-			Rows++;
-	Rows = Min(Rows, 8);
+	Rows = Min(n, 8);
 	if (Rows == 0)
 		return;
 	rh = 47 * S;
@@ -797,16 +800,40 @@ function DrawReceived(GC gc)
 		T = Left(T, Len(T) - 1);
 	if (T == "")
 		T = ReceivedLabel;
+
+	// Vanilla+: one framed box, a row added for each item picked up
+	if (Class'RIVP'.static.On())
+	{
+		Rows = 0;
+		bw = 0;
+		for (i = 0; (i < n) && (Rows < 8); i++)
+			if (Class'RIBase'.static.ReceivedItem(R, i, Ic, Lbl, Qty, bDecl))
+			{
+				Rows++;
+				bw = FMax(bw, Class'RISubs'.static.ToastRowW(S, Lbl, Qty));
+			}
+		y -= 30 * S;
+		bx = Class'RISubs'.static.ToastBox(gc, RX, y, S, T, bw, Rows, a);
+		y += 46 * S;
+		Rows = 0;
+		for (i = 0; (i < n) && (Rows < 8); i++)
+		{
+			if (!Class'RIBase'.static.ReceivedItem(R, i, Ic, Lbl, Qty, bDecl))
+				continue;
+			Rows++;
+			y += Class'RISubs'.static.ToastRow(gc, bx + Class'RISubs'.static.ToastRowW(S, Lbl, Qty), y, S, Ic, Lbl, Qty, bDecl != 0, a, True);
+		}
+		return;
+	}
 	Class'RISubs'.static.ToastTitle(gc, RX, y - 26 * S, S, T, a);
 
 	Rows = 0;
-	for (i = 0; (i < R.displayItemNum) && (i < 60) && (Rows < 8); i++)
+	for (i = 0; (i < n) && (Rows < 8); i++)
 	{
-		It = R.displayItems[i];
-		if (It == None)
+		if (!Class'RIBase'.static.ReceivedItem(R, i, Ic, Lbl, Qty, bDecl))
 			continue;
 		Rows++;
-		y += Class'RISubs'.static.ToastRow(gc, RX, y, S, It.itemIcon, It.itemLabel, It.itemQuantity, It.bItemDeclined, a);
+		y += Class'RISubs'.static.ToastRow(gc, RX, y, S, Ic, Lbl, Qty, bDecl != 0, a);
 	}
 }
 
@@ -948,59 +975,72 @@ function FancyBar(GC gc, int i, float X, float Y, float W, float H, float f, Col
 
 function DrawVPVitals(GC gc)
 {
-	local float k, f, gx, gy, gs;
-	local int n;
+	local float k, f, gx, gy, gs, bx, barX;
+	local int n, cols;
 	local bool bWater, bStam;
 	local string T;
 
 	VDim(gc, LX(38), 34 * S, 118 * S, 154 * S);
 	Art(gc, LX(0), 0, 256 * S, 256 * S, 0, 0, 256, 256, Texture'ReimaginedUI.VPlus.VPH_Body');
 
-	// the monitor's grid (62..134 x 44..174, 14.4 px squares)
-	gx = LX(61.5);     // centred between the two bars (centre 97.5)
+	// the monitor's grid (14.4 px squares, 44..174). With two bars it is
+	// five squares centred between them (62..134); on a base with no
+	// stamina (the original) there is no right bar, so the grid takes six
+	// squares and the body moves right to fill the screen (57..156)
+	cols = 5;
+	gx = LX(61.5);
+	bx = 68;           // body offset: its visible figure centred on the grid
+	barX = 144;          // right bar (stamina / breath)
+	if (!Class'RIBase'.static.StaminaShown(Player))
+	{
+		cols = 6;
+		gx = LX(63.3);
+		bx = 77;
+		barX = 150;      // breath only, inside the screen's right edge
+	}
 	gy = 44 * S;
 	gs = 14.4 * S;
-	for (n = 0; n <= 5; n++)
+	for (n = 0; n <= cols; n++)
 		Class'RIText'.static.VLine(gc, gx + n * gs, gy, 9 * gs, C3(74, 64, 36));
 	for (n = 0; n <= 9; n++)
-		Class'RIText'.static.HLine(gc, gx, gy + n * gs, 5 * gs, C3(74, 64, 36));
+		Class'RIText'.static.HLine(gc, gx, gy + n * gs, cols * gs, C3(74, 64, 36));
 
 	// the body, part by part, its visible figure centred on the grid (measured)
 	k = 128 * S / 360.0;
-	DrawPart(gc, 0, LX(68), 46 * S, k, Texture'ReimaginedUI.UI.RI_HudHead',  70,   0,  35,  44);
-	DrawPart(gc, 1, LX(68), 46 * S, k, Texture'ReimaginedUI.UI.RI_HudTorso', 58,  43,  59, 125);
-	DrawPart(gc, 2, LX(68), 46 * S, k, Texture'ReimaginedUI.UI.RI_HudArmR',   0,  52,  60, 135);
-	DrawPart(gc, 3, LX(68), 46 * S, k, Texture'ReimaginedUI.UI.RI_HudArmL', 115,  53,  58, 134);
-	DrawPart(gc, 4, LX(68), 46 * S, k, Texture'ReimaginedUI.UI.RI_HudLegR',  36, 138,  51, 221);
-	DrawPart(gc, 5, LX(68), 46 * S, k, Texture'ReimaginedUI.UI.RI_HudLegL',  87, 139,  53, 220);
+	DrawPart(gc, 0, LX(bx), 46 * S, k, Texture'ReimaginedUI.UI.RI_HudHead',  70,   0,  35,  44);
+	DrawPart(gc, 1, LX(bx), 46 * S, k, Texture'ReimaginedUI.UI.RI_HudTorso', 58,  43,  59, 125);
+	DrawPart(gc, 2, LX(bx), 46 * S, k, Texture'ReimaginedUI.UI.RI_HudArmR',   0,  52,  60, 135);
+	DrawPart(gc, 3, LX(bx), 46 * S, k, Texture'ReimaginedUI.UI.RI_HudArmL', 115,  53,  58, 134);
+	DrawPart(gc, 4, LX(bx), 46 * S, k, Texture'ReimaginedUI.UI.RI_HudLegR',  36, 138,  51, 221);
+	DrawPart(gc, 5, LX(bx), 46 * S, k, Texture'ReimaginedUI.UI.RI_HudLegL',  87, 139,  53, 220);
 
 	// bioelectric on the left, stamina (breath underwater) on the right
-	if (Player.bEnergyBarShowsReserve && (Player.AugmentationSystem != None))
-		f = Player.Energy / FMax(1, Player.GetMaxEnergy(True));
+	if (Class'RIUtil'.static.PBool(Player, "bEnergyBarShowsReserve") && (Player.AugmentationSystem != None))
+		f = Player.Energy / FMax(1, Class'RIBase'.static.MaxEnergy(Player, True));
 	else
-		f = Player.Energy / FMax(1, Player.GetMaxEnergy());
+		f = Player.Energy / FMax(1, Class'RIBase'.static.MaxEnergy(Player, False));
 	FancyBar(gc, 0, LX(45), 46 * S, 6 * S, 128 * S, f, C3(90, 159, 214), -1);
 	T = "BIO" @ string(int(Player.Energy));
 
 	bWater = (Player.HeadRegion.Zone != None) && Player.HeadRegion.Zone.bWaterZone;
-	bStam = bWater || (Player.iStaminaSystem > 0) || Player.bHardCoreMode;
+	bStam = bWater || Class'RIBase'.static.StaminaShown(Player);
 	f = FClamp(Player.swimTimer / FMax(0.01, Player.swimDuration), 0, 1);
 	if (bWater)
 	{
-		FancyBar(gc, 1, LX(144), 46 * S, 6 * S, 128 * S, f, C3(150, 220, 235), 1);
+		FancyBar(gc, 1, LX(barX), 46 * S, 6 * S, 128 * S, f, C3(150, 220, 235), 1);
 		T = T $ "  -  " $ Caps(BreathLabel) @ string(int(f * 100));
 	}
 	else if (bStam)
 	{
-		FancyBar(gc, 1, LX(144), 46 * S, 6 * S, 128 * S, f, C3(201, 205, 209), 1);
+		FancyBar(gc, 1, LX(barX), 46 * S, 6 * S, 128 * S, f, C3(201, 205, 209), 1);
 		T = T $ "  -  " $ Caps(StaminaLabel) @ string(int(f * 100));
 	}
-	else
-		FancyBar(gc, 1, LX(144), 46 * S, 6 * S, 128 * S, 1, C3(201, 205, 209), 1);
+	// (no stamina on this base, e.g. the original: the right bar only appears
+	// underwater, as breath; a full bar that never drains would mislead)
 	Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', LX(0), 226 * S, 196 * S, 18 * S,
 		Caps(Class'RIText'.static.Fit(Class'RIFontSmall', T, 190 * S, 0.5)), C3(200, 204, 208), 1, 0.5);
 
-	if (Player.iStanceHud > 0)
+	if (Class'RIUtil'.static.PInt(Player, "iStanceHud") > 0)
 	{
 		T = StanceText();
 		if (T != "")
@@ -1020,7 +1060,7 @@ function DrawVPAugs(GC gc)
 	n = 0;
 	if (Player.AugmentationSystem != None)
 		for (Aug = Player.AugmentationSystem.FirstAug; Aug != None; Aug = Aug.next)
-			if (Aug.CanBeActivated() && (Player.bHUDShowAllAugs || Aug.bIsActive))
+			if (Class'RIBase'.static.AugCanActivate(Aug) && (Player.bHUDShowAllAugs || Aug.bIsActive))
 				n++;
 	for (I = Player.Inventory; I != None; I = I.Inventory)
 		if ((ChargedPickup(I) != None) && ChargedPickup(I).bIsActive)
@@ -1042,9 +1082,9 @@ function DrawVPAugs(GC gc)
 	if (Player.AugmentationSystem != None)
 		for (Aug = Player.AugmentationSystem.FirstAug; Aug != None; Aug = Aug.next)
 		{
-			if (!Aug.CanBeActivated() || (!Player.bHUDShowAllAugs && !Aug.bIsActive))
+			if (!Class'RIBase'.static.AugCanActivate(Aug) || (!Player.bHUDShowAllAugs && !Aug.bIsActive))
 				continue;
-			VPAugCell(gc, x, y - k * step, c, AugIcon(Aug), Aug.bIsActive, HotKey(Aug.HotKeyNum), -1, Aug.GetAugColor(True));
+			VPAugCell(gc, x, y - k * step, c, AugIcon(Aug), Aug.bIsActive, HotKey(Aug.HotKeyNum), -1, Class'RIBase'.static.AugColor(Aug, True));
 			k++;
 		}
 	for (I = Player.Inventory; I != None; I = I.Inventory)
@@ -1131,7 +1171,7 @@ function DrawVPBeltIn(GC gc)
 		return;
 	// the art's slots: 85.5 wide, 102 apart, 888..986 (names under 964).
 	// The 12-slot belt has its own art, two slots wider, still centred.
-	if (Player.bBiggerBelt)
+	if (Class'RIUtil'.static.PBool(Player, "bBiggerBelt"))
 	{
 		cnt = 12;
 		x0 = 340.5;
@@ -1148,9 +1188,12 @@ function DrawVPBeltIn(GC gc)
 	{
 		cnt = 10;
 		x0 = 438.5;
-		Art(gc, CX(392), BY(856), 376 * S, 176 * S, 0, 0, 376, 176, Texture'ReimaginedUI.VPlus.VPH_Belt0');
-		Art(gc, CX(768), BY(856), 376 * S, 176 * S, 0, 0, 376, 176, Texture'ReimaginedUI.VPlus.VPH_Belt1');
-		Art(gc, CX(1144), BY(856), 376 * S, 176 * S, 0, 0, 376, 176, Texture'ReimaginedUI.VPlus.VPH_Belt2');
+		// The board in two pieces that meet in the gap between slots 5 and 6
+		// (design x 940). The old three pieces met at 768, inside slot 4,
+		// and the join showed as a line through it. The left end is the right
+		// end's cap mirrored (the art's own left end didn't match).
+		Art(gc, CX(372), BY(856), 568 * S, 176 * S, 0, 0, 568, 176, Texture'ReimaginedUI.VPlus.VPH_BeltA');
+		Art(gc, CX(940), BY(856), 580 * S, 176 * S, 0, 0, 580, 176, Texture'ReimaginedUI.VPlus.VPH_BeltB');
 	}
 	pitch = 102;
 	sw = 85.5 * S;
@@ -1169,12 +1212,12 @@ function DrawVPBeltIn(GC gc)
 			Fill(gc, x, y, sw, sh, C3(46, 38, 17));
 			Class'RISkin'.static.Box2(gc, x - 2 * S, y - 2 * S, sw + 4 * S, sh + 4 * S, C3(255, 241, 194));
 		}
-		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', x, y + 3 * S, sw - 5 * S, 16 * S, Mid("1234567890-=", n, 1), C3(242, 211, 107), 2, 0.54);
+		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', x, y + 3 * S, sw - 5 * S, 16 * S, Mid("0123456789-=", n, 1), C3(242, 211, 107), 2, 0.54);
 		T = None;
 		if (I != None)
 			T = I.icon;
-		else if (Player.IsPlaceholder(n))
-			T = Player.GetPlaceholderIcon(n);
+		else
+			T = Class'RIBase'.static.BeltPlaceholder(Player, n);
 		if (T != None)
 		{
 			k = FMin((sw - 16 * S) / 42.0, 56 * S / 37.0);
@@ -1216,21 +1259,21 @@ function DrawVPWeapon(GC gc)
 	H = Hud();
 	if ((H == None) || (H.ammo == None))
 		return;
-	Inv = H.ammo.GetWeapon();
+	Inv = Class'RIBase'.static.HudWeapon(H.ammo);
 	if (Inv == None)
 		return;
 	W = DeusExWeapon(Inv);
 	P = DeusExPickup(Inv);
 	if (W != None)
 	{
-		bReload = W.IsInState('Reload') && !W.bPerShellReload;
+		bReload = W.IsInState('Reload') && !Class'RIUtil'.static.PBool(W, "bPerShellReload");
 		if ((W.AmmoType != None) && !W.AmmoType.IsA('AmmoNone'))
 			Carried = W.AmmoType.AmmoAmount;
 		if ((W.ReloadCount > 1) || W.IsA('WeaponGEPGun') || (W.AmmoName == Class'Ammo20mm'))
 		{
 			bMag = True;
 			clip = W.AmmoLeftInClip();
-			Reserve = Max(0, W.NumRounds());
+			Reserve = Max(0, Class'RIBase'.static.ReserveRounds(W));
 			Big = string(clip);
 			Sub = "/ " $ string(Reserve);
 			bLow = ((W.ReloadCount > 1) && (clip <= W.ReloadCount / 2.0)) || (clip == 0);
@@ -1268,7 +1311,7 @@ function DrawVPWeapon(GC gc)
 		N = Inv.ItemName;
 	N = Caps(N);
 	if (Inv.bInObjectBelt && (Inv.beltPos >= 0) && (Inv.beltPos < 12))
-		N = N $ "  " $ Mid("1234567890-=", Inv.beltPos, 1);
+		N = N $ "  " $ Mid("0123456789-=", Inv.beltPos, 1);
 	Class'RIText'.static.DrawIn(gc, Class'RIFontHead', RX(1600), BY(808), 234 * S, 22 * S,
 		Class'RIText'.static.Fit(Class'RIFontHead', N, 234 * S, 0.42), C3(255, 241, 194), 2, 0.42);
 

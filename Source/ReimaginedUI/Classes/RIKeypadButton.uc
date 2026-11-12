@@ -28,6 +28,7 @@ event DrawWindow(GC gc)
 	local float s, ts, now, dt, lit;
 	local string L;
 	local Color edge, txt;
+	local Texture KT;
 
 	kp = RIKeypadWindow(GetParent());
 	if (kp == None)
@@ -53,13 +54,29 @@ event DrawWindow(GC gc)
 	L = kp.IndexToString(num);
 
 	Class'RIVP'.static.Dim(gc, 0, 0, width, height);
+	Class'RIVP'.static.Dim(gc, 0, 0, width, height);
 	Class'RISkin'.static.FillC(gc, 0, 0, width, height, Class'RIUtil'.static.Col(18 + 40 * lit, 14 + 33 * lit, 6 + 15 * lit));
 	if (Flash > 0)
 		Class'RISkin'.static.GlowC(gc, 0, 0, width, height, 10 * s, Class'RIVP'.static.Acc(0.25 * Flash));
 	edge = Class'RIUtil'.static.Mix(Class'RIUtil'.static.Col(92, 77, 37), Class'RIUtil'.static.Col(230, 195, 117), lit);
-	Class'RIText'.static.Box(gc, 0, 0, width, height, edge);
-	// a short accent tick in the top-left corner, as on the persona cells
-	Class'RISkin'.static.FillC(gc, 0, 0, 14 * s, 2 * s, edge);
+	if (Class'RIVP'.static.On())
+	{
+		// Vanilla+: the original key (HUDKeypadButton_*, its art in the top
+		// 25 x 27 of the texture), pressed art while held, lit on hover
+		if (bButtonPressed)
+			KT = Texture'DeusExUI.UserInterface.HUDKeypadButton_Pressed';
+		else
+			KT = Texture'DeusExUI.UserInterface.HUDKeypadButton_Normal';
+		gc.SetStyle(DSTY_Translucent);
+		gc.SetTileColor(Class'RIUtil'.static.Mix(Class'RIUtil'.static.Col(150, 150, 150), Class'RIUtil'.static.Col(255, 255, 255), lit));
+		Class'RIHD'.static.DrawStretched(gc, 0, 0, width, height, 0, 0, KT.USize * 100.0 / 128.0, KT.VSize * 108.0 / 128.0, KT);
+	}
+	else
+	{
+		Class'RIText'.static.Box(gc, 0, 0, width, height, edge);
+		// a short accent tick in the top-left corner, as on the persona cells
+		Class'RISkin'.static.FillC(gc, 0, 0, 14 * s, 2 * s, edge);
+	}
 
 	if (bIsSensitive)
 		txt = Class'RIUtil'.static.Mix(Class'RIUtil'.static.Col(230, 195, 117), Class'RIUtil'.static.Col(255, 246, 214), lit);

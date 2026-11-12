@@ -107,7 +107,7 @@ function bool CanActivate()
 	local Augmentation Aug;
 
 	Aug = AugAt(Sel);
-	return (Aug != None) && (Aug.AugmentationType != Aug_Passive);
+	return (Aug != None) && (Class'RIBase'.static.AugType(Aug) != 0);
 }
 
 function bool CanUpgrade()
@@ -341,7 +341,7 @@ function DrawLocCard(GC gc, int L, float X, float Y, float W, float a)
 		{
 			// AE's colour for the aug's type and state
 			gc.SetStyle(DSTY_Masked);
-			gc.SetTileColor(Class'RIUtil'.static.Mix(C3(0, 0, 0, a), Aug.GetAugColor(), a));
+			gc.SetTileColor(Class'RIUtil'.static.Mix(C3(0, 0, 0, a), Class'RIBase'.static.AugColor(Aug, False), a));
 			Class'RIHD'.static.DrawStretched(gc, X + 6 * S, y2 + (rh - isz) * 0.5, isz, isz, 0, 0, Ic.USize, Ic.VSize, Ic);
 		}
 		ix = X + isz + 14 * S;
@@ -447,7 +447,7 @@ function DrawMedBot(GC gc, float a)
 				CanBtn[NumCanBtn] = B;
 				bSel = (MBA().selectedAugButton == B);
 				bHot = (HoverId == HOT_CANAUG + NumCanBtn);
-				bLive = !((B.bHasIt || B.bSlotFull) && !B.bCanRespec);
+				bLive = !((B.bHasIt || B.bSlotFull) && !Class'RIBase'.static.AugCanRespec(B));
 				if (bSel)
 					SelRow(gc, x, y, w, rh - 6 * S, a);
 				else if (bHot)
@@ -466,7 +466,7 @@ function DrawMedBot(GC gc, float a)
 				else
 					Class'RIText'.static.Draw(gc, Class'RIFontBody', x + 56 * S, y + 6 * S, Class'RIText'.static.Fit(Class'RIFontBody', Aug.AugmentationName, w - 220 * S, 0.8), ALbl(a * 0.7), 0.8);
 				Tag = "";
-				if (B.bCanRespec)
+				if (Class'RIBase'.static.AugCanRespec(B))
 					Tag = ReplaceLabel;
 				else if (B.bHasIt)
 					Tag = HasItLabel;
@@ -487,7 +487,7 @@ function DrawMedBot(GC gc, float a)
 
 	// Install (or Replace, for a respec) along the bottom
 	L = InstallLabel;
-	if ((HUDMedBotAugItemButton(MBA().selectedAugButton) != None) && HUDMedBotAugItemButton(MBA().selectedAugButton).bCanRespec)
+	if ((HUDMedBotAugItemButton(MBA().selectedAugButton) != None) && Class'RIBase'.static.AugCanRespec(HUDMedBotAugItemButton(MBA().selectedAugButton)))
 		L = ReplaceLabel;
 	bLive = MBA().btnInstall.IsSensitive();
 	DrawBtn(gc, x, bottom + 20 * S, w, 50 * S, L, bLive, HoverId == HOT_INSTALL, bLive, a);
@@ -529,14 +529,14 @@ function DrawDetail(GC gc, float a)
 		}
 		Class'RIText'.static.Draw(gc, Class'RIFontTitle', x + 80 * S + (1 - da) * 8 * S, y + 4 * S,
 			Caps(Class'RIText'.static.Fit(Class'RIFontTitle', Aug.AugmentationName, w - 80 * S, 0.4)), ATxt(da), 0.4);
-		T = TypeNames[Clamp(int(Aug.AugmentationType), 0, 3)];
+		T = TypeNames[Class'RIBase'.static.AugType(Aug)];
 		if (Aug.bIsActive)
 			T = T $ "  -  " $ OnLabel;
 		Class'RIText'.static.Draw(gc, Class'RIFontSmall', x + 80 * S, y + 42 * S,
 			Caps(LevelLabel) @ string(Aug.CurrentLevel + 1) $ " / " $ string(Aug.MaxLevel + 1) $ "    " $ Caps(T), AAcc(da), 0.68);
 		y += 84 * S;
 		// How to toggle it in play: a strip with the key in a badge
-		if ((AugKey(Aug) != "") || Aug.CanBeActivated())
+		if ((AugKey(Aug) != "") || Class'RIBase'.static.AugCanActivate(Aug))
 		{
 			Fill(gc, x, y, w, 40 * S, C3(126, 105, 50, 0.12 * da));
 			Class'RIText'.static.Box(gc, x, y, w, 40 * S, ADim(da));
@@ -668,7 +668,7 @@ function DrawVPDetail(GC gc, float a)
 	y = 226 * S;
 	if (Aug != None)
 	{
-		T = TypeNames[Clamp(int(Aug.AugmentationType), 0, 3)];
+		T = TypeNames[Class'RIBase'.static.AugType(Aug)];
 		if (Aug.bIsActive)
 			T = T $ "  -  " $ OnLabel;
 		Class'RIText'.static.Draw(gc, Class'RIFontSmall', x, y,
@@ -676,7 +676,7 @@ function DrawVPDetail(GC gc, float a)
 		y += 26 * S;
 		if (AugKey(Aug) != "")
 			Class'RIText'.static.Draw(gc, Class'RIFontSmall', x, y, Caps(KeyLabel) @ AugKey(Aug), ALbl(da), 0.58);
-		else if (Aug.CanBeActivated())
+		else if (Class'RIBase'.static.AugCanActivate(Aug))
 			Class'RIText'.static.Draw(gc, Class'RIFontSmall', x, y, Caps(NoKeyLabel), ALbl(da), 0.58);
 		y += 32 * S;
 		DescTop = y;
