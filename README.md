@@ -128,7 +128,7 @@ Open an issue (or message me) with what you were doing, a screenshot, and the lo
 
 ## Credits
 
-- **Interface concept:** Tanit Mesa, *Deus Ex 2000: Reimagined (UX/UI)* on ArtStation. The layout and look of this mod follow his concept art and mockups.
+- **Interface concept:** Tanit Mesa, *Deus Ex 2000: Reimagined (UX/UI)* on ArtStation. The layout and look of this mod follow her concept art and mockups.
 - **Fonts:** Michroma and Exo 2, both under the SIL Open Font License.
 - **Launcher:** Kentie's DeusExe.
 - **GMDX: Augmented Edition** by Sarge and the GMDX team, the first base this mod was built on.
