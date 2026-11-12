@@ -7,7 +7,7 @@ class RITermPublic extends NetworkTerminalPublic;
 
 function AddNotesWindow()
 {
-	Class'RINotesPanel'.static.AddTerminalNotes(Self);
+	Class'RIBase'.static.AddTerminalNotes(Self);
 }
 
 defaultproperties

@@ -17,6 +17,7 @@ defaultproperties
      choices(7)=Class'ReimaginedUI.RIChoiceHudScale'
      choices(8)=Class'ReimaginedUI.RIChoiceBeltScale'
      choices(9)=Class'ReimaginedUI.RIChoiceSubScale'
+     choices(10)=Class'ReimaginedUI.RIChoiceConBars'
      actionButtons(0)=(Align=HALIGN_Right,Action=AB_Cancel)
      actionButtons(1)=(Align=HALIGN_Right,Action=AB_OK)
      actionButtons(2)=(Action=AB_Reset)

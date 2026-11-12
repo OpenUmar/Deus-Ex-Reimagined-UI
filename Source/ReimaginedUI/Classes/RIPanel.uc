@@ -122,8 +122,8 @@ static function bool Supports(Window W)
 
 	if (RIMenuScreenCustomizeKeys(Scr) != None)
 		return True;
-	if (MenuScreenListWindow(Scr) != None)
-		return MenuScreenListWindow(Scr).lstItems != None;
+	if (Class'RIBase'.static.IsListScreen(Scr))
+		return Class'RIBase'.static.ScreenList(Scr) != None;
 	if (Scr.winClient == None)
 		return False;
 	for (C = Scr.winClient.GetTopChild(); C != None; C = C.GetLowerSibling())
@@ -169,7 +169,7 @@ function AttachTo(MenuUIScreenWindow NewScreen, RIMenuSettings NewShell)
 		Kind = KIND_KEYS;
 		RIMenuScreenCustomizeKeys(Screen).FocusPanel = Self;
 	}
-	else if (MenuScreenListWindow(Screen) != None)
+	else if (Class'RIBase'.static.IsListScreen(Screen))
 		Kind = KIND_LIST;
 	else
 		Kind = KIND_CHOICES;
@@ -225,7 +225,7 @@ function RebuildRows()
 	if (Kind == KIND_KEYS)
 		RowsFromList(RIMenuScreenCustomizeKeys(Screen).lstKeys);
 	else if (Kind == KIND_LIST)
-		RowsFromList(MenuScreenListWindow(Screen).lstItems);
+		RowsFromList(Class'RIBase'.static.ScreenList(Screen));
 	else
 		RowsFromChoices();
 
@@ -431,7 +431,7 @@ function Discard()
 	else if (Kind == KIND_LIST)
 	{
 		// GMDX lists write values as they change: step each back to its old value
-		L = MenuScreenListWindow(Screen).lstItems;
+		L = Class'RIBase'.static.ScreenList(Screen);
 		RebuildRows();
 		for (i = 0; i < NumRows; i++)
 		{
@@ -478,7 +478,7 @@ function CycleRow(int i, int Dir)
 
 	if (Kind == KIND_LIST)
 	{
-		L = MenuScreenListWindow(Screen).lstItems;
+		L = Class'RIBase'.static.ScreenList(Screen);
 		if (Dir > 0)
 			Screen.ListRowActivated(L, RowRef[i]);
 		else
@@ -583,7 +583,6 @@ function float SliderW() { return ListW * 0.28; }
 
 function UpdateDesc(bool bForce)
 {
-	local MenuScreenListWindow LW;
 	local int idx;
 
 	if (!bForce && (Sel == LastDescSel))
@@ -601,11 +600,8 @@ function UpdateDesc(bool bForce)
 
 	if (Kind == KIND_LIST)
 	{
-		LW = MenuScreenListWindow(Screen);
-		idx = int(LW.lstItems.GetFieldValue(RowRef[Sel], 2));
-		LW.ShowHelpString(idx);
-		if (LW.winDesc != None)
-			DescText = LW.winDesc.GetText();
+		idx = int(Class'RIBase'.static.ScreenList(Screen).GetFieldValue(RowRef[Sel], 2));
+		DescText = Class'RIBase'.static.ListHelp(Screen, idx);
 	}
 	else if ((Kind == KIND_CHOICES) && (RowChoice[Sel] != None))
 	{

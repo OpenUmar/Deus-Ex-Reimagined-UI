@@ -19,3 +19,12 @@ Tools/esrgan/*.zip
 Tools/__pycache__/
 Tools/esrgan/__pycache__/
 Source/RIVanillaHD/Textures/
+# Scratch / debug output
+_dbg/
+_dsx/
+# Third-party launcher kept for reference only
+Launcher/_ref/
+# Vanilla build outputs and ini backups
+System/Vanilla/*.u
+System/Vanilla/*.bak*
+*.ini.bak*

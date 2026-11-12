@@ -8,14 +8,14 @@
 //=============================================================================
 class RIScopeView extends DeusExScopeView;
 
-var localized string ZoomLabel;
+var localized string ZoomLabel, RangeLabel, RangeUnits;
 
 function bool RIOn()
 {
 	local RIRootWindow R;
 
 	R = RIRootWindow(GetRootWindow());
-	return (R != None) && !R.bClassicHUD && (player != None) && !player.bClassicScope;
+	return (R != None) && !R.bClassicHUD && (player != None) && !Class'RIUtil'.static.PBool(player, "bClassicScope");
 }
 
 function Line(GC gc, float X, float Y, float W, float H, Color C)
@@ -32,7 +32,7 @@ event DrawWindow(GC gc)
 	local string S;
 	local int zi;
 
-	if ((player == None) || !RIOn() || player.bGEPzoomActive)
+	if ((player == None) || !RIOn() || Class'RIUtil'.static.PBool(player, "bGEPzoomActive"))
 	{
 		Super.DrawWindow(gc);
 		return;
@@ -111,7 +111,7 @@ event DrawWindow(GC gc)
 	}
 
 	// --- readout: range, and zoom from the view's field of view
-	S = getBinocsTargetRangeString();
+	S = RangeText();
 	zoom = 90.0;
 	if (player.DesiredFOV > 1)
 		zoom = 90.0 / player.DesiredFOV;
@@ -121,7 +121,23 @@ event DrawWindow(GC gc)
 	Class'RITheme'.static.SetMode(0);
 }
 
+// Distance to what the view points at, in feet (AE's binocular readout,
+// the same trace its AugmentationDisplayWindow uses)
+function string RangeText()
+{
+	local vector HitLocation, HitNormal, StartTrace, EndTrace;
+
+	StartTrace = player.Location;
+	EndTrace = player.Location + (Vector(player.ViewRotation) * 160000);
+	StartTrace.Z += player.BaseEyeHeight;
+	EndTrace.Z += player.BaseEyeHeight;
+	player.Trace(HitLocation, HitNormal, EndTrace, StartTrace, True);
+	return RangeLabel @ string(int(VSize(HitLocation - player.Location) / 16)) @ RangeUnits;
+}
+
 defaultproperties
 {
      ZoomLabel="ZOOM"
+     RangeLabel="Range"
+     RangeUnits="ft"
 }

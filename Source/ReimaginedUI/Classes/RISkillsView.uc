@@ -22,7 +22,7 @@ var float DescAge;
 var float PointsFlash;
 
 // Perks of the current row
-var Perk  Perks[32];
+var Object Perks[32];      // GMDX AE perks (base feature), read through RIBase
 var int   NumPerks;
 var float PerkScroll, PerkScrollTarget, PerkMax;
 var float PerkTop, PerkBottom, PerkLeft, PerkRight;
@@ -45,7 +45,9 @@ function PersonaScreenSkills Skills()
 function ScreenAttached()
 {
 	ActiveTab = TAB_SKILLS;
-	NumRows = CountSkills() + 1;
+	NumRows = CountSkills();
+	if (Class'RIBase'.static.Has("Perks"))
+		NumRows++;          // the General Perks row
 	Sel = 0;
 	PerkSel = -1;
 	SelectRow(0);
@@ -63,7 +65,7 @@ function int CountSkills()
 
 function bool IsGeneralRow(int i)
 {
-	return i == NumRows - 1;
+	return Class'RIBase'.static.Has("Perks") && (i == NumRows - 1);
 }
 
 function Skill SkillAt(int i)
@@ -93,12 +95,12 @@ function SelectRow(int i)
 
 function GatherPerks()
 {
-	local Perk P;
+	local Object P;
 	local int n;
 	local class<Skill> SC;
 
 	NumPerks = 0;
-	if ((Player == None) || (Player.PerkManager == None))
+	if ((Player == None) || !Class'RIBase'.static.Has("Perks"))
 		return;
 	if (IsGeneralRow(Sel))
 		SC = None;
@@ -108,10 +110,10 @@ function GatherPerks()
 		return;
 	for (n = 0; n < 32; n++)
 	{
-		P = Player.PerkManager.GetPerkForSkill(SC, n);
+		P = Class'RIBase'.static.PerkFor(Player, SC, n);
 		if (P == None)
 			break;
-		if (P.IsVisible())
+		if (Class'RIBase'.static.PerkVisible(P))
 			Perks[NumPerks++] = P;
 	}
 	if (PerkSel >= NumPerks)
@@ -128,7 +130,7 @@ function int CurrentSub()
 
 function bool LocalSub(int Id)
 {
-	if (Id == TAB_PERKS)
+	if ((Id == TAB_PERKS) && Class'RIBase'.static.Has("Perks"))
 	{
 		LastSkill = Sel;
 		SelectRow(NumRows - 1);
@@ -138,7 +140,7 @@ function bool LocalSub(int Id)
 	}
 	if (Id == TAB_SKILLS)
 	{
-		SelectRow(Clamp(LastSkill, 0, NumRows - 2));
+		SelectRow(Clamp(LastSkill, 0, NumRows - 1 - int(Class'RIBase'.static.Has("Perks"))));
 		return True;
 	}
 	return False;
@@ -168,12 +170,12 @@ function DoUpgrade()
 
 function bool CanBuy(int k)
 {
-	return (k >= 0) && (k < NumPerks) && Perks[k].IsPurchasable();
+	return (k >= 0) && (k < NumPerks) && Class'RIBase'.static.PerkBuyable(Perks[k]);
 }
 
 function DoBuy(int k)
 {
-	if ((k < 0) || (k >= NumPerks) || Perks[k].bPerkObtained)
+	if ((k < 0) || (k >= NumPerks) || Class'RIBase'.static.PerkOwned(Perks[k]))
 		return;
 	if (!CanBuy(k))
 	{
@@ -181,23 +183,14 @@ function DoBuy(int k)
 		PlaySound(Sound'Menu_Cancel', 0.25);
 		return;
 	}
-	Player.PerkManager.PurchasePerk(Perks[k].Class);
+	Class'RIBase'.static.PerkBuy(Player, Perks[k]);
 	GatherPerks();
 }
 
 // GMDX perk text: the value is printed into the description
-function string PerkText(Perk P)
+function string PerkText(Object P)
 {
-	local string V;
-
-	if (P.PerkValueDisplay == Delta_Percentage)
-		return Sprintf(P.PerkDescription, int(P.PerkValue * 100 - 100));
-	if (P.PerkValueDisplay == Percentage)
-		return Sprintf(P.PerkDescription, int(P.PerkValue * 100));
-	V = string(P.PerkValue);
-	while ((InStr(V, ".") >= 0) && ((Right(V, 1) == "0") || (Right(V, 1) == ".")))
-		V = Left(V, Len(V) - 1);
-	return Sprintf(P.PerkDescription, V);
+	return Class'RIBase'.static.PerkText(P);
 }
 
 // ----------------------------------------------------------------------
@@ -500,7 +493,7 @@ function DrawList(GC gc, float a)
 				Class'RIText'.static.HLine(gc, x + 8 * S, y + rh, w - 16 * S, C3(60, 50, 24, a));
 			}
 			Class'RIText'.static.DrawIn(gc, Class'RIFontHead', nx, y, w * 0.58, rh,
-				Caps(Class'RIText'.static.Fit(Class'RIFontHead', Perks[k].PerkName, w * 0.58, ns)),
+				Caps(Class'RIText'.static.Fit(Class'RIFontHead', Class'RIBase'.static.PerkName(Perks[k]), w * 0.58, ns)),
 				Class'RIUtil'.static.Mix(C3(236, 214, 160, a), C3(255, 255, 255, a), int(bSel)), 0, ns);
 			Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', x + w * 0.58, y, cx - x - w * 0.58, rh,
 				Caps(PerkStateText(k)), PerkStateColor(k, a), 2, hs);
@@ -517,20 +510,20 @@ function DrawList(GC gc, float a)
 // Owned / available (cost) / locked or what it needs
 function string PerkStateText(int k)
 {
-	if (Perks[k].bPerkObtained)
+	if (Class'RIBase'.static.PerkOwned(Perks[k]))
 		return OwnedLabel;
-	if (Perks[k].IsPurchasable())
-		return AvailableLabel @ "-" @ string(Perks[k].PerkCost);
-	if ((Perks[k].PerkSkill != None) && (Player.SkillSystem.GetSkillLevel(Perks[k].PerkSkill) < Perks[k].PerkLevelRequirement))
-		return NeedsLabel @ LevelNames[Clamp(Perks[k].PerkLevelRequirement, 0, 3)];
-	return LockedLabel @ "-" @ string(Perks[k].PerkCost);
+	if (Class'RIBase'.static.PerkBuyable(Perks[k]))
+		return AvailableLabel @ "-" @ string(Class'RIBase'.static.PerkCost(Perks[k]));
+	if (Class'RIBase'.static.PerkNeedsSkill(Player, Perks[k]))
+		return NeedsLabel @ LevelNames[Clamp(Class'RIBase'.static.PerkLevel(Perks[k]), 0, 3)];
+	return LockedLabel @ "-" @ string(Class'RIBase'.static.PerkCost(Perks[k]));
 }
 
 function Color PerkStateColor(int k, float a)
 {
-	if (Perks[k].bPerkObtained)
+	if (Class'RIBase'.static.PerkOwned(Perks[k]))
 		return AGood(a);
-	if (Perks[k].IsPurchasable())
+	if (Class'RIBase'.static.PerkBuyable(Perks[k]))
 		return AAcc(a);
 	return C3(150, 132, 92, a);
 }
@@ -572,7 +565,7 @@ function DrawDetail(GC gc, float a)
 		D = GeneralDesc;
 		if ((PerkSel >= 0) && (PerkSel < NumPerks))
 		{
-			T = Perks[PerkSel].PerkName;
+			T = Class'RIBase'.static.PerkName(Perks[PerkSel]);
 			D = PerkText(Perks[PerkSel]);
 		}
 	}
@@ -582,7 +575,7 @@ function DrawDetail(GC gc, float a)
 		if (Sk == None)
 			return;
 		T = Sk.SkillName;
-		D = Sk.GetDescriptionText(Player.bHardCoreMode, Player.CombatDifficulty);
+		D = Class'RIBase'.static.SkillDesc(Sk, Class'RIUtil'.static.PBool(Player, "bHardCoreMode"), Player.CombatDifficulty);
 		p = InStr(D, "|n");
 		if (p >= 0)
 			D = Left(D, p);
@@ -620,73 +613,78 @@ function DrawDetail(GC gc, float a)
 		return;
 	}
 
+	// Perks (base feature)
+	if (Class'RIBase'.static.Has("Perks"))
+	{
 	// Perks
-	Class'RIText'.static.Draw(gc, Class'RIFontSmall', x, y, Caps(PerksLabel), AAcc(a), 0.72);
-	y += 30 * S;
-	top = y;
-	PerkTop = top;
-	PerkBottom = bottom - 90 * S;
-	PerkLeft = x;
-	PerkRight = x + w;
-	st = gc.PushGC();
-	gc.Intersect(x - 4 * S, top, w + 8 * S, PerkBottom - top);
-	y = top - PerkScroll;
-	for (k = 0; k < NumPerks; k++)
-	{
-		bSel = (k == PerkSel);
-		bHot = (HoverId == HOT_PERK + k);
-		D = PerkText(Perks[k]);
-		cardH = 46 * S + Class'RIText'.static.DrawWrapped(None, Class'RIFontBody', 0, 0, w - 28 * S, D, C3(0, 0, 0, 0), 0.72, 1.35);
-
-		if (Perks[k].bPerkObtained)
+		Class'RIText'.static.Draw(gc, Class'RIFontSmall', x, y, Caps(PerksLabel), AAcc(a), 0.72);
+		y += 30 * S;
+		top = y;
+		PerkTop = top;
+		PerkBottom = bottom - 90 * S;
+		PerkLeft = x;
+		PerkRight = x + w;
+		st = gc.PushGC();
+		gc.Intersect(x - 4 * S, top, w + 8 * S, PerkBottom - top);
+		y = top - PerkScroll;
+		for (k = 0; k < NumPerks; k++)
 		{
-			StateTxt = OwnedLabel;
-			SC = AGood(a);
-		}
-		else if (Perks[k].IsPurchasable())
-		{
-			StateTxt = AvailableLabel @ "-" @ string(Perks[k].PerkCost);
-			SC = AAcc(a);
-		}
-		else
-		{
-			StateTxt = LockedLabel;
-			SC = C3(150, 132, 92, a);
-			if ((Perks[k].PerkSkill != None) && (Player.SkillSystem.GetSkillLevel(Perks[k].PerkSkill) < Perks[k].PerkLevelRequirement))
-				StateTxt = NeedsLabel @ LevelNames[Clamp(Perks[k].PerkLevelRequirement, 0, 3)];
+			bSel = (k == PerkSel);
+			bHot = (HoverId == HOT_PERK + k);
+			D = PerkText(Perks[k]);
+			cardH = 46 * S + Class'RIText'.static.DrawWrapped(None, Class'RIFontBody', 0, 0, w - 28 * S, D, C3(0, 0, 0, 0), 0.72, 1.35);
+	
+			if (Class'RIBase'.static.PerkOwned(Perks[k]))
+			{
+				StateTxt = OwnedLabel;
+				SC = AGood(a);
+			}
+			else if (Class'RIBase'.static.PerkBuyable(Perks[k]))
+			{
+				StateTxt = AvailableLabel @ "-" @ string(Class'RIBase'.static.PerkCost(Perks[k]));
+				SC = AAcc(a);
+			}
 			else
-				StateTxt = LockedLabel @ "-" @ string(Perks[k].PerkCost);
+			{
+				StateTxt = LockedLabel;
+				SC = C3(150, 132, 92, a);
+				if (Class'RIBase'.static.PerkNeedsSkill(Player, Perks[k]))
+					StateTxt = NeedsLabel @ LevelNames[Clamp(Class'RIBase'.static.PerkLevel(Perks[k]), 0, 3)];
+				else
+					StateTxt = LockedLabel @ "-" @ string(Class'RIBase'.static.PerkCost(Perks[k]));
+			}
+	
+			Fill(gc, x, y, w, cardH, C3(30, 25, 11, 0.6 * a));
+			if (bSel)
+				SelRow(gc, x, y, w, cardH, a);
+			else if (bHot)
+				Class'RIText'.static.Box(gc, x, y, w, cardH, AEdge(a));
+			else
+				Class'RIText'.static.Box(gc, x, y, w, cardH, C3(90, 75, 36, a));
+			Class'RIText'.static.Draw(gc, Class'RIFontHead', x + 14 * S, y + 10 * S,
+				Caps(Class'RIText'.static.Fit(Class'RIFontHead', Class'RIBase'.static.PerkName(Perks[k]), w * 0.58, 0.5)), ATxt(a), 0.5);
+			Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', x + w * 0.5, y + 8 * S, w * 0.5 - 14 * S, 24 * S, Caps(StateTxt), SC, 2, 0.62);
+			Class'RIText'.static.DrawWrapped(gc, Class'RIFontBody', x + 14 * S, y + 38 * S, w - 28 * S, D, C3(220, 200, 155, a), 0.72, 1.35);
+			PerkCardY[k] = y + PerkScroll - top;
+			PerkCardH[k] = cardH;
+			if ((y + cardH > top) && (y < PerkBottom))
+				AddHot(HOT_PERK + k, x, FMax(y, top), w, FMin(y + cardH, PerkBottom) - FMax(y, top));
+			y += cardH + 10 * S;
 		}
-
-		Fill(gc, x, y, w, cardH, C3(30, 25, 11, 0.6 * a));
-		if (bSel)
-			SelRow(gc, x, y, w, cardH, a);
-		else if (bHot)
-			Class'RIText'.static.Box(gc, x, y, w, cardH, AEdge(a));
-		else
-			Class'RIText'.static.Box(gc, x, y, w, cardH, C3(90, 75, 36, a));
-		Class'RIText'.static.Draw(gc, Class'RIFontHead', x + 14 * S, y + 10 * S,
-			Caps(Class'RIText'.static.Fit(Class'RIFontHead', Perks[k].PerkName, w * 0.58, 0.5)), ATxt(a), 0.5);
-		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', x + w * 0.5, y + 8 * S, w * 0.5 - 14 * S, 24 * S, Caps(StateTxt), SC, 2, 0.62);
-		Class'RIText'.static.DrawWrapped(gc, Class'RIFontBody', x + 14 * S, y + 38 * S, w - 28 * S, D, C3(220, 200, 155, a), 0.72, 1.35);
-		PerkCardY[k] = y + PerkScroll - top;
-		PerkCardH[k] = cardH;
-		if ((y + cardH > top) && (y < PerkBottom))
-			AddHot(HOT_PERK + k, x, FMax(y, top), w, FMin(y + cardH, PerkBottom) - FMax(y, top));
-		y += cardH + 10 * S;
-	}
-	PerkMax = (y + PerkScroll - top) - (PerkBottom - top);
-	if (NumPerks == 0)
-		Class'RIText'.static.Draw(gc, Class'RIFontBody', x, top, "-", ALbl(a), 0.8);
-	gc.PopGC(st);
-
-	// Scroll bar when the perks overflow
-	if (PerkMax > 1)
-	{
-		h = PerkBottom - top;
-		Fill(gc, x + w + 10 * S, top, 2 * S, h, C3(50, 42, 20, a));
-		Fill(gc, x + w + 10 * S, top + (h - FMax(30 * S, h * h / (h + PerkMax))) * (PerkScroll / PerkMax), 2 * S,
-			FMax(30 * S, h * h / (h + PerkMax)), AAcc(a));
+		PerkMax = (y + PerkScroll - top) - (PerkBottom - top);
+		if (NumPerks == 0)
+			Class'RIText'.static.Draw(gc, Class'RIFontBody', x, top, "-", ALbl(a), 0.8);
+		gc.PopGC(st);
+	
+		// Scroll bar when the perks overflow
+		if (PerkMax > 1)
+		{
+			h = PerkBottom - top;
+			Fill(gc, x + w + 10 * S, top, 2 * S, h, C3(50, 42, 20, a));
+			Fill(gc, x + w + 10 * S, top + (h - FMax(30 * S, h * h / (h + PerkMax))) * (PerkScroll / PerkMax), 2 * S,
+				FMax(30 * S, h * h / (h + PerkMax)), AAcc(a));
+		}
+	
 	}
 
 	if (VPlus())

@@ -244,7 +244,7 @@ function ChangeSkill(int k, int Dir)
 			return;
 		}
 		UpgradeSkill();
-		player.PlaySound(Sound'Select', SLOT_None, 0.85,, 0.8);
+		player.PlaySound(Class'RIBase'.static.SkillUpSound(), SLOT_None, 0.85,, 0.8);
 	}
 	else if (selectedSkill.GetCurrentLevel() > 0)
 	{
@@ -255,14 +255,23 @@ function ChangeSkill(int k, int Dir)
 		PointsFlash = 0.0;
 }
 
+// LDDP's female JC (in GMDX AE): portraits alternate male / female, and only
+// the male half is used when it isn't loaded. The original has 5 portraits.
+function bool FemaleOn()
+{
+	return Class'RIUtil'.static.PBool(Self, "bFemaleEnabled");
+}
+
 function int PortraitCount()
 {
-	return arrayCount(texPortraits) / (1 + int(!bFemaleEnabled));
+	if (!Class'RIUtil'.static.PHas(Self, "bFemaleEnabled"))
+		return arrayCount(texPortraits);
+	return arrayCount(texPortraits) / (1 + int(!FemaleOn()));
 }
 
 function bool IsFemalePortrait()
 {
-	return bFemaleEnabled && ((portraitIndex % 2) == 1);
+	return FemaleOn() && ((portraitIndex % 2) == 1);
 }
 
 // ----------------------------------------------------------------------
@@ -272,7 +281,7 @@ function bool IsFemalePortrait()
 function bool ButtonLive(int b)
 {
 	if (b == BTN_HELP)
-		return bFemaleEnabled;
+		return FemaleOn();
 	if (b == BTN_START)
 		return (editName != None) && (TrimSpaces(editName.GetText()) != "");
 	return True;
@@ -334,10 +343,10 @@ function Backspace(bool bWord)
 
 function ToggleOption(int Id)
 {
-	if ((Id == HOT_MORPHEUS) && (MorpheusCheckbox != None))
-		MorpheusCheckbox.SetToggle(!MorpheusCheckbox.GetToggle());
-	else if ((Id == HOT_MALEINT) && (MaleInteractionsCheckbox != None))
-		MaleInteractionsCheckbox.SetToggle(!MaleInteractionsCheckbox.GetToggle());
+	if (Id == HOT_MORPHEUS)
+		Class'RIBase'.static.NewGameFlip(Self, 0);
+	else if (Id == HOT_MALEINT)
+		Class'RIBase'.static.NewGameFlip(Self, 1);
 	PlaySound(Sound'Menu_Press', 0.25);
 }
 
@@ -709,7 +718,7 @@ function DrawDetail(GC gc, float a)
 	Class'RIText'.static.Draw(gc, Class'RIFontHead', x + (1.0 - da) * 8 * S, DY + 16 * S, Caps(Sk.SkillName), C3(230, 232, 255, da), 0.62);
 
 	// The skill's general description (its first paragraph)
-	D = Sk.GetDescriptionText(bHardCoreMode, combatDifficulty);
+	D = Class'RIBase'.static.SkillDesc(Sk, Class'RIUtil'.static.PBool(Self, "bHardCoreMode"), combatDifficulty);
 	p = InStr(D, "|n");
 	if (p >= 0)
 		Para = Left(D, p);
@@ -784,7 +793,7 @@ function DrawToggle(GC gc, float X, float Y, float W, string Label, bool bOn, in
 
 function string DifficultyName()
 {
-	if (bHardCoreMode)
+	if (Class'RIUtil'.static.PBool(Self, "bHardCoreMode"))
 		return "Hardcore";
 	if (combatDifficulty <= 0.75)
 		return "Easy";
@@ -806,7 +815,7 @@ function DrawAgent(GC gc, float a)
 
 	// Portrait box with the appearance arrows in its bottom corners
 	ph = 480 * S;
-	if (bFemaleEnabled)
+	if (FemaleOn())
 		ph -= 84 * S;
 	y = AY;
 	Class'RISkin'.static.FillC(gc, AX, y, AW, ph, C3(14, 16, 56, 0.6 * a));
@@ -830,7 +839,7 @@ function DrawAgent(GC gc, float a)
 	AddHot(HOT_PORTRAIT, AX, y, AW, ph);
 
 	// Appearance count, top left; arrows, bottom corners
-	if (bFemaleEnabled)
+	if (FemaleOn())
 	{
 		if (IsFemalePortrait())
 			L = FemaleLabel;
@@ -860,12 +869,12 @@ function DrawAgent(GC gc, float a)
 	y += 24 * S + 48 * S + 14 * S;
 
 	// LDDP options
-	if (bFemaleEnabled && (MorpheusCheckbox != None))
+	if (FemaleOn() && (Class'RIBase'.static.NewGameOption(Self, 0, L) >= 0))
 	{
-		DrawToggle(gc, AX, y, AW, MorpheusCheckboxLabel, MorpheusCheckbox.GetToggle(), HOT_MORPHEUS, a);
+		DrawToggle(gc, AX, y, AW, L, Class'RIBase'.static.NewGameOption(Self, 0, L) == 1, HOT_MORPHEUS, a);
 		y += 38 * S;
-		if (IsFemalePortrait() && (MaleInteractionsCheckbox != None))
-			DrawToggle(gc, AX, y, AW, MaleInteractionsCheckboxLabel, MaleInteractionsCheckbox.GetToggle(), HOT_MALEINT, a);
+		if (IsFemalePortrait() && (Class'RIBase'.static.NewGameOption(Self, 1, L) >= 0))
+			DrawToggle(gc, AX, y, AW, L, Class'RIBase'.static.NewGameOption(Self, 1, L) == 1, HOT_MALEINT, a);
 		y += 42 * S;
 	}
 
@@ -875,7 +884,7 @@ function DrawAgent(GC gc, float a)
 	Class'RIText'.static.Draw(gc, Class'RIFontSmall', AX + tw, y, Caps(DifficultyName()), C3(230, 232, 255, a), 0.7);
 
 	bx = AX + AW;
-	if (bFemaleEnabled)
+	if (FemaleOn())
 	{
 		bx -= 170 * S;
 		Class'RISkin'.static.MockButton(gc, bx, y - 10 * S, 170 * S, 36 * S, BtnLabels[BTN_HELP], S, a, HoverId == HOT_BTN + BTN_HELP, True);

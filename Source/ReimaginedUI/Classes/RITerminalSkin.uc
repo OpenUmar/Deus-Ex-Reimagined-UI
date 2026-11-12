@@ -131,13 +131,14 @@ function bool ScreenPanel(ComputerUIWindow S, out float x0, out float y0, out fl
 function PlaceNotes()
 {
 	local float x0, y0, x1, y1;
+	local Window N;
 
-	if ((Term.winNotes == None) || !Term.winNotes.IsVisible())
+	N = Class'RIBase'.static.TerminalNotes(Term);
+	if ((N == None) || !N.IsVisible())
 		return;
 	if (!ScreenPanel(Term.winComputer, x0, y0, x1, y1))
 		return;
-	Term.winNotes.SetPos(x1 + 14, y0);
-	Term.winNotes.Resize(300, y1 - y0);
+	Class'RIBase'.static.PlaceTerminalNotes(Term, x1 + 14, y0, 300, y1 - y0);
 }
 
 event DrawWindow(GC gc)

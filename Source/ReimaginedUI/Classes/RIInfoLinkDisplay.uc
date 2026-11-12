@@ -7,6 +7,8 @@
 //=============================================================================
 class RIInfoLinkDisplay extends HUDInfoLinkDisplay;
 
+var bool bDLIcon;      // the DataLink icon is up (drawn here, centred and scaled)
+
 function bool RIOn()
 {
 	return (RIDeusExHUD(GetParent()) != None) && RIDeusExHUD(GetParent()).bRI;
@@ -26,17 +28,20 @@ event InitWindow()
 
 function Relayout()
 {
-	SetSize(540, 88);
-	winPortrait.SetPos(16, 12);
-	winStatic.SetPos(16, 12);
-	winName.SetSize(410, 15);
-	winName.SetPos(96, 7);
+	// Everything kept inside the box art's frame with a margin: its line runs
+	// round the window's edge, so content starts 20+ in from every side.
+	// Five rows of text; portrait centred down the left.
+	SetSize(520, 114);
+	winPortrait.SetPos(22, 25);
+	winStatic.SetPos(22, 25);
+	winName.SetSize(260, 15);
+	winName.SetPos(104, 15);
 	winQueued.SetSize(200, 15);
-	winQueued.SetPos(306, 7);
-	winLine.SetSize(420, 1);
-	winLine.SetPos(96, 23);
-	winText.SetPos(96, 28);
-	winText.SetTextSize(58, 5);
+	winQueued.SetPos(298, 15);
+	winLine.SetSize(394, 1);
+	winLine.SetPos(104, 32);
+	winText.SetPos(104, 38);
+	winText.SetTextSize(52, 5);
 	Recolour();
 }
 
@@ -59,6 +64,30 @@ event StyleChanged()
 }
 
 // Soft dark backing: darkest in the middle, no hard edges
+// While a transmission is incoming the original blinks the DataLink icon on
+// and off (DataLinkPlay), which leaves the box empty half the time. Keep it on.
+// The icon itself is drawn in DrawBorder, scaled into the portrait box:
+// the window's own background draws the texture at its native size in the
+// corner (with the HD set that looked broken)
+function ShowDatalinkIcon(bool bShow)
+{
+	if (!RIOn())
+	{
+		bDLIcon = False;
+		Super.ShowDatalinkIcon(bShow);
+		return;
+	}
+	Super.ShowDatalinkIcon(True);
+	winPortrait.SetBackground(None);
+	bDLIcon = True;
+}
+
+function ShowPortrait()
+{
+	bDLIcon = False;
+	Super.ShowPortrait();
+}
+
 function DrawBackground(GC gc)
 {
 	local int i;
@@ -101,13 +130,28 @@ function DrawBorder(GC gc)
 		Super.DrawBorder(gc);
 		return;
 	}
+	if (bDLIcon)
+		DrawDLIcon(gc);
 	if (Class'RIVP'.static.On())
 	{
-		Class'RIVP'.static.Inset(gc, 15, 11, 66, 66, 1);
+		Class'RIVP'.static.Inset(gc, 20, 23, 68, 68, 1);
 		return;
 	}
-	Class'RIText'.static.Box(gc, 15, 11, 66, 66, Col(126, 105, 50));
+	Class'RIText'.static.Box(gc, 20, 23, 68, 68, Col(126, 105, 50));
 	Class'RIText'.static.HLine(gc, 22, 4, 140, Col(126, 105, 50));
+}
+
+function DrawDLIcon(GC gc)
+{
+	local Texture T;
+
+	// the icon only fills the top-middle quarter of its texture (x 1/4..3/4,
+	// y 0..1/2): crop to it so it sits centred and fills the portrait frame
+	// (frame 20..88 x 23..91, centre 54, 57)
+	T = Texture'DeusExUI.UserInterface.DataLinkIcon';
+	gc.SetStyle(DSTY_Masked);
+	gc.SetTileColor(Col(255, 255, 255));
+	Class'RIHD'.static.DrawStretched(gc, 54 - 29, 57 - 29, 58, 58, T.USize * 0.25, 0, T.USize * 0.5, T.VSize * 0.5, T);
 }
 
 defaultproperties

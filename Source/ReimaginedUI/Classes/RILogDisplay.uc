@@ -157,23 +157,24 @@ function ShowPickup(string L)
 			return;
 		}
 	}
-	if (Best.IsA('DeusExAmmo'))
-		Ic = DeusExAmmo(Best).GetHDTPIcon();
-	else
-		Ic = Best.icon;
+	Ic = Class'RIBase'.static.ItemIcon(Best);
 	if (Showing(R, Ic))
 		return;
-	player.AddReceivedItem("", Best, Cnt);
+	Class'RIBase'.static.Receive(player, R, Best, Cnt);
 }
 
 function bool Showing(HUDReceivedDisplay R, Texture Ic)
 {
-	local int i;
+	local int i, n, Qty;
+	local Texture T;
+	local string Lbl;
+	local byte bDecl;
 
 	if (!R.bTickEnabled)
 		return False;
-	for (i = 0; (i < R.displayItemNum) && (i < 60); i++)
-		if ((R.displayItems[i] != None) && (R.displayItems[i].itemIcon == Ic))
+	n = Class'RIBase'.static.ReceivedCount(R);
+	for (i = 0; i < n; i++)
+		if (Class'RIBase'.static.ReceivedItem(R, i, T, Lbl, Qty, bDecl) && (T == Ic))
 			return True;
 	return False;
 }
@@ -184,6 +185,8 @@ event Tick(float deltaSeconds)
 	local bool bDrop;
 
 	Super.Tick(deltaSeconds);
+	if (RIOn())
+		HideOriginal();
 	if (!IsVisible())
 		return;
 	for (i = 0; i < NumL; i++)
@@ -212,19 +215,15 @@ event ParentRequestedPreferredSize(bool bWidthSpecified, out float preferredWidt
 		Super.ParentRequestedPreferredSize(bWidthSpecified, preferredWidth, bHeightSpecified, preferredHeight);
 		return;
 	}
-	preferredHeight = (24 + Max(1, NumL) * 30) * K();
+	// + room round the panel for the Vanilla+ frame's DX border
+	preferredHeight = (16 + Max(1, NumL) * 22 + 26) * K();
 }
 
 function ConfigurationChanged()
 {
 	Super.ConfigurationChanged();
 	if (RIOn())
-	{
-		if (winIcon.IsVisible(False))
-			winIcon.Hide();
-		if (winLog.IsVisible(False))
-			winLog.Hide();
-	}
+		HideOriginal();
 	else
 	{
 		if (!winIcon.IsVisible(False))
@@ -234,17 +233,29 @@ function ConfigurationChanged()
 	}
 }
 
+// The original icon and text window stay hidden while the new look is on
+// (each checked on its own: the icon alone was turning up)
+function HideOriginal()
+{
+	if (winIcon.IsVisible(False))
+		winIcon.Hide();
+	if (winLog.IsVisible(False))
+		winLog.Hide();
+}
+
 function DrawBackground(GC gc)
 {
 	if (!RIOn())
 		Super.DrawBackground(gc);
 }
 
-// Everything is drawn here, after the (empty) background
+// Everything is drawn here, after the (empty) background: a compact list on
+// the left, small type, a thin gold rule beside it and a soft shade that
+// stops just past the longest line (no box), newest line at the bottom
 function DrawBorder(GC gc)
 {
-	local int i, n;
-	local float S, y, lh, a, bh, tw;
+	local int i;
+	local float S, y, lh, a, bh, tw, w, maxw, sc, ox, oy;
 	local string T;
 
 	if (!RIOn())
@@ -252,43 +263,61 @@ function DrawBorder(GC gc)
 		Super.DrawBorder(gc);
 		return;
 	}
-	if (winLog.IsVisible(False))
-	{
-		winIcon.Hide();
-		winLog.Hide();
-	}
+	HideOriginal();
 	if (NumL <= 0)
 		return;
 	Class'RITheme'.static.SetMode(2);
 	S = K();
-	lh = 30 * S;
-	bh = 24 * S + NumL * lh;
+	sc = 0.6;
+	lh = 22 * S;
+	bh = 16 * S + NumL * lh;
+	maxw = width - 60 * S;
+	// the panel sits in from the window's edge so the DX border drawn round
+	// it (Vanilla+) isn't clipped
+	ox = 8 * S;
+	oy = 10 * S;
 
-	// soft backing, darker in the middle, a gold rule on the left
+	// the shade spans the widest line (with its count)
+	w = 0;
+	for (i = 0; i < NumL; i++)
+	{
+		tw = Class'RIText'.static.Width(Class'RIFontBody', Class'RIText'.static.Fit(Class'RIFontBody', LText[i], maxw, sc), sc);
+		if (LCount[i] > 1)
+			tw += 40 * S;
+		w = FMax(w, tw);
+	}
+	w = FMin(width - 2 * ox, w + 34 * S);
 	if (Class'RIVP'.static.On())
-		Class'RIVP'.static.Panel(gc, 0, 0, width, bh, 10 * S, 1);
+	{
+		// Vanilla+: darkened game, the mechanical frame and the original DX
+		// border round it (as the screens' panels), accent bar inside the left
+		Class'RIVP'.static.Dim(gc, ox + 3 * S, oy + 3 * S, w - 6 * S, bh - 6 * S);
+		Class'RIVP'.static.Frame(gc, ox, oy, w, bh, 12 * S, 1);
+		Class'RISkin'.static.FillC(gc, ox + 6 * S, oy + 7 * S, 2 * S, bh - 14 * S, Class'RIVP'.static.Acc(1));
+	}
 	else
 	{
-		Class'RISkin'.static.DrawDim(gc, 0, 0, width, bh, 0.3);
-		Class'RISkin'.static.DrawDim(gc, width * 0.08, 0, width * 0.84, bh, 0.25);
+		ox = 0;
+		oy = 0;
+		Class'RISkin'.static.DrawDim(gc, 0, 0, w, bh, 0.35);
+		Class'RISkin'.static.DrawDim(gc, w, 0, FMin(28 * S, width - w), bh, 0.15);
 		Class'RISkin'.static.FillC(gc, 0, 0, 2 * S, bh, Class'RIUtil'.static.Col(242, 211, 107));
 	}
 
-	y = 12 * S;
+	y = oy + 8 * S;
 	for (i = 0; i < NumL; i++)
 	{
 		a = FClamp((FMax(1.0, displayTime) + 0.5 - LAge[i]) / 0.5, 0, 1) * FClamp(LAge[i] / 0.12, 0.3, 1);
-		T = LText[i];
-		Class'RIText'.static.Draw(gc, Class'RIFontBody', 22 * S, y, T,
-			Class'RIUtil'.static.Col(236 * a, 214 * a, 160 * a), 0.8);
+		T = Class'RIText'.static.Fit(Class'RIFontBody', LText[i], maxw, sc);
+		Class'RIText'.static.DrawIn(gc, Class'RIFontBody', ox + 16 * S, y, maxw, lh, T,
+			Class'RIUtil'.static.Col(236 * a, 214 * a, 160 * a), 0, sc);
 		if (LCount[i] > 1)
 		{
-			tw = Class'RIText'.static.Width(Class'RIFontBody', T, 0.8);
-			Class'RIText'.static.Draw(gc, Class'RIFontHead', 22 * S + tw + 14 * S, y + 3 * S, "x" $ LCount[i],
-				Class'RIUtil'.static.Col(242 * a, 211 * a, 107 * a), 0.5);
+			tw = Class'RIText'.static.Width(Class'RIFontBody', T, sc);
+			Class'RIText'.static.DrawIn(gc, Class'RIFontHead', ox + 16 * S + tw + 10 * S, y, 40 * S, lh, "x" $ LCount[i],
+				Class'RIUtil'.static.Col(242 * a, 211 * a, 107 * a), 0, 0.42);
 		}
 		y += lh;
-		n++;
 	}
 }
 

@@ -23,6 +23,7 @@ var int   NumRows;
 var int   HoverRow;
 
 var bool bBandsCleared;
+var bool bCursorForMenu;    // the cursor was shown for the pause menu
 
 // Received (box 0) / Given (box 1): AE's boxes are hidden as soon as they
 // appear; what they hold is copied here (12 items each, flattened) and shown
@@ -61,7 +62,7 @@ function AttachTo(ConWindowActive NewCon)
 // Cinematics keep AE's letterbox.
 function ClearBands()
 {
-	if (Con.bForcePlay || bBandsCleared)
+	if (Bars() || bBandsCleared)
 		return;
 	bBandsCleared = True;
 	Con.lowerFinalHeightPercent = 0;
@@ -71,6 +72,12 @@ function ClearBands()
 	if (Con.upperConWindow != None)
 		Con.upperConWindow.SetBackground(None);
 	Con.CalculateWindowSizes();
+}
+
+// The black letterbox stays: cinematics, or Settings > Interface > Conversation Bars
+function bool Bars()
+{
+	return Con.bForcePlay || Class'RIRootWindow'.default.bConBars;
 }
 
 // Where AE's bands would have been (fractions of the screen)
@@ -102,10 +109,7 @@ function HideConParts()
 	for (i = 0; i < Con.numChoices; i++)
 		if ((Con.conChoices[i] != None) && Con.conChoices[i].IsVisible(False))
 			Con.conChoices[i].Hide();
-	if ((Con.upperConWindow != None) && (Con.upperConWindow.txtLabel != None) && Con.upperConWindow.txtLabel.IsVisible(False))
-		Con.upperConWindow.txtLabel.Hide();
-	if ((Con.upperConWindow != None) && (Con.upperConWindow.txtCredits != None) && Con.upperConWindow.txtCredits.IsVisible(False))
-		Con.upperConWindow.txtCredits.Hide();
+	Class'RIBase'.static.HideConExtras(Con);
 }
 
 // ----------------------------------------------------------------------
@@ -194,6 +198,15 @@ event bool VirtualKeyPressed(EInputKey key, bool bRepeat)
 {
 	if (Con == None)
 		return False;
+	// Escape pauses (the original skipped the line; Enter / Space still do).
+	// The pause menu pauses the level and RIRootWindow holds the speech, so
+	// the conversation waits exactly where it was. Cinematics keep Escape to skip.
+	if ((key == IK_Escape) && !Con.bForcePlay)
+	{
+		if (!bRepeat && (Con.player != None) && (DeusExRootWindow(GetRootWindow()).GetTopWindow() == None))
+			Con.player.ShowMainMenu();
+		return True;
+	}
 	if (Choosing())
 	{
 		if ((key == IK_Up) || (key == IK_MouseWheelUp))
@@ -277,9 +290,21 @@ event Tick(float deltaSeconds)
 	HideConParts();
 	ClearBands();
 	CaptureBox(Con.winReceived, 0);
-	CaptureBox(Con.winTaken, 1);
+	CaptureBox(Class'RIBase'.static.ConTaken(Con), 1);
 	BoxAge[0] += deltaSeconds;
 	BoxAge[1] += deltaSeconds;
+
+	// the conversation hides the cursor while lines play; the pause menu needs it
+	if (DeusExRootWindow(GetRootWindow()).GetTopWindow() != None)
+	{
+		GetRootWindow().ShowCursor(True);
+		bCursorForMenu = True;
+	}
+	else if (bCursorForMenu)
+	{
+		bCursorForMenu = False;
+		GetRootWindow().ShowCursor(Choosing());
+	}
 
 	if (bReady && Con.IsVisible() && (GetRootWindow().GetFocusWindow() != Self)
 		&& (DeusExRootWindow(GetRootWindow()).GetTopWindow() == None))
@@ -304,22 +329,23 @@ event Tick(float deltaSeconds)
 // and hide it (its own look and position clash with this layout)
 function CaptureBox(HUDReceivedDisplay R, int B)
 {
-	local int i, n;
-	local HUDReceivedDisplayItem It;
-	local string T;
+	local int i, n, c, Qty;
+	local string T, Lbl;
+	local Texture Ic;
+	local byte bDecl;
 
 	if ((R == None) || !R.IsVisible(False))
 		return;
 	n = 0;
-	for (i = 0; (i < R.displayItemNum) && (i < 60) && (n < 12); i++)
+	c = Class'RIBase'.static.ReceivedCount(R);
+	for (i = 0; (i < c) && (n < 12); i++)
 	{
-		It = R.displayItems[i];
-		if (It == None)
+		if (!Class'RIBase'.static.ReceivedItem(R, i, Ic, Lbl, Qty, bDecl))
 			continue;
-		BoxIcon[B * 12 + n] = It.itemIcon;
-		BoxLabel[B * 12 + n] = It.itemLabel;
-		BoxQty[B * 12 + n] = Max(1, It.itemQuantity);
-		BoxDeclined[B * 12 + n] = byte(It.bItemDeclined);
+		BoxIcon[B * 12 + n] = Ic;
+		BoxLabel[B * 12 + n] = Lbl;
+		BoxQty[B * 12 + n] = Max(1, Qty);
+		BoxDeclined[B * 12 + n] = bDecl;
 		n++;
 	}
 	if (n == 0)
@@ -386,9 +412,9 @@ event DrawWindow(GC gc)
 	Up  = Con.upperConWindow;
 	if (Low == None)
 		return;
-	if (Con.bForcePlay)
+	if (Bars())
 	{
-		// Cinematic: AE's letterbox, text in its lower bar
+		// Cinematic (or bars switched on): AE's letterbox, text in its lower bar
 		bandY = Low.y;
 		bandH = height - bandY;
 		if (bandH <= 1)
@@ -416,7 +442,12 @@ event DrawWindow(GC gc)
 		T = string(Con.player.Credits);
 		tw = Class'RIText'.static.Width(Class'RIFontHead', T, 0.62);
 		cx = width - 96 * S - tw;
-		y = FMax(0, (height * UpperFrac() - 40 * S) * 0.5);
+		y = FMax(18 * S, (height * UpperFrac() - 40 * S) * 0.5);
+		if (Class'RIVP'.static.On())
+		{
+			Class'RIVP'.static.Dim(gc, cx - 150 * S, y - 4 * S, tw + 186 * S, 48 * S);
+			Class'RIVP'.static.Frame(gc, cx - 154 * S, y - 8 * S, tw + 194 * S, 56 * S, 12 * S, a);
+		}
 		Class'RIText'.static.DrawIn(gc, Class'RIFontHead', cx, y, tw, 40 * S, T, AmberHi(a), 0, 0.62);
 		L = Caps(CreditsLabel);
 		tw = Class'RIText'.static.Width(Class'RIFontSmall', L, 0.75);
@@ -488,16 +519,7 @@ event DrawWindow(GC gc)
 	y = bandY + FMax(14 * S, (bandH - h - 34 * S) * 0.5);
 	if (Class'RIVP'.static.On())
 	{
-		// Vanilla+: no box; the name small and gold with a short rule under
-		// it, the line centred over the band's own soft fade
-		if (Who != "")
-		{
-			tw = Class'RIText'.static.Width(Class'RIFontSmall', Caps(Who), 0.72);
-			Class'RIText'.static.Draw(gc, Class'RIFontSmall', (width - tw) * 0.5, y, Caps(Who), Amber(ca), 0.72);
-			Class'RISkin'.static.FillC(gc, width * 0.5 - 18 * S, y + 25 * S, 36 * S, 2 * S, AmberDim(ca));
-			y += 38 * S;
-		}
-		DrawCentered(gc, x, y + (1 - ca) * 6 * S, w, L, WarmText(ca));
+		DrawVPLine(gc, Who, L, w, h, bandY, bandH, a, ca);
 		return;
 	}
 	if (Who != "")
@@ -507,6 +529,41 @@ event DrawWindow(GC gc)
 		y += 34 * S;
 	}
 	DrawCentered(gc, x, y + (1 - ca) * 6 * S, w, L, WarmText(ca));
+}
+
+// Vanilla+: the line in a framed panel fitted to the text (not full width),
+// the speaker's name on a header tab along its top-left edge, the same kit
+// as the in-game screens
+function DrawVPLine(GC gc, string Who, string L, float W, float TextH, float BandY, float BandH, float a, float ca)
+{
+	local float pw, ph, px, py, tw, hw, padX, padY, tabH;
+
+	padX = 44 * S;
+	padY = 22 * S;
+	tabH = 30 * S;
+	pw = FMin(W, Class'RIText'.static.Width(Class'RIFontBody', L, 1.0)) + padX * 2;
+	if (Who != "")
+		pw = FMax(pw, Class'RIText'.static.Width(Class'RIFontSmall', Caps(Who), 0.66) + 140 * S);
+	pw = FMax(pw, 420 * S);
+	ph = TextH + padY * 2;
+	px = Class'RIText'.static.Snap((width - pw) * 0.5);
+	py = BandY + FMax(tabH * 0.5 + 10 * S, (BandH - ph) * 0.5);
+	if (py + ph > height - 16 * S)
+		py = FMax(BandY, height - 16 * S - ph);
+	py = Class'RIText'.static.Snap(py + (1 - ca) * 6 * S);
+
+	Class'RIVP'.static.Dim(gc, px + 4 * S, py + 4 * S, pw - 8 * S, ph - 8 * S);
+	Class'RIVP'.static.Dim(gc, px + 4 * S, py + 4 * S, pw - 8 * S, ph - 8 * S);
+	Class'RIVP'.static.Frame(gc, px, py, pw, ph, 14 * S, a);
+	if (Who != "")
+	{
+		tw = Class'RIText'.static.Width(Class'RIFontSmall', Caps(Who), 0.66);
+		hw = tw + 80 * S;
+		Class'RIVP'.static.Black(gc, px + 22 * S, py - tabH * 0.5, hw - 30 * S, tabH);
+		Class'RIVP'.static.Hdr(gc, px + 18 * S, py - tabH * 0.5, hw, tabH, ca);
+		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', px + 34 * S, py - tabH * 0.5, tw + 4 * S, tabH, Caps(Who), Class'RIVP'.static.Txt(ca), 0, 0.66);
+	}
+	DrawCentered(gc, px + padX, py + padY, pw - padX * 2, L, WarmText(ca));
 }
 
 // Received / Given, stacked above the text band: a small amber heading,
@@ -524,13 +581,29 @@ function DrawReceived(GC gc, float BandTop, float a)
 function float DrawItemBox(GC gc, int B, float Top, float a)
 {
 	local int i, k;
-	local float ba, y;
+	local float ba, y, bw, bx;
 
 	if ((BoxNum[B] <= 0) || (BoxAge[B] > BoxLife[B]))
 		return Top;
 	ba = a * FClamp(BoxAge[B] / 0.15, 0, 1) * FClamp((BoxLife[B] - BoxAge[B]) / 0.5, 0, 1);
 	if (ba <= 0.01)
 		return Top;
+
+	// Vanilla+: one framed box, a row per item (as in play)
+	if (Class'RIVP'.static.On())
+	{
+		bw = 0;
+		for (i = 0; i < BoxNum[B]; i++)
+			bw = FMax(bw, Class'RISubs'.static.ToastRowW(S, BoxLabel[B * 12 + i], BoxQty[B * 12 + i]));
+		bx = Class'RISubs'.static.ToastBox(gc, width - 40 * S, Top, S, BoxTitle[B], bw, BoxNum[B], ba);
+		y = Top + 46 * S;
+		for (i = 0; i < BoxNum[B]; i++)
+		{
+			k = B * 12 + i;
+			y += Class'RISubs'.static.ToastRow(gc, bx + Class'RISubs'.static.ToastRowW(S, BoxLabel[k], BoxQty[k]), y, S, BoxIcon[k], BoxLabel[k], BoxQty[k], BoxDeclined[k] != 0, ba, True);
+		}
+		return Top + Class'RISubs'.static.ToastBoxH(S, BoxNum[B]) + 24 * S;
+	}
 
 	// Icon, name and quantity per row, right-aligned over a soft shadow
 	y = Top;
@@ -559,16 +632,6 @@ function SoftShadow(GC gc, float Y, float H, float W, float a)
 			break;
 		Class'RISkin'.static.DrawDim(gc, 0, Y - 28 * S + inY, W - inX, H + 56 * S - inY * 2, 0.11 * a);
 	}
-}
-
-function string ItemText(HUDReceivedDisplayItem It)
-{
-	local string L;
-
-	L = Caps(It.itemLabel);
-	if (It.itemQuantity > 1)
-		L = L $ "  x" $ It.itemQuantity;
-	return L;
 }
 
 // Word-wrapped, each line centred

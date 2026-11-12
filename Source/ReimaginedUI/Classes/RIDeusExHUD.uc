@@ -10,7 +10,7 @@
 //    (InfoLink, message log, damage icons, goals, timer) are moved clear of it.
 // With the HUD set to Classic, it behaves exactly like AE's.
 //=============================================================================
-class RIDeusExHUD extends DeusExHUD;
+class RIDeusExHUD extends RIDeusExHUDBase;    // RIDeusExHUDBase: the base's UpdateSettings (Source\Base_*)
 
 var bool bRI;          // the rebuilt HUD is on
 
@@ -75,8 +75,7 @@ function HUDInfoLinkDisplay CreateInfoLinkWindow()
 
 	infolink = HUDInfoLinkDisplay(NewChild(Class'RIInfoLinkDisplay'));
 
-	if ((msgLog != None) && !class'DeusExPlayer'.default.bShowSmallLog)
-		msgLog.HideLogWindow();
+	Class'RIBase'.static.SetupLog(msgLog);
 
 	infolink.AskParentForReconfigure();
 
@@ -99,7 +98,7 @@ function bool Replaced(Window W)
 {
 	if (W == None)
 		return False;
-	if ((W == hit) || (W == compass) || (W == ammo) || (W == ammo2))
+	if ((W == hit) || (W == compass) || (W == ammo) || ((W != None) && (W == Class'RIBase'.static.HudAmmo2(Self))))
 		return True;
 	if ((W == belt) || (W == activeItems) || (W == receivedItems))
 		return True;
@@ -126,7 +125,7 @@ function HideReplaced()
 		bAny = True;
 	if (HideOne(ammo))
 		bAny = True;
-	if (HideOne(ammo2))
+	if (HideOne(Class'RIBase'.static.HudAmmo2(Self)))
 		bAny = True;
 	if (HideOne(belt))
 		bAny = True;
@@ -168,9 +167,9 @@ function ChildRequestedVisibilityChange(window child, bool bNewVisibility)
 	Super.ChildRequestedVisibilityChange(child, bNewVisibility);
 }
 
-function UpdateSettings(DeusExPlayer player, optional bool bNoBelt)
+// After the base's UpdateSettings (called from RIDeusExHUDBase)
+function SettingsUpdated()
 {
-	Super.UpdateSettings(player, bNoBelt);
 	if (bRI)
 		HideReplaced();
 }
@@ -192,6 +191,7 @@ function ConfigurationChanged()
 function Relayout()
 {
 	local float K, SideL, TopY, NextY, QW, QH, LogW;
+	local Window GW;
 
 	K = height / 1080.0 * Class'RIRootWindow'.static.HudK();
 	if (K <= 0)
@@ -209,13 +209,22 @@ function Relayout()
 			NextY = TopY + QH + 12 * K;
 	}
 
-	// Message log: under the compass (or under the InfoLink), clear of
-	// the body monitor on the left and kept symmetric
+	// Message log ("Bypassing the device...", "Light activated"): a compact
+	// list on the left edge, a little above the middle, under the body
+	// monitor and any goals, out of the centre of the screen
 	if (msgLog != None)
 	{
-		LogW = FMax(400, width - 2 * SideL);
+		LogW = FMin(560 * K, width * 0.4);
 		QH = msgLog.QueryPreferredHeight(LogW);
-		msgLog.ConfigureChild((width - LogW) * 0.5, NextY, LogW, QH);
+		NextY = 380 * K;
+		GW = Class'RIBase'.static.HudGoals(Self);
+		if ((GW != None) && GW.IsVisible())
+		{
+			GW.QueryPreferredSize(QW, QH);
+			NextY = FMax(NextY, 300 * K + QH + 16 * K);
+			QH = msgLog.QueryPreferredHeight(LogW);
+		}
+		msgLog.ConfigureChild(28 * K, NextY, LogW, QH);   // panel drawn 8 in, so it lines up at 36
 	}
 
 	// Damage halo: the whole screen (RIDamageDisplay; its icons sit under
@@ -223,10 +232,11 @@ function Relayout()
 	NextY = 300 * K;
 	if (damageDisplay != None)
 		damageDisplay.ConfigureChild(0, 0, width, height);
-	if ((goalsWindow != None) && goalsWindow.IsVisible())
+	GW = Class'RIBase'.static.HudGoals(Self);
+	if ((GW != None) && GW.IsVisible())
 	{
-		goalsWindow.QueryPreferredSize(QW, QH);
-		goalsWindow.ConfigureChild(36 * K, NextY, QW, QH);
+		GW.QueryPreferredSize(QW, QH);
+		GW.ConfigureChild(36 * K, NextY, QW, QH);
 	}
 
 	// Mission start text: drawn by RIMissionStart anywhere on the screen

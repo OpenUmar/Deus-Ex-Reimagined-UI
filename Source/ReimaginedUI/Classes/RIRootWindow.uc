@@ -26,6 +26,7 @@ var ConEventSpeech HeldSpeech[2];
 var globalconfig bool bClassicMenus;
 var globalconfig bool bClassicScreens;
 var globalconfig bool bClassicDialogue;
+var globalconfig bool bConBars;          // keep the black letterbox bars in conversations
 var globalconfig bool bClassicHUD;
 // Settings > Interface: original (not 4x HD) textures, and the in-game screen style (0 Sleek, 1 Vanilla+)
 var globalconfig bool bNoHDTextures;
@@ -37,6 +38,8 @@ var globalconfig float BeltScale;      // the hotbar's size, on top of the HUD s
 var RIHud   HudView;
 var float  ThemeAge;
 var float  DeathLoadT;       // a choice was made on the death screen
+var RIDeathScreen DeathBox;  // the death screen's window, while it is up
+var int    BeltCursor;      // the belt slot the wheel is on (an empty slot holds nothing to read it from)
 var localized string DeathTitle, DeathLoadLast, DeathLoadGame, DeathMainMenu, DeathWaitLabel;
 var float  DrawClock;        // advances per drawn frame (loading screens' wheel)         // re-read the colour themes a few times a second          // the rebuilt HUD, over AE's
 var bool    bHudRestored;     // AE's own HUD pieces were brought back (classic)
@@ -171,10 +174,9 @@ function ApplyGoldHUD()
 		return;
 	bAppliedGoldHUD = True;
 	SaveConfig();
-	P.HUDThemeNameGMDX = "Amber";
-	P.ThemeManager.SetHUDThemeByName("Amber");
-	P.SaveConfig();
-	ChangeStyle();
+	// The base's gold theme (GMDX's Amber); a base without one keeps its own
+	if (Class'RIBase'.static.ApplyGoldTheme(P))
+		ChangeStyle();
 }
 
 // Called by the pause menu's "Main Menu" button (after its confirmation).
@@ -262,7 +264,7 @@ event Tick(float deltaSeconds)
 	// crashed in UnObj.cpp from the pause menu. Take it a second early,
 	// queued the safe way.
 	DP = DeusExPlayer(parentPawn);
-	if (!bGoMainMenu && (DeathLoadT <= 0) && (DP != None) && DP.IsInState('Dying') && DP.bRemoveVanillaDeath && DP.bMenuAfterDeath
+	if (!bGoMainMenu && (DeathLoadT <= 0) && (DP != None) && DP.IsInState('Dying') && Class'RIUtil'.static.PBool(DP, "bRemoveVanillaDeath") && Class'RIUtil'.static.PBool(DP, "bMenuAfterDeath")
 		&& (DP.Level.TimeSeconds - DP.FrobTime > 63.0) && (MenuUIWindow(GetTopWindow()) == None) && (ToolWindow(GetTopWindow()) == None))
 	{
 		Log("RI: death - to the main menu (queued)");
@@ -288,6 +290,7 @@ event Tick(float deltaSeconds)
 	}
 
 	GuardInitCount("Tick");
+	DeathTick();
 	ApplyGoldHUD();
 	Class'RITheme'.static.SetMode(0);   // colours made outside drawing stay unthemed
 	ThemeAge += deltaSeconds;
@@ -396,17 +399,23 @@ function bool IsDeviceStyle()
 // A device window at the top of the stack: dimmed plainly, no menu glow
 function bool IsDeviceWindow(Window W)
 {
-	return (RIKeypadContainer(W) != None) || (RIRechargeWindow(W) != None) || ((NetworkTerminal(W) != None) && IsDeviceStyle());
+	return Class'RIBase'.static.IsKeypadWindow(W) || (RIRechargeWindow(W) != None) || ((NetworkTerminal(W) != None) && IsDeviceStyle());
 }
 
 function Class<DeusExBaseWindow> RemapScreen(Class<DeusExBaseWindow> Requested)
 {
 	// In-game devices rebuilt natively, Sleek style only for now (Vanilla+
 	// and Classic screens keep AE's own until they get their own design)
+	// The rebuilt keypad has a Vanilla+ look too (framed, same fonts)
+	if (!bClassicScreens && !Class'RIPersonaView'.default.bClassic && (ScreenStyle == 1))
+	{
+		if (Class'RIBase'.static.KeypadClass(Requested) != None)
+			return Class'RIBase'.static.KeypadClass(Requested);
+	}
 	if (IsDeviceStyle())
 	{
-		if (Requested == Class'DeusEx.HUDKeypadContainerWindow')
-			return Class'RIKeypadContainer';
+		if (Class'RIBase'.static.KeypadClass(Requested) != None)
+			return Class'RIBase'.static.KeypadClass(Requested);
 		if (Requested == Class'DeusEx.NetworkTerminalPersonal')
 			return Class'RITermPersonal';
 		if (Requested == Class'DeusEx.NetworkTerminalPublic')
@@ -778,6 +787,8 @@ event bool VirtualKeyPressed(EInputKey key, bool bRepeat)
 		DeathKey(key);
 		return True;
 	}
+	if (((key == IK_MouseWheelUp) || (key == IK_MouseWheelDown)) && WheelBelt(key))
+		return True;
 	if (IsKeyDown(IK_Ctrl) && !bRepeat)
 	{
 		if (key == IK_F10)
@@ -805,8 +816,72 @@ event bool VirtualKeyPressed(EInputKey key, bool bRepeat)
 	return Super.VirtualKeyPressed(key, bRepeat);
 }
 
+// ----------------------------------------------------------------------
+// Mouse wheel on the belt, the way modern shooters do it: the wheel steps
+// through every slot in order, and landing on an empty one puts away what's
+// in hand (the original skipped empty slots). Only when the wheel is bound
+// to NextBeltItem / PrevBeltItem, nothing is open, and no scope or
+// binoculars want the wheel for zoom; otherwise the game handles it.
+// ----------------------------------------------------------------------
+
+function bool WheelBelt(EInputKey key)
+{
+	local DeusExPlayer P;
+	local Inventory Cur, Item;
+	local string B, KName;
+	local int dir, cnt, slot;
+
+	P = DeusExPlayer(parentPawn);
+	if ((P == None) || (winCount > 0) || (hud == None) || (hud.belt == None) || (P.Health <= 0))
+		return False;
+	if (key == IK_MouseWheelUp)
+		KName = "MouseWheelUp";
+	else
+		KName = "MouseWheelDown";
+	B = Caps(P.ConsoleCommand("KEYBINDING " $ KName));
+	if (InStr(B, "NEXTBELTITEM") >= 0)
+		dir = 1;
+	else if (InStr(B, "PREVBELTITEM") >= 0)
+		dir = -1;
+	else
+		return False;
+
+	if (P.RestrictInput() || (P.CarriedDecoration != None))
+		return True;
+	Cur = P.inHandPending;
+	if (Cur == None)
+		Cur = P.inHand;
+	if ((DeusExWeapon(Cur) != None) && DeusExWeapon(Cur).bZoomed)
+		return False;
+	if ((Binoculars(Cur) != None) && Binoculars(Cur).bActive)
+		return False;
+
+	if (Class'RIUtil'.static.PBool(P, "bBiggerBelt"))
+		cnt = 12;
+	else
+		cnt = 10;
+	if ((Cur != None) && Cur.bInObjectBelt && (Cur.beltPos >= 0) && (Cur.beltPos < cnt))
+		slot = Cur.beltPos;
+	else
+		slot = Clamp(BeltCursor, 0, cnt - 1);
+	slot = (slot + dir + cnt) % cnt;
+	BeltCursor = slot;
+
+	Item = hud.belt.GetObjectFromBelt(slot);
+	if (Item != None)
+		ActivateObjectInBelt(slot);
+	else if (Cur != None)
+		P.PutInHand(None);
+	return True;
+}
+
 event bool BoxOptionSelected(Window box, int buttonNumber)
 {
+	if ((DeathBox != None) && (box == DeathBox))
+	{
+		DeathChoice(buttonNumber);
+		return True;
+	}
 	if ((DebugBox != None) && (box == DebugBox))
 	{
 		PopWindow();
@@ -838,6 +913,64 @@ function bool DeathUp()
 	return (DeathTime() > 2.0) && (winCount <= 0);
 }
 
+// Opens the death screen once the player has been down a moment, and again
+// if a screen opened from it (Load Game) is closed without loading
+function DeathTick()
+{
+	local DeusExPlayer P;
+	local DeusExLevelInfo Info;
+	local string Loc;
+
+	if (DeathTime() < 0)
+	{
+		DeathLoadT = 0;
+		DeathBox = None;
+		return;
+	}
+	if ((DeathBox != None) && (GetTopWindow() != DeathBox))
+		DeathBox = None;
+	if ((DeathBox != None) || (DeathLoadT > 0) || (DeathTime() < 2.0) || (winCount > 0))
+		return;
+	P = DeusExPlayer(parentPawn);
+	Info = P.GetLevelInfo();
+	if (Info != None)
+		Loc = Info.MissionLocation;
+	DeathBox = RIDeathScreen(PushWindow(Class'RIDeathScreen', False, True));
+	if (DeathBox == None)
+		return;
+	DeathBox.SetDeath(DeathTitle, Loc, DeathLoadLast, DeathLoadGame, DeathMainMenu);
+	DeathBox.SetNotifyWindow(Self);
+	DeathBox.SetFocusWindow(DeathBox);
+	ShowCursor(True);
+	Log("RI: death screen up");
+}
+
+function DeathChoice(int n)
+{
+	local DeusExPlayer P;
+
+	P = DeusExPlayer(parentPawn);
+	PopWindow(True);
+	DeathBox = None;
+	if (n == 0)
+	{
+		DeathLoadT = 1;
+		Log("RI: death screen - load last save");
+		P.QuickLoadConfirmed();
+	}
+	else if (n == 1)
+	{
+		Log("RI: death screen - load game");
+		InvokeMenuScreen(Class'DeusEx.MenuScreenLoadGame', True);
+	}
+	else
+	{
+		DeathLoadT = 1;
+		Log("RI: death screen - main menu");
+		RequestMainMenu();
+	}
+}
+
 function DeathKey(EInputKey key)
 {
 	local DeusExPlayer P;
@@ -866,10 +999,9 @@ function DeathKey(EInputKey key)
 
 function DrawDeath(GC gc)
 {
-	local float t, a, S, cy, y, w, kw;
+	local float t, a, S, cy;
 	local DeusExLevelInfo Info;
-	local string Loc, K, L;
-	local int i;
+	local string Loc;
 
 	t = DeathTime();
 	if (t < 0)
@@ -896,32 +1028,7 @@ function DrawDeath(GC gc)
 		Class'RIText'.static.DrawIn(gc, Class'RIFontHead', 0, cy + 10 * S, width, 30 * S, Caps(DeathWaitLabel), Class'RIUtil'.static.Col(242 * a, 211 * a, 107 * a), 1, 0.56);
 		return;
 	}
-	w = 360 * S;
-	kw = 74 * S;
-	y = cy + 8 * S;
-	for (i = 0; i < 3; i++)
-	{
-		if (i == 0)
-		{
-			K = "ENTER";
-			L = DeathLoadLast;
-		}
-		else if (i == 1)
-		{
-			K = "L";
-			L = DeathLoadGame;
-		}
-		else
-		{
-			K = "ESC";
-			L = DeathMainMenu;
-		}
-		Class'RIText'.static.Box(gc, width * 0.5 - w * 0.5, y + 6 * S, kw, 28 * S, Class'RIUtil'.static.Col(150 * a, 126 * a, 62 * a));
-		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', width * 0.5 - w * 0.5, y + 6 * S, kw, 28 * S, K, Class'RIUtil'.static.Col(242 * a, 211 * a, 107 * a), 1, 0.56);
-		Class'RIText'.static.DrawIn(gc, Class'RIFontHead', width * 0.5 - w * 0.5 + kw + 20 * S, y + 6 * S, w - kw - 20 * S, 28 * S, Caps(L),
-			Class'RIUtil'.static.Col(240 * a, 222 * a, 178 * a), 0, 0.52);
-		y += 42 * S;
-	}
+	// the buttons are RIDeathScreen's (a window, so they take the mouse)
 }
 
 // While dying, AE's main menu (any key, F, Escape) is replaced by the death screen

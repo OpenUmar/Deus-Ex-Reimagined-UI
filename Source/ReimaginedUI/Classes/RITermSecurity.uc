@@ -7,7 +7,7 @@ class RITermSecurity extends NetworkTerminalSecurity;
 
 function AddNotesWindow()
 {
-	Class'RINotesPanel'.static.AddTerminalNotes(Self);
+	Class'RIBase'.static.AddTerminalNotes(Self);
 }
 
 defaultproperties

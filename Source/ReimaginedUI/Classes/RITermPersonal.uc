@@ -7,7 +7,7 @@ class RITermPersonal extends NetworkTerminalPersonal;
 
 function AddNotesWindow()
 {
-	Class'RINotesPanel'.static.AddTerminalNotes(Self);
+	Class'RIBase'.static.AddTerminalNotes(Self);
 }
 
 defaultproperties

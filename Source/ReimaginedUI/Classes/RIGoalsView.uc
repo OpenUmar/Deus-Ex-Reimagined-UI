@@ -62,15 +62,34 @@ function ScreenAttached()
 
 function bool NoteShown(DeusExNote N)
 {
-	if (N.bHidden)
+	if (NB(N, "bHidden"))
 		return False;
-	if (!Player.bShowRegularNotes && !N.bUserNote)
+	// Note filters, pins and markers are base features (GMDX AE); without
+	// them every note shows, as in the original game
+	if (!Extras())
+		return True;
+	if (!PB("bShowRegularNotes") && !N.bUserNote)
 		return False;
-	if (!Player.bShowUserNotes && N.bUserNote && !N.bMarkerNote)
+	if (!PB("bShowUserNotes") && N.bUserNote && !NB(N, "bMarkerNote"))
 		return False;
-	if (!Player.bShowMarkerNotes && N.bUserNote && N.bMarkerNote)
+	if (!PB("bShowMarkerNotes") && N.bUserNote && NB(N, "bMarkerNote"))
 		return False;
 	return True;
+}
+
+function bool Extras()
+{
+	return Class'RIBase'.static.Has("NoteExtras");
+}
+
+function bool PB(string N)
+{
+	return Class'RIUtil'.static.PBool(Player, N);
+}
+
+function bool NB(DeusExNote N, string P)
+{
+	return Class'RIUtil'.static.PBool(N, P);
 }
 
 function RebuildNotes()
@@ -83,7 +102,7 @@ function RebuildNotes()
 	NumNotes = 0;
 	for (pass = 0; pass < 2; pass++)
 		for (N = Player.FirstNote; (N != None) && (NumNotes < MAXNOTES); N = N.next)
-			if (NoteShown(N) && (N.bPinned == (pass == 0)))
+			if (NoteShown(N) && (NB(N, "bPinned") == (pass == 0)))
 				Notes[NumNotes++] = N;
 
 	NoteSel = -1;
@@ -104,7 +123,7 @@ function DeusExNote CurNote()
 
 function bool CanEdit(DeusExNote N)
 {
-	return (N != None) && (N.bUserNote || Player.bAllowNoteEditing);
+	return (N != None) && (N.bUserNote || PB("bAllowNoteEditing"));
 }
 
 function SelectNote(int i)
@@ -126,12 +145,7 @@ function AddNote(bool bMarker)
 	if (N == None)
 		return;
 	if (bMarker)
-	{
-		N.bMarkerNote = True;
-		Player.AddMarker(N);
-		Player.bShowMarkers = True;
-		Player.UpdateMarkerDisplay();
-	}
+		Class'RIBase'.static.MakeMarker(Player, N);
 	PlaySound(Sound'Menu_Press', 0.25);
 	RebuildNotes();
 	for (NoteSel = 0; NoteSel < NumNotes; NoteSel++)
@@ -152,7 +166,7 @@ function TogglePin()
 	if (N == None)
 		return;
 	FinishEdit();
-	Player.PinNote(N);
+	Class'RIBase'.static.PinNote(Player, N);
 	PlaySound(Sound'Menu_Press', 0.25);
 	RebuildNotes();
 }
@@ -260,24 +274,18 @@ function Toggle(int Id)
 	}
 	else if (Id == HOT_ONSCREEN)
 	{
-		Player.bShowGoalsOnScreen = !Player.bShowGoalsOnScreen;
-		Goals().bShowOnScreen = Player.bShowGoalsOnScreen;
-		if (Goals().chkShowOnScreen != None)
-			Goals().chkShowOnScreen.SetToggle(Player.bShowGoalsOnScreen);
+		Class'RIBase'.static.SetGoalsOnScreen(Goals(), Player, !PB("bShowGoalsOnScreen"));
 	}
 	else if (Id == HOT_FREGULAR)
-		Player.bShowRegularNotes = !Player.bShowRegularNotes;
+		Class'RIUtil'.static.PToggle(Player, "bShowRegularNotes");
 	else if (Id == HOT_FMINE)
-		Player.bShowUserNotes = !Player.bShowUserNotes;
+		Class'RIUtil'.static.PToggle(Player, "bShowUserNotes");
 	else if (Id == HOT_FMARKERS)
-		Player.bShowMarkerNotes = !Player.bShowMarkerNotes;
+		Class'RIUtil'.static.PToggle(Player, "bShowMarkerNotes");
 	else if (Id == HOT_SHOWMARK)
-	{
-		Player.bShowMarkers = !Player.bShowMarkers;
-		Player.UpdateMarkerDisplay();
-	}
+		Class'RIBase'.static.SetShowMarkers(Player, !PB("bShowMarkers"));
 	else if (Id == HOT_ALLOWEDIT)
-		Player.bAllowNoteEditing = !Player.bAllowNoteEditing;
+		Class'RIUtil'.static.PToggle(Player, "bAllowNoteEditing");
 	RebuildNotes();
 }
 
@@ -507,10 +515,14 @@ function DrawPage(GC gc, float a)
 	gc.PopGC(st);
 	DrawToggleRow(gc, gx, 900 * S, ShowCompletedLabel, ShowCompleted(), HOT_COMPLETED, a);
 	if (VPlus())
-		DrawToggleRow(gc, gx + 290 * S, 900 * S, OnScreenLabel, Player.bShowGoalsOnScreen, HOT_ONSCREEN, a);
+	{
+		if (Class'RIBase'.static.Has("GoalsOnScreen"))
+			DrawToggleRow(gc, gx + 290 * S, 900 * S, OnScreenLabel, PB("bShowGoalsOnScreen"), HOT_ONSCREEN, a);
+	}
 	else
 	{
-		DrawToggleRow(gc, gx + 400 * S, 900 * S, OnScreenLabel, Player.bShowGoalsOnScreen, HOT_ONSCREEN, a);
+		if (Class'RIBase'.static.Has("GoalsOnScreen"))
+			DrawToggleRow(gc, gx + 400 * S, 900 * S, OnScreenLabel, PB("bShowGoalsOnScreen"), HOT_ONSCREEN, a);
 		Class'RIText'.static.VLine(gc, OX + 990 * S, 170 * S, 800 * S, ADim(a));
 	}
 
@@ -530,8 +542,11 @@ function DrawPage(GC gc, float a)
 		Class'RIText'.static.DrawIn(gc, Class'RIFontHead', OX + 1066 * S, 786 * S, 98 * S, 40 * S, string(NumNotes), ATxt(a), 1, 0.6);
 		DrawBtn(gc, OX + 1180 * S, 758 * S, 170 * S, 38 * S, AddLabel, True, HoverId == HOT_ADD, True, a);
 		AddHot(HOT_ADD, OX + 1180 * S, 758 * S, 170 * S, 38 * S);
-		DrawBtn(gc, OX + 1358 * S, 758 * S, 170 * S, 38 * S, MarkerLabel, True, HoverId == HOT_MARKER, False, a);
-		AddHot(HOT_MARKER, OX + 1358 * S, 758 * S, 170 * S, 38 * S);
+		if (Extras())
+		{
+			DrawBtn(gc, OX + 1358 * S, 758 * S, 170 * S, 38 * S, MarkerLabel, True, HoverId == HOT_MARKER, False, a);
+			AddHot(HOT_MARKER, OX + 1358 * S, 758 * S, 170 * S, 38 * S);
+		}
 		y = 224 * S;
 	}
 	else
@@ -539,20 +554,26 @@ function DrawPage(GC gc, float a)
 		Heading(gc, nx, ny, nw, NotesTitle, a);
 		bx = nx + nw;
 		bx -= 190 * S;
-		DrawBtn(gc, bx, ny, 190 * S, 40 * S, MarkerLabel, True, HoverId == HOT_MARKER, False, a);
-		AddHot(HOT_MARKER, bx, ny, 190 * S, 40 * S);
+		if (Extras())
+		{
+			DrawBtn(gc, bx, ny, 190 * S, 40 * S, MarkerLabel, True, HoverId == HOT_MARKER, False, a);
+			AddHot(HOT_MARKER, bx, ny, 190 * S, 40 * S);
+		}
 		bx -= 200 * S;
 		DrawBtn(gc, bx, ny, 190 * S, 40 * S, AddLabel, True, HoverId == HOT_ADD, True, a);
 		AddHot(HOT_ADD, bx, ny, 190 * S, 40 * S);
 		y = ny + 60 * S;
 	}
 
-	// Filters
-	Class'RIText'.static.Draw(gc, Class'RIFontSmall', nx, y + 6 * S, Caps(FilterLabel), ALbl(a), 0.66);
-	tw = Class'RIText'.static.Width(Class'RIFontSmall', Caps(FilterLabel), 0.66) + 18 * S;
-	DrawToggleRow(gc, nx + tw, y, FRegular, Player.bShowRegularNotes, HOT_FREGULAR, a);
-	DrawToggleRow(gc, nx + tw + fs, y, FMine, Player.bShowUserNotes, HOT_FMINE, a);
-	DrawToggleRow(gc, nx + tw + fs * 1.76, y, FMarkers, Player.bShowMarkerNotes, HOT_FMARKERS, a);
+	// Filters (base feature)
+	if (Extras())
+	{
+		Class'RIText'.static.Draw(gc, Class'RIFontSmall', nx, y + 6 * S, Caps(FilterLabel), ALbl(a), 0.66);
+		tw = Class'RIText'.static.Width(Class'RIFontSmall', Caps(FilterLabel), 0.66) + 18 * S;
+		DrawToggleRow(gc, nx + tw, y, FRegular, PB("bShowRegularNotes"), HOT_FREGULAR, a);
+		DrawToggleRow(gc, nx + tw + fs, y, FMine, PB("bShowUserNotes"), HOT_FMINE, a);
+		DrawToggleRow(gc, nx + tw + fs * 1.76, y, FMarkers, PB("bShowMarkerNotes"), HOT_FMARKERS, a);
+	}
 
 	// List
 	top = y + 44 * S;
@@ -570,9 +591,9 @@ function DrawPage(GC gc, float a)
 		T = Class'RIConView'.static.Lines(N.text);
 		if (bSel && bEditing && bFreshEdit)
 			T = N.text;
-		if (N.bPinned)
+		if (NB(N, "bPinned"))
 			Src = SrcPinned;
-		else if (N.bMarkerNote)
+		else if (NB(N, "bMarkerNote"))
 			Src = SrcMarker;
 		else if (N.bUserNote)
 			Src = SrcMine;
@@ -588,7 +609,7 @@ function DrawPage(GC gc, float a)
 				Class'RIText'.static.Box(gc, nx, y, nw, h, AEdge(a));
 			else
 				Class'RIText'.static.Box(gc, nx, y, nw, h, C3(90, 75, 36, a));
-			Class'RIText'.static.Draw(gc, Class'RIFontSmall', nx + 16 * S, y + 10 * S, Caps(Src), Class'RIUtil'.static.Mix(ALbl(a), AAcc(a), int(N.bPinned)), 0.62);
+			Class'RIText'.static.Draw(gc, Class'RIFontSmall', nx + 16 * S, y + 10 * S, Caps(Src), Class'RIUtil'.static.Mix(ALbl(a), AAcc(a), int(NB(N, "bPinned"))), 0.62);
 			Class'RIText'.static.DrawWrapped(gc, Class'RIFontBody', nx + 16 * S, y + 32 * S, nw - 32 * S, T, ATxt(a), 0.78, 1.35);
 			if (bSel && bEditing)
 			{
@@ -619,12 +640,15 @@ function DrawPage(GC gc, float a)
 		bx = nx;
 		if (VPlus())
 			bx = OX + 1180 * S;
-		if (N.bPinned)
-			DrawBtn(gc, bx, y, bw, 38 * S, UnpinLabel, True, HoverId == HOT_PIN, False, a);
-		else
-			DrawBtn(gc, bx, y, bw, 38 * S, PinLabel, True, HoverId == HOT_PIN, False, a);
-		AddHot(HOT_PIN, bx, y, bw, 38 * S);
-		bx += bw + 8 * S;
+		if (Extras())
+		{
+			if (NB(N, "bPinned"))
+				DrawBtn(gc, bx, y, bw, 38 * S, UnpinLabel, True, HoverId == HOT_PIN, False, a);
+			else
+				DrawBtn(gc, bx, y, bw, 38 * S, PinLabel, True, HoverId == HOT_PIN, False, a);
+			AddHot(HOT_PIN, bx, y, bw, 38 * S);
+			bx += bw + 8 * S;
+		}
 		if (bEditing)
 			DrawBtn(gc, bx, y, bw, 38 * S, DoneLabel, True, HoverId == HOT_EDIT, True, a);
 		else
@@ -639,12 +663,18 @@ function DrawPage(GC gc, float a)
 	}
 	if (VPlus())
 	{
-		DrawToggleRow(gc, nx, 672 * S, ShowMarkersLabel, Player.bShowMarkers, HOT_SHOWMARK, a);
-		DrawToggleRow(gc, nx + 220 * S, 672 * S, AllowEditLabel, Player.bAllowNoteEditing, HOT_ALLOWEDIT, a);
+		if (Extras())
+		{
+			DrawToggleRow(gc, nx, 672 * S, ShowMarkersLabel, PB("bShowMarkers"), HOT_SHOWMARK, a);
+			DrawToggleRow(gc, nx + 220 * S, 672 * S, AllowEditLabel, PB("bAllowNoteEditing"), HOT_ALLOWEDIT, a);
+		}
 		return;
 	}
-	DrawToggleRow(gc, nx, 910 * S, ShowMarkersLabel, Player.bShowMarkers, HOT_SHOWMARK, a);
-	DrawToggleRow(gc, nx + 260 * S, 910 * S, AllowEditLabel, Player.bAllowNoteEditing, HOT_ALLOWEDIT, a);
+	if (Extras())
+	{
+		DrawToggleRow(gc, nx, 910 * S, ShowMarkersLabel, PB("bShowMarkers"), HOT_SHOWMARK, a);
+		DrawToggleRow(gc, nx + 260 * S, 910 * S, AllowEditLabel, PB("bAllowNoteEditing"), HOT_ALLOWEDIT, a);
+	}
 
 	Class'RIText'.static.Draw(gc, Class'RIFontSmall', OX + 140 * S, FY + FH + 22 * S, HintText, ALbl(a * 0.8), 0.7);
 }

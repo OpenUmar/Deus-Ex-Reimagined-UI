@@ -166,7 +166,7 @@ event DrawWindow(GC gc)
 
 	// Footer
 	if (Menu != None)
-		Class'RIText'.static.Draw(gc, Class'RIFontSmall', 96 * S, height - 64 * S, Caps(Menu.GMDXText),
+		Class'RIText'.static.Draw(gc, Class'RIFontSmall', 96 * S, height - 64 * S, Caps(Class'RIBase'.static.VersionText(Menu, Menu.player)),
 			Class'RIUtil'.static.Col(139 * a, 144 * a, 212 * a));
 	tw = Class'RIText'.static.Width(Class'RIFontSmall', Caps(CreditText));
 	Class'RIText'.static.Draw(gc, Class'RIFontSmall', width - 96 * S - tw, height - 64 * S, Caps(CreditText),
