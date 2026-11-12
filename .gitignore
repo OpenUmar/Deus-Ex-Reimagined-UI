@@ -30,3 +30,5 @@ System/Vanilla/*.bak*
 *.ini.bak*
 # Packaged release zips (uploaded to GitHub Releases, not committed)
 Release/
+# Old hologram body art (unused)
+Art/*hologram*
