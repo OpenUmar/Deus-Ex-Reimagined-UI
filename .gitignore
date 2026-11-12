@@ -28,3 +28,5 @@ Launcher/_ref/
 System/Vanilla/*.u
 System/Vanilla/*.bak*
 *.ini.bak*
+# Packaged release zips (uploaded to GitHub Releases, not committed)
+Release/
