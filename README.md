@@ -145,6 +145,7 @@ Open an issue (or message me) with what you were doing, a screenshot, and the lo
 - **Interface concept:** Tanit Mesa, *Deus Ex 2000: Reimagined (UX/UI)* on ArtStation. The layout and look of this mod follow her concept art and mockups.
 - **Fonts:** Michroma and Exo 2, both under the SIL Open Font License.
 - **Launcher:** Kentie's DeusExe.
+- **Item icons:** [Unified Deus Ex](https://www.moddb.com/mods/unified-deus-ex) by kocmo ([source](https://github.com/PolaricEntropy/unified-deus-ex)). The high-resolution inventory, belt, charged and damage icons come from it.
 - **Deus Ex** by Ion Storm and Eidos Interactive. Original game art and textures belong to their owners.
 
 ## License

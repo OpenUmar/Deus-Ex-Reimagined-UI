@@ -67,9 +67,19 @@ def export(pkg, e, m, out, frame=0, texcache={}):
     sizes = {}
     for tn, ok in tex_names:
         if ok: sizes[tn] = texcache[tn].size
+    # one material per (skin, poly flags) pair, so masked / translucent faces
+    # stay separate from solid ones that share the same skin
+    def mname(ti, pf):
+        return '%s_m%d' % (name, ti) if pf == 0 else '%s_m%d_%x' % (name, ti, pf)
+    used = []
+    for a, b, c, mi in m['faces']:
+        pf, ti = m['mats'][mi] if mi < len(m['mats']) else (0, 0)
+        if (ti, pf) not in used: used.append((ti, pf))
     with open(os.path.join(out, name + '.mtl'), 'w') as f:
-        for i, (tn, ok) in enumerate(tex_names):
-            f.write('newmtl %s_m%d\nKd 1 1 1\n' % (name, i))
+        for ti, pf in used:
+            tn, ok = tex_names[ti] if ti < len(tex_names) else (None, False)
+            f.write('newmtl %s\nKd 1 1 1\n' % mname(ti, pf))
+            f.write('# polyflags 0x%x\n' % pf)
             if ok: f.write('map_Kd textures/%s.png\n' % tn)
             elif tn: f.write('# skin %s lives in another package\n' % tn)
             f.write('\n')
@@ -84,9 +94,9 @@ def export(pkg, e, m, out, frame=0, texcache={}):
             f.write('vt %g %g\n' % (u / 255.0, 1 - v / 255.0))
         cur = None
         for a, b, c, mi in m['faces']:
-            ti = m['mats'][mi][1] if mi < len(m['mats']) else 0
-            if ti != cur:
-                f.write('usemtl %s_m%d\n' % (name, ti)); cur = ti
+            pf, ti = m['mats'][mi] if mi < len(m['mats']) else (0, 0)
+            if (ti, pf) != cur:
+                f.write('usemtl %s\n' % mname(ti, pf)); cur = (ti, pf)
             idx = [m['wedges'][w][0] + 1 for w in (a, b, c)]
             # UE1 winds clockwise: flip for OBJ
             f.write('f %d/%d %d/%d %d/%d\n' % (idx[0], a + 1, idx[2], c + 1, idx[1], b + 1))
