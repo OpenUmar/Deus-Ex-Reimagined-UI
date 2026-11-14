@@ -8,6 +8,9 @@
 class RIInfoLinkDisplay extends HUDInfoLinkDisplay;
 
 var bool bDLIcon;      // the DataLink icon is up (drawn here, centred and scaled)
+var int   ColStyle;     // UI style and HUD theme the text colours were last made for
+var bool  bColHud;
+var float ColHue;
 
 function bool RIOn()
 {
@@ -45,15 +48,36 @@ function Relayout()
 	Recolour();
 }
 
+// The text colours are set once on the child windows, outside any draw, so
+// the HUD theme is applied here explicitly (mode 2): Vanilla+ turns the gold
+// to the original game's grey, and a chosen HUD theme recolours it as it
+// does the rest of the HUD.
 function Recolour()
 {
+	local int OldMode;
+
 	if (winName == None)
 		return;
+	OldMode = Class'RITheme'.default.Mode;
+	Class'RITheme'.static.SetMode(2);
 	winName.SetTextColor(Col(255, 241, 194));
 	winQueued.SetTextColor(Col(143, 208, 224));
 	winLine.SetTileColor(Col(126, 105, 50));
 	winText.SetFontColor(Col(230, 195, 117));
 	winText.SetCursorColor(Col(242, 211, 107));
+	Class'RITheme'.static.SetMode(OldMode);
+	ColStyle = Class'RIRootWindow'.default.ScreenStyle;
+	bColHud = Class'RITheme'.default.bHudOn;
+	ColHue = Class'RITheme'.default.HudHue;
+}
+
+// Re-make the text colours when the UI style or HUD theme has changed
+function CheckColours()
+{
+	if ((ColStyle != Class'RIRootWindow'.default.ScreenStyle)
+		|| (bColHud != Class'RITheme'.default.bHudOn)
+		|| (ColHue != Class'RITheme'.default.HudHue))
+		Recolour();
 }
 
 event StyleChanged()
@@ -98,6 +122,7 @@ function DrawBackground(GC gc)
 		Super.DrawBackground(gc);
 		return;
 	}
+	CheckColours();
 	if (Class'RIVP'.static.On())
 	{
 		// the HUD corners board's InfoLink box, stretched so its frame runs

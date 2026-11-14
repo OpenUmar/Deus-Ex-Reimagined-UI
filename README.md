@@ -39,6 +39,22 @@ Prefer the original arrangement? **Settings › Interface › HUD Layout › Van
 | :---: | :---: | :---: |
 | <img src="docs/screenshots/conv_original.jpg" alt="Original conversation subtitles"> | <img src="docs/screenshots/conv_vplus.jpg" alt="Vanilla+ conversation with cinematic bars"> | <img src="docs/screenshots/conv_modern.jpg" alt="Modern conversation without bars"> |
 
+### In-game screens
+
+|  | Original | Modern | Vanilla+ |
+| :---: | :---: | :---: | :---: |
+| **Inventory** | <img src="docs/screenshots/inventory_original.jpg" alt="Original Inventory"> | <img src="docs/screenshots/inventory_modern.jpg" alt="Modern Inventory"> | <img src="docs/screenshots/inventory_vplus.jpg" alt="Vanilla+ Inventory"> |
+| **Health** | *not captured yet* | <img src="docs/screenshots/health_modern.jpg" alt="Modern Health"> | <img src="docs/screenshots/health_vplus.jpg" alt="Vanilla+ Health"> |
+| **Augmentations** | <img src="docs/screenshots/augs_original.jpg" alt="Original Augmentations"> | <img src="docs/screenshots/augs_modern.jpg" alt="Modern Augmentations"> | <img src="docs/screenshots/augs_vplus.jpg" alt="Vanilla+ Augmentations"> |
+| **Skills** | <img src="docs/screenshots/skills_original.jpg" alt="Original Skills"> | <img src="docs/screenshots/skills_modern.jpg" alt="Modern Skills"> | <img src="docs/screenshots/skills_vplus.jpg" alt="Vanilla+ Skills"> |
+| **Journal** | <img src="docs/screenshots/journal_original.jpg" alt="Original Journal"> | <img src="docs/screenshots/journal_modern.jpg" alt="Modern Journal"> | <img src="docs/screenshots/journal_vplus.jpg" alt="Vanilla+ Journal"> |
+
+### Transmissions
+
+| Original | Vanilla+ |
+| :---: | :---: |
+| <img src="docs/screenshots/transmission_original.jpg" alt="Original InfoLink transmission"> | <img src="docs/screenshots/transmission_vplus.jpg" alt="Vanilla+ InfoLink transmission"> |
+
 ### Menus
 
 | Original | Reimagined UI |
