@@ -113,7 +113,7 @@ Mods\ReimaginedUI\
 ```
 
 1. Clone this repository into `<Deus Ex>\Mods\ReimaginedUI`.
-2. Run **`Build_Vanilla.cmd`** to compile for the original game, or **`Build_ReimaginedUI.cmd`** for GMDX: Augmented Edition 1.2. The output lands in `System\Vanilla\ReimaginedUI.u` or `System\ReimaginedUI.u`, and the build number shows on the main menu.
+2. Run **`Build_Vanilla.cmd`** to compile for the original game, or **`Build_ReimaginedUI.cmd`** for GMDX: Augmented Edition 1.2. The output lands in `System\Vanilla\ReimaginedUI.u` or `System\ReimaginedUI.u`.
 3. Copy the contents of `Install` into the game folder (they merge with `System` and `Mods`) and play.
 
 The build log is written next to the scripts (`build_ri_vanilla.log`). `Build_Quick_And_Play_Vanilla.cmd` builds and launches in one step, and `Build_All.cmd` compiles both bases in one go. The HD textures live in their own package, `RIVanillaHD.u`, which only needs rebuilding with `Build_RIVanillaHD.cmd` when the textures change.
