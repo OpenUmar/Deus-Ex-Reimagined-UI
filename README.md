@@ -64,6 +64,10 @@ Steam's **Play** button starts the game with Kentie's own default settings, whic
 INI="..\Mods\ReimaginedUI\System\Vanilla\DeusEx.ini"
 ```
 
+If the new menus still don't appear, use the full path to that file instead, for example
+`INI="C:\Program Files (x86)\Steam\steamapps\common\Deus Ex\Mods\ReimaginedUI\System\Vanilla\DeusEx.ini"`.
+Launching this way uses the mod's own settings and the game folder's `Save` folder, the same as the launcher script.
+
 Clear the launch options again whenever you want to play the untouched game from Steam.
 
 > [!TIP]
