@@ -54,24 +54,14 @@ Colours follow the HUD and menu themes you pick in Settings, and the size of the
    `C:\Program Files (x86)\Steam\steamapps\common\Deus Ex`
 3. Start the game with **`System\Play_ReimaginedUI_Vanilla.cmd`**. A desktop shortcut to that file works well.
 
-Your normal `DeusEx.exe` still launches the untouched original game, and both share the same save folder.
-
-### Launching from Steam instead
-
-Run **`System\ReimaginedUI_On.cmd`** once. From then on, Steam's **Play** button (and Kentie's launcher) starts the game with the Reimagined UI, using your usual saves and display settings. Run **`System\ReimaginedUI_Off.cmd`** to get the untouched game back on Steam. Both only change two lines in the game's settings file (which menus to use, and where the mod's files are) and keep a backup of it the first time.
-
-If the script can't find your settings file, start the game from Steam once, quit, and run it again. As an alternative, you can enter this in Steam under **Properties › General › Launch Options**:
-
-```
-INI="..\Mods\ReimaginedUI\System\Vanilla\DeusEx.ini"
-```
+Steam's **Play** button still starts the normal, unmodded game, so you can switch between the two whenever you like.
 
 > [!TIP]
 > The included settings file defaults to Direct3D 9 at 1920×1080. If your screen differs, change the resolution in **Settings › Display** on first launch.
 
 ### Uninstalling
 
-If you turned it on for Steam, run `System\ReimaginedUI_Off.cmd` first. Then delete `System\Play_ReimaginedUI_Vanilla.cmd`, `System\ReimaginedUI_On.cmd`, `System\ReimaginedUI_Off.cmd`, `System\RINative.dll` and the `Mods\ReimaginedUI` folder. Nothing else in the game is modified. The launcher marks `DeusEx.exe` as DPI-aware in your Windows user settings so the window isn't stretched on high-DPI laptops; that setting is harmless and can be left in place.
+Delete `System\Play_ReimaginedUI_Vanilla.cmd`, `System\RINative.dll` and the `Mods\ReimaginedUI` folder. Nothing else in the game is modified. The launcher marks `DeusEx.exe` as DPI-aware in your Windows user settings so the window isn't stretched on high-DPI laptops; that setting is harmless and can be left in place.
 
 ## Controls worth knowing
 
@@ -119,7 +109,7 @@ Mods\ReimaginedUI\
 ├─ Source\RIVanillaHD\             HD texture package for Vanilla+ and the HD icons
 ├─ Native\Src\                    C/C++ source of RINative.dll
 ├─ System\                        build and launcher ini files
-└─ Install\                       launcher and Steam on/off scripts, laid out as they go in the game folder
+└─ Install\                       the launcher script, laid out as it goes in the game folder
 ```
 
 1. Clone this repository into `<Deus Ex>\Mods\ReimaginedUI`.
