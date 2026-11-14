@@ -131,6 +131,10 @@ The build log is written next to the scripts (`build_ri_vanilla.log`). `Build_Qu
 
 </details>
 
+## Artists wanted
+
+The interface still leans on upscaled versions of the original game's border textures and icons, and they deserve better. If you can make new renders of the panel borders, frames and HUD pieces, or redraw the item, augmentation and skill icons in a way that stays faithful to the 2000 originals while looking sharp at modern resolutions, I would love to hear from you. Open an issue on this repository or message [@OpenUmar](https://github.com/OpenUmar) on GitHub, and every contribution that makes it into the mod will be credited.
+
 ## Reporting a bug
 
 Open an issue (or message me) with what you were doing, a screenshot, and the log file at
