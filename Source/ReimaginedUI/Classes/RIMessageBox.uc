@@ -13,9 +13,9 @@ var string TitleStr, MsgStr;
 var float  Age, UIS;
 
 var int    NumB;
-var string BLabel[3];
-var int    BResult[3];
-var float  BX[3], BY[3], BW[3], BH[3], BHot[3];
+var string BLabel[4];
+var int    BResult[4];
+var float  BX[4], BY[4], BW[4], BH[4], BHot[4];
 var int    FocusB, HoverB;
 var bool   bCustom;
 
@@ -92,13 +92,18 @@ function SetMode(int newMode)
 }
 
 // Three labelled choices; results 0, 1, 2. Escape picks the third.
-function SetCustomButtons(string A, string B, string C)
+function SetCustomButtons(string A, string B, string C, optional string D)
 {
 	bCustom = True;
 	NumB = 3;
 	BLabel[0] = A;  BResult[0] = 0;
 	BLabel[1] = B;  BResult[1] = 1;
 	BLabel[2] = C;  BResult[2] = 2;
+	if (D != "")
+	{
+		NumB = 4;
+		BLabel[3] = D;  BResult[3] = 3;
+	}
 	FocusB = 0;
 }
 
@@ -236,7 +241,7 @@ event bool VirtualKeyPressed(EInputKey key, bool bRepeat)
 
 	if ((key == IK_Escape) && bCustom)
 	{
-		Choose(2);
+		Choose(NumB - 1);      // the last button (main menu / cancel)
 		return True;
 	}
 

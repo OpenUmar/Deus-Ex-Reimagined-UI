@@ -95,7 +95,7 @@ function RevertNoPop()
 	{
 		for (i = 0; i < NumSaved; i++)
 			player.ConsoleCommand("SET InputExt " $ SavedKeys[i] $ " " $ SavedBinds[i]);
-		player.KeybindManager.Setup(player);
+		Class'RIBase'.static.KeysChanged(player);
 	}
 	bPresetApplied = False;
 	NumSaved = 0;
@@ -165,7 +165,7 @@ function ApplyPreset(bool bModern)
 		player.ConsoleCommand("SET InputExt " $ Class'RIKeyPresets'.default.KeyNames[i] $ " " $ Bind);
 	}
 
-	player.KeybindManager.Setup(player);
+	Class'RIBase'.static.KeysChanged(player);
 	BuildKeyBindings();
 	PopulateKeyList();
 	if (bModern)

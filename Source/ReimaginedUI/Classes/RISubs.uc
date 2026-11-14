@@ -7,6 +7,59 @@
 class RISubs extends Object
 	abstract;
 
+var string ColKey;     // whose colour the lines of the next DrawSub take (set round the call)
+
+// ----------------------------------------------------------------------
+// Speaker colours (Settings > Interface > Speaker colours: off, names,
+// names and lines). The player always one colour; everyone else one of
+// eight picked from their name, so a person keeps theirs all game.
+// ----------------------------------------------------------------------
+
+static function int ColMode()
+{
+	return Class'RIRootWindow'.default.SubColors;
+}
+
+static function Color SpeakerCol(string Who, bool bPlayer, float a)
+{
+	local int i, h;
+	local string U;
+
+	if (bPlayer)
+		return Class'RIUtil'.static.Raw(185 * a, 225 * a, 255 * a);
+	U = Caps(Who);
+	h = 7;
+	for (i = 0; i < Len(U); i++)
+		h = (h * 31 + Asc(Mid(U, i, 1))) % 8191;
+	switch (h % 8)
+	{
+		case 0: return Class'RIUtil'.static.Raw(255 * a, 196 * a, 110 * a);
+		case 1: return Class'RIUtil'.static.Raw(120 * a, 170 * a, 255 * a);
+		case 2: return Class'RIUtil'.static.Raw(150 * a, 230 * a, 140 * a);
+		case 3: return Class'RIUtil'.static.Raw(245 * a, 150 * a, 205 * a);
+		case 4: return Class'RIUtil'.static.Raw(200 * a, 165 * a, 255 * a);
+		case 5: return Class'RIUtil'.static.Raw(255 * a, 232 * a, 130 * a);
+		case 6: return Class'RIUtil'.static.Raw(120 * a, 230 * a, 215 * a);
+	}
+	return Class'RIUtil'.static.Raw(255 * a, 155 * a, 125 * a);
+}
+
+// A speaker's name: their colour, or Def with colours off
+static function Color NameCol(string Who, bool bPlayer, float a, Color Def)
+{
+	if ((ColMode() >= 1) && (Who != ""))
+		return SpeakerCol(Who, bPlayer, a);
+	return Def;
+}
+
+// A line: tinted toward the speaker's colour with "names and lines" on
+static function Color LineCol(string Who, bool bPlayer, float a, Color Def)
+{
+	if ((ColMode() >= 2) && (Who != ""))
+		return Class'RIUtil'.static.Mix(SpeakerCol(Who, bPlayer, a), Class'RIUtil'.static.Raw(255 * a, 255 * a, 255 * a), 0.45);
+	return Def;
+}
+
 // Word-wrap T into lines no wider than W; returns the count (max 8)
 static function int Wrap(Class<RIFont> F, float Scale, string T, float W, out string L0, out string L1,
 	out string L2, out string L3, out string L4, out string L5, out string L6, out string L7)
@@ -129,7 +182,7 @@ static function float DrawSubIn(GC gc, float X, float Y, float W, float K, strin
 		tw = Class'RIText'.static.Width(Class'RIFontSmall', Caps(Speaker), 0.62);
 		Class'RISkin'.static.DrawDim(gc, X + (W - tw) * 0.5 - 14 * K, y0, tw + 28 * K, 24 * K, 0.35 * a);
 		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', X, y0, W, 24 * K, Caps(Speaker),
-			Class'RIUtil'.static.Col(242 * a, 211 * a, 107 * a), 1, 0.62);
+			NameCol(Speaker, bPlayer, a, Class'RIUtil'.static.Col(242 * a, 211 * a, 107 * a)), 1, 0.62);
 		y0 += 26 * K;
 	}
 	for (i = 0; i < n; i++)
@@ -139,10 +192,10 @@ static function float DrawSubIn(GC gc, float X, float Y, float W, float K, strin
 		Class'RISkin'.static.DrawDim(gc, X + (W - tw) * 0.5 - 18 * K, y0, tw + 36 * K, lh, 0.45 * a);
 		if (bPlayer)
 			Class'RIText'.static.DrawIn(gc, Class'RIFontBody', X, y0, W, lh, Ln,
-				Class'RIUtil'.static.Col(255 * a, 241 * a, 194 * a), 1, 0.82);
+				LineCol(default.ColKey, True, a, Class'RIUtil'.static.Col(255 * a, 241 * a, 194 * a)), 1, 0.82);
 		else
 			Class'RIText'.static.DrawIn(gc, Class'RIFontBody', X, y0, W, lh, Ln,
-				Class'RIUtil'.static.Col(236 * a, 214 * a, 160 * a), 1, 0.82);
+				LineCol(default.ColKey, False, a, Class'RIUtil'.static.Col(236 * a, 214 * a, 160 * a)), 1, 0.82);
 		y0 += lh;
 	}
 	return y0 - Y;
@@ -163,7 +216,7 @@ static function float DrawVPSub(GC gc, float X, float Y, float W, float K, strin
 	{
 		tw = Class'RIText'.static.Width(Class'RIFontSmall', Caps(Speaker), 0.58);
 		Class'RISkin'.static.DrawDim(gc, X + (W - tw) * 0.5 - 16 * K, y0, tw + 32 * K, 26 * K, 0.3 * a);
-		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', X, y0, W, 20 * K, Caps(Speaker), Class'RIVP'.static.Acc(a), 1, 0.58);
+		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', X, y0, W, 20 * K, Caps(Speaker), NameCol(Speaker, bPlayer, a, Class'RIVP'.static.Acc(a)), 1, 0.58);
 		Class'RISkin'.static.FillC(gc, X + W * 0.5 - 14 * K, y0 + 21 * K, 28 * K, 1.5 * K, Class'RIVP'.static.Edge(a));
 		y0 += 28 * K;
 	}
@@ -173,9 +226,9 @@ static function float DrawVPSub(GC gc, float X, float Y, float W, float K, strin
 		tw = Class'RIText'.static.Width(Class'RIFontBody', Ln, 0.82);
 		Class'RISkin'.static.DrawDim(gc, X + (W - tw) * 0.5 - 22 * K, y0, tw + 44 * K, lh, 0.42 * a);
 		if (bPlayer)
-			Class'RIText'.static.DrawIn(gc, Class'RIFontBody', X, y0, W, lh, Ln, Class'RIUtil'.static.Col(255 * a, 241 * a, 194 * a), 1, 0.82);
+			Class'RIText'.static.DrawIn(gc, Class'RIFontBody', X, y0, W, lh, Ln, LineCol(default.ColKey, True, a, Class'RIUtil'.static.Col(255 * a, 241 * a, 194 * a)), 1, 0.82);
 		else
-			Class'RIText'.static.DrawIn(gc, Class'RIFontBody', X, y0, W, lh, Ln, Class'RIVP'.static.Txt(a), 1, 0.82);
+			Class'RIText'.static.DrawIn(gc, Class'RIFontBody', X, y0, W, lh, Ln, LineCol(default.ColKey, False, a, Class'RIVP'.static.Txt(a)), 1, 0.82);
 		y0 += lh;
 	}
 	return y0 - Y;
@@ -206,7 +259,7 @@ static function float SubHeight(float W, float K, string Speaker, string T)
 // ----------------------------------------------------------------------
 
 static function float ToastRow(GC gc, float RightX, float Y, float K, Texture Icon, string Label, int Qty,
-	bool bDeclined, float a)
+	bool bDeclined, float a, optional bool bInBox)
 {
 	local float iw, ih, rh, lw, qw, rowW, x0;
 	local string Q;
@@ -220,7 +273,11 @@ static function float ToastRow(GC gc, float RightX, float Y, float K, Texture Ic
 	qw = Class'RIText'.static.Width(Class'RIFontHead', Q, 0.52);
 	rowW = 14 * K + iw + 14 * K + lw + 14 * K + qw + 16 * K;
 	x0 = RightX - rowW;
-	if (Class'RIVP'.static.On())
+	if (bInBox)
+	{
+		// drawn inside ToastBox's frame: no panel of its own
+	}
+	else if (Class'RIVP'.static.On())
 	{
 		Class'RIVP'.static.Panel(gc, x0, Y, rowW, rh - 4 * K, 8 * K, a);
 	}
@@ -249,6 +306,51 @@ static function float ToastRow(GC gc, float RightX, float Y, float K, Texture Ic
 	Class'RIText'.static.DrawIn(gc, Class'RIFontHead', x0 + 42 * K + iw + lw, Y, qw + 4 * K, ih + 6 * K, Q,
 		Class'RIUtil'.static.Col(242 * a, 211 * a, 107 * a), 0, 0.52);
 	return rh;
+}
+
+// Width of one ToastRow (the same sum ToastRow makes)
+static function float ToastRowW(float K, string Label, int Qty)
+{
+	local float lw, qw;
+
+	lw = Class'RIText'.static.Width(Class'RIFontBody', Caps(Label), 0.76);
+	qw = Class'RIText'.static.Width(Class'RIFontHead', "x" $ string(Max(1, Qty)), 0.52);
+	return 14 * K + 42 * K + 14 * K + lw + 14 * K + qw + 16 * K;
+}
+
+// Width ToastBox will use for this title and widest row
+static function float ToastBoxW(float K, string Title, float RowsW)
+{
+	local float w;
+
+	w = FMax(RowsW, Class'RIText'.static.Width(Class'RIFontSmall', Caps(Title), 0.66) + 40 * K) + 12 * K;
+	return FMax(w, 260 * K);
+}
+
+static function float ToastBoxH(float K, int Rows)
+{
+	return 46 * K + Rows * 47 * K + 6 * K;
+}
+
+// Vanilla+: one box holding the whole list (it grows a row per item as
+// more come in), right edge at RightX: the game darkened behind, the
+// mechanical frame with the original DX trim, the title over a rule.
+// RowsW is the widest row. Returns the left edge for the rows; they start
+// at Top + 46 * K.
+static function float ToastBox(GC gc, float RightX, float Top, float K, string Title, float RowsW, int Rows, float a)
+{
+	local float w, h, x0;
+
+	Title = Caps(Title);
+	w = ToastBoxW(K, Title, RowsW);
+	h = ToastBoxH(K, Rows);
+	x0 = RightX - w;
+	Class'RIVP'.static.Dim(gc, x0 + 3 * K, Top + 3 * K, w - 6 * K, h - 6 * K);
+	Class'RIVP'.static.Frame(gc, x0, Top, w, h, 12 * K, a);
+	Class'RIText'.static.Draw(gc, Class'RIFontSmall', x0 + 20 * K, Top + 12 * K, Title,
+		Class'RIUtil'.static.Col(242 * a, 211 * a, 107 * a), 0.66);
+	Class'RIText'.static.HLine(gc, x0 + 20 * K, Top + 38 * K, w - 40 * K, Class'RIUtil'.static.Col(126 * a, 105 * a, 50 * a));
+	return x0 + 6 * K;
 }
 
 static function ToastTitle(GC gc, float RightX, float Y, float K, string Title, float a)

@@ -135,9 +135,9 @@ event DrawWindow(GC gc)
 
 	// Darken the bottom (text) and the left edge (logo)
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawStretchedTexture(0, height * 0.45, width, height * 0.55, 0, 0, 8, 256, Texture'ReimaginedUI.UI.RI_FadeV');
-	gc.DrawStretchedTexture(0, height * 0.62, width, height * 0.38, 0, 0, 8, 256, Texture'ReimaginedUI.UI.RI_FadeV');
-	gc.DrawStretchedTexture(0, 0, width * 0.25, height, 0, 0, 256, 8, Texture'ReimaginedUI.UI.RI_FadeH');
+	gc.DrawStretchedTexture(0, height * 0.45, width, height * 0.55, 0, 2, 8, 252, Texture'ReimaginedUI.UI.RI_FadeV');
+	gc.DrawStretchedTexture(0, height * 0.62, width, height * 0.38, 0, 2, 8, 252, Texture'ReimaginedUI.UI.RI_FadeV');
+	gc.DrawStretchedTexture(0, 0, width * 0.25, height, 2, 0, 252, 8, Texture'ReimaginedUI.UI.RI_FadeH');
 
 	// Scanlines
 	gc.SetStyle(DSTY_Modulated);
@@ -166,7 +166,7 @@ event DrawWindow(GC gc)
 
 	// Footer
 	if (Menu != None)
-		Class'RIText'.static.Draw(gc, Class'RIFontSmall', 96 * S, height - 64 * S, Caps(Menu.GMDXText),
+		Class'RIText'.static.Draw(gc, Class'RIFontSmall', 96 * S, height - 64 * S, Caps(Class'RIBase'.static.VersionText(Menu, Menu.player)),
 			Class'RIUtil'.static.Col(139 * a, 144 * a, 212 * a));
 	tw = Class'RIText'.static.Width(Class'RIFontSmall', Caps(CreditText));
 	Class'RIText'.static.Draw(gc, Class'RIFontSmall', width - 96 * S - tw, height - 64 * S, Caps(CreditText),

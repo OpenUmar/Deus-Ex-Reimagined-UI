@@ -34,6 +34,7 @@ var DeusExPlayer Player;
 var int   ActiveTab;
 var float Age;
 var float S, OX;
+var localized string PersonaTitle;   // Modern: the big frame's tab
 var bool  bReady;
 var bool  bLoggedStyle;
 var float HoleX, HoleY, HoleW, HoleH;   // Vanilla+: a part of the screen left unpainted (Outfit's 3D preview)
@@ -101,7 +102,12 @@ function float Scale()
 	local float k;
 
 	k = Class'RIRootWindow'.default.PersonaScale;
-	if (!VPlus() || (k < 0.7) || (k > 1.0))
+	if ((k < 0.7) || (k > 1.0))
+		k = 1.0;
+	// Modern: a touch smaller than the screen, so the frame has breathing room
+	if (Class'RIModern'.static.On())
+		return k * 0.9;
+	if (!VPlus())
 		return 1.0;
 	return k;
 }
@@ -302,6 +308,11 @@ function Panel(GC gc, float X, float Y, float W, float H, float a)
 		VPanel(gc, X, Y, W, H, a);
 		return;
 	}
+	if (Class'RIModern'.static.On())
+	{
+		Class'RIModern'.static.Frame(gc, X, Y, W, H, S, a);
+		return;
+	}
 	Fill(gc, X, Y, W, H, C3(16, 13, 6, 0.85 * a));
 	Glow(gc, X, Y, W, H * 0.5, C3(14, 11, 5, a));
 	Class'RIText'.static.Box(gc, X, Y, W, H, C3(58, 48, 22, a));
@@ -314,6 +325,11 @@ function SelRow(GC gc, float X, float Y, float W, float H, float a)
 		VSelRow(gc, X, Y, W, H, a);
 		return;
 	}
+	if (Class'RIModern'.static.On())
+	{
+		Class'RIModern'.static.Cell(gc, X, Y, W, H, S, True, a);
+		return;
+	}
 	Fill(gc, X, Y, W, H, C3(46, 38, 17, 0.8 * a));
 	Glow(gc, X, Y, W, H, C3(40, 33, 15, a));
 	Class'RIText'.static.Box(gc, X, Y, W, H, C3(242, 211, 107, a));
@@ -324,6 +340,11 @@ function DrawBtn(GC gc, float X, float Y, float W, float H, string L, bool bLive
 	if (VPlus())
 	{
 		VBtn(gc, X, Y, W, H, L, bLive, bHot, bPrimary, a);
+		return;
+	}
+	if (Class'RIModern'.static.On())
+	{
+		Class'RIModern'.static.Btn(gc, X, Y, W, H, S, L, bLive, bHot, bPrimary, a);
 		return;
 	}
 	// Refined: hairline buttons; the main action lit, disabled ones faint
@@ -344,6 +365,66 @@ function DrawBtn(GC gc, float X, float Y, float W, float H, string L, bool bLive
 	{
 		Class'RIText'.static.Box(gc, X, Y, W, H, C3(110, 94, 46, a));
 		Class'RIText'.static.DrawIn(gc, Class'RIFontHead', X, Y, W, H, Caps(L), AAcc(a), 1, 0.52);
+	}
+}
+
+// A callout line from a card (px, py) to a point on a figure (ax, ay): out
+// level from the card, then into the point at 45 degrees (or, short of
+// room, a stub, 45 degrees, then straight up or down), 1 px throughout
+function LeaderLine(GC gc, float px, float py, float ax, float ay, Color Col)
+{
+	local float dx, dy, adx, ady, sgn, ex, stub, h, ye;
+
+	dx = ax - px;
+	dy = ay - py;
+	adx = Abs(dx);
+	ady = Abs(dy);
+	if (dx >= 0)
+		sgn = 1;
+	else
+		sgn = -1;
+	stub = FMin(18 * S, adx);
+	if (ady <= adx - stub)
+	{
+		ex = ax - sgn * ady;
+		Class'RIText'.static.HLine(gc, FMin(px, ex), py, Abs(ex - px), Col);
+		DiagSeg(gc, ex, py, ax, ay, Col);
+	}
+	else
+	{
+		ex = px + sgn * stub;
+		Class'RIText'.static.HLine(gc, FMin(px, ex), py, stub, Col);
+		h = adx - stub;
+		if (dy > 0)
+			ye = py + h;
+		else
+			ye = py - h;
+		DiagSeg(gc, ex, py, ax, ye, Col);
+		Class'RIText'.static.VLine(gc, ax, FMin(ye, ay), Abs(ay - ye), Col);
+	}
+}
+
+// A 45 degree segment between two points (drawn from its left end)
+function DiagSeg(GC gc, float x0, float y0, float x1, float y1, Color Col)
+{
+	local float L;
+
+	L = Abs(x1 - x0);
+	if (L <= 0)
+		return;
+	if (x1 >= x0)
+	{
+		if (y1 >= y0)
+			Class'RIModern'.static.Diag(gc, x0, y0, L, 0.5, 1, Col);
+		else
+			Class'RIModern'.static.Diag(gc, x0, y0, L, 0.5, -1, Col);
+	}
+	else
+	{
+		if (y0 >= y1)
+			Class'RIModern'.static.Diag(gc, x1, y1, L, 0.5, 1, Col);
+		else
+			Class'RIModern'.static.Diag(gc, x1, y1, L, 0.5, -1, Col);
 	}
 }
 
@@ -428,7 +509,7 @@ function BuildSubs()
 	if (MainOf(ActiveTab) == TAB_INV)
 	{
 		SubId[NumSubs++] = TAB_INV;
-		if ((Nav() != None) && (Nav().btnOutfits != None))
+		if (Class'RIBase'.static.HasOutfits(Nav()))
 			SubId[NumSubs++] = TAB_OUTFIT;
 		SubId[NumSubs++] = TAB_AMMO;
 		SubId[NumSubs++] = TAB_KEYS;
@@ -443,7 +524,8 @@ function BuildSubs()
 	else if (MainOf(ActiveTab) == TAB_SKILLS)
 	{
 		SubId[NumSubs++] = TAB_SKILLS;
-		SubId[NumSubs++] = TAB_PERKS;
+		if (Class'RIBase'.static.Has("Perks"))
+			SubId[NumSubs++] = TAB_PERKS;
 	}
 }
 
@@ -530,7 +612,7 @@ function GoScreen(int Id)
 	else if (Id == TAB_AUGS)   B = Nav().btnAugs;
 	else if (Id == TAB_SKILLS) B = Nav().btnSkills;
 	else if (Id == TAB_GOALS)  B = Nav().btnGoals;
-	else if (Id == TAB_OUTFIT) B = Nav().btnOutfits;
+	else if (Id == TAB_OUTFIT) B = Class'RIBase'.static.OutfitsButton(Nav());
 	else if (Id == TAB_CONS)   B = Nav().btnCons;
 	else if (Id == TAB_IMAGES) B = Nav().btnImages;
 	else if (Id == TAB_LOGS)   B = Nav().btnLogs;
@@ -576,6 +658,8 @@ function DrawTabs(GC gc, float a)
 	x = OX + 120 * S;
 	KeyX = x;
 	y = 30 * S;
+	if (Class'RIModern'.static.On())
+		y = 46 * S;       // clear of the frame's top edge
 	h = 46 * S;
 	ly = y + h + 6 * S;
 
@@ -631,14 +715,14 @@ function DrawSubs(GC gc, float ly, float a)
 	}
 	cur = CurrentSub();
 	if (VPlus())
-		x = OX + 410 * S;
+		x = OX + 415 * S;
 	else
 		x = OX + 140 * S;
 	// Vanilla+: inside the header tab, no A / D hints
 	if (VPlus())
 	{
-		y = 136 * S;
-		h = 34 * S;
+		y = 139 * S;
+		h = 32 * S;
 		DrawVPSubRow(gc, x, y, h, sc, gap, cur, a);
 		return;
 	}
@@ -686,6 +770,9 @@ function DrawFrame(GC gc, float a)
 	}
 	// Refined: no outer frame; the page darkens behind the content
 	Fill(gc, 0, 0, width, height, C3(6, 5, 3, 0.55 * a));
+	// Modern: one big digitized frame round the whole page, its tab above the screen row
+	if (Class'RIModern'.static.On())
+		Class'RIModern'.static.Frame(gc, OX + 48 * S, 4 * S, 1824 * S, 1066 * S, S, a, PersonaTitle, True);
 }
 
 // ----------------------------------------------------------------------
@@ -758,41 +845,41 @@ function DrawVPBackdrop(GC gc, float a)
 
 	// Tab bar: five equal tabs centred in their frame, Exit in its own
 	VPFrame(gc, 352, 40, 1098, 58, a);
-	tw = (1078.0 - 32.0) / 5.0;
+	tw = (1070.0 - 32.0) / 5.0;
 	slot = VPSlot(MainOf(ActiveTab));
 	for (i = 0; i < 5; i++)
-		VPBtnK(gc, 362 + i * (tw + 8), 50, tw, 38, i == slot, a);
+		VPBtnK(gc, 366 + i * (tw + 8), 51, tw, 36, i == slot, a);
 	VPFrame(gc, 1460, 40, 112, 58, a);
-	VPBtnK(gc, 1470, 50, 92, 38, False, a);
+	VPBtnK(gc, 1474, 51, 84, 36, False, a);
 
 	if (VPBoard() == 1)
 	{
 		// Inventory: grid frame (cells, buttons and credits are drawn by the page)
 		VPFrame(gc, 380, 126, 620, 746, a);
-		VPHdr(gc, 392, 136, 484, 34, a);
-		VPInset(gc, 886, 136, 96, 34, a);
+		VPHdr(gc, 395, 139, VPHdrW(480), 32, a);
+		VPWell(gc, 886, 141, 96, 28, a);
 		VPInset(gc, 395, 174, 587, 642, a);
 		if (Player != None)
-			Class'RIText'.static.DrawIn(gc, Class'RIFontHead', OX + 886 * S, 136 * S, 88 * S, 34 * S, string(Player.Credits), ATxt(a), 2, 0.48);
+			Class'RIText'.static.DrawIn(gc, Class'RIFontHead', OX + 886 * S, 139 * S, 88 * S, 32 * S, string(Player.Credits), ATxt(a), 2, 0.46);
 		// Belt: ten even slots, each with a name strip
 		VPFrame(gc, 380, 900, 1182, 118, a);
 		for (i = 0; i < 10; i++)
 		{
-			VPInset(gc, BeltSlotX(i), 912, BeltSlotW(), 94, a);
+			VPWell(gc, BeltSlotX(i), 912, BeltSlotW(), 94, a);
 			Class'RIText'.static.HLine(gc, OX + BeltSlotX(i) * S, (912 + 72) * S, BeltSlotW() * S, ADim(a));
 		}
 	}
 	else
 	{
 		VPFrame(gc, 380, 126, 620, 866, a);
-		VPHdr(gc, 392, 136, 568, 34, a);
+		VPHdr(gc, 395, 139, VPHdrW(565), 32, a);
 		VPInset(gc, 395, 174, 587, 770, a);
 	}
 
 	// Right: name bar, body, footer; below it the lower box
 	VPFrame(gc, 1042, 126, 520, 590, a);
-	VPHdr(gc, 1054, 136, 340, 34, a);
-	Class'RIText'.static.DrawIn(gc, Class'RIFontHead', OX + 1072 * S, 136 * S, 290 * S, 34 * S, Caps(Class'RIText'.static.Fit(Class'RIFontHead', VPDetailTitle(), 290 * S, 0.42)), ALbl(a), 0, 0.42);
+	VPHdr(gc, 1061, 139, 340, 32, a);
+	Class'RIText'.static.DrawIn(gc, Class'RIFontHead', OX + 1079 * S, 139 * S, 280 * S, 32 * S, Caps(Class'RIText'.static.Fit(Class'RIFontHead', VPDetailTitle(), 280 * S, 0.42)), ALbl(a), 0, 0.42);
 	VPStrip(gc, 1061, 176, 481, 30, a);
 	if (VPFooterBar())
 	{
@@ -854,18 +941,18 @@ function DrawVPBeltItems(GC gc, float a)
 	ih = 94 * S;
 	y = 912 * S;
 	for (n = 0; n < 10; n++)
-		Class'RIText'.static.Draw(gc, Class'RIFontSmall', OX + (BeltSlotX(n) + 6) * S, y + 4 * S, Mid("1234567890", n, 1), AAcc(a), 0.6);
+		Class'RIText'.static.Draw(gc, Class'RIFontSmall', OX + (BeltSlotX(Class'RIUtil'.static.BeltPos(n)) + 6) * S, y + 4 * S, Mid("0123456789", n, 1), AAcc(a), 0.6);
 	for (I = Player.Inventory; I != None; I = I.Inventory)
 	{
 		if (!I.bInObjectBelt || (I.beltPos < 0) || (I.beltPos >= 10) || (I.icon == None))
 			continue;
-		sx = OX + BeltSlotX(I.beltPos) * S;
-		k = FMin((w - 16 * S) / 42.0, (ih - 30 * S) / 37.0);
-		if (k >= 1)
-			k = float(int(k));
+		sx = OX + BeltSlotX(Class'RIUtil'.static.BeltPos(I.beltPos)) * S;
+		// sized to sit well inside the slot (clear of its number, frame and
+		// the name strip), as on the HUD belt
+		k = FMin((w - 40 * S) / 42.0, (72 * S - 26 * S) / 37.0);
 		gc.SetStyle(DSTY_Masked);
 		gc.SetTileColor(C3(255, 255, 255, a));
-		Class'RIHD'.static.DrawStretched(gc, sx + (w - 42 * k) * 0.5, y + 6 * S + (72 * S - 6 * S - 37 * k) * 0.5, 42 * k, 37 * k, 0, 0, 42, 37, I.icon);
+		Class'RIHD'.static.DrawStretched(gc, sx + (w - 42 * k) * 0.5, y + 8 * S + (72 * S - 10 * S - 37 * k) * 0.5, 42 * k, 37 * k, 0, 0, 42, 37, I.icon);
 		BName = I.beltDescription;
 		if (BName == "")
 			BName = I.ItemName;
@@ -997,7 +1084,23 @@ function VPInset(GC gc, float X, float Y, float W, float H, float a)
 function VPTitle(GC gc, string T, float a)
 {
 	// centred in the header tab (y 137..170 on the shared frame)
-	Class'RIText'.static.DrawIn(gc, Class'RIFontHead', OX + 412 * S, 139 * S, 520 * S, 30 * S, Caps(T), ATxt(a), 0, 0.46);
+	Class'RIText'.static.DrawIn(gc, Class'RIFontHead', OX + 415 * S, 140 * S, 520 * S, 30 * S, Caps(T), ATxt(a), 0, 0.46);
+}
+
+// Vanilla+: the header tab's width, in design pixels. With sections it ends
+// just past the last one (its chamfer follows the labels: three sections on
+// the original game make a shorter tab); with none (a title) it's full width.
+function float VPHdrW(float Full)
+{
+	local int i;
+	local float tw;
+
+	if (NumSubs <= 1)
+		return Full;
+	for (i = 0; i < NumSubs; i++)
+		tw += Class'RIText'.static.Width(Class'RIFontHead', Caps(SubNames[SubId[i]]), 0.42) / S;
+	// labels from 415, 36 apart, half a gap after the last, then the chamfer
+	return FClamp(20 + tw + 36 * (NumSubs - 1) + 18 + 56, 200, Full);
 }
 
 // The section row inside the header tab (Vanilla+): labels centred in the
@@ -1028,13 +1131,13 @@ function DrawVPSubRow(GC gc, float x, float y, float h, float sc, float gap, int
 				SubShownAt = Age;
 			}
 			k = Class'RIUtil'.static.EaseOut(FClamp((Age - SubShownAt) / 0.3, 0, 1));
-			Fill(gc, sx + 3 * S, y + 5 * S, ex - sx - 6 * S, h - 10 * S, C3(52, 43, 19, a * k));
-			Class'RIText'.static.Box(gc, sx + 3 * S, y + 5 * S, ex - sx - 6 * S, h - 10 * S, C3(242, 211, 107, a * k));
+			Fill(gc, sx + 3 * S, y + 4 * S, ex - sx - 6 * S, h - 8 * S, C3(52, 43, 19, a * k));
+			Class'RIText'.static.Box(gc, sx + 3 * S, y + 4 * S, ex - sx - 6 * S, h - 8 * S, C3(242, 211, 107, a * k));
 			C = AHi(a);
 		}
 		else if (HoverId == HOT_SUB + SubId[i])
 		{
-			Fill(gc, sx + 1 * S, y + 5 * S, ex - sx - 2 * S, h - 10 * S, C3(30, 25, 11, a));
+			Fill(gc, sx + 3 * S, y + 4 * S, ex - sx - 6 * S, h - 8 * S, C3(30, 25, 11, a));
 			C = ATxt(a);
 		}
 		else
@@ -1050,8 +1153,18 @@ function DrawVPSubRow(GC gc, float x, float y, float h, float sc, float gap, int
 // A title strip (name bar, footer bar): a toned band in a thin box
 function VPStrip(GC gc, float X, float Y, float W, float H, float a)
 {
-	Fill(gc, OX + X * S, Y * S, W * S, H * S, C3(30, 25, 11, a));
-	Fill(gc, OX + X * S, Y * S, 3 * S, H * S, C3(200, 170, 98, a));
+	VPWell(gc, X, Y, W, H, a);
+	Fill(gc, OX + X * S, Y * S, 2 * S, H * S, C3(200, 170, 98, a));
+}
+
+// An inset box with a dark backing (the game behind darkened twice, close
+// to solid, then the panel tone; once wasn't enough: edges in the level
+// still showed through as lines): belt slots, the credits box, title strips
+function VPWell(GC gc, float X, float Y, float W, float H, float a)
+{
+	AroundHole(gc, OX + X * S, Y * S, W * S, H * S, 1, C3(0, 0, 0, a));
+	AroundHole(gc, OX + X * S, Y * S, W * S, H * S, 1, C3(0, 0, 0, a));
+	Fill(gc, OX + X * S, Y * S, W * S, H * S, C3(24, 20, 9, a));
 	VPInset(gc, X, Y, W, H, a);
 }
 
@@ -1076,13 +1189,13 @@ function DrawVPTabs(GC gc, float a)
 		}
 		if (i < 5)
 		{
-			x = OX + (362 + i * 217.2) * S;
-			w = 209.2 * S;
+			x = OX + (366 + i * 215.6) * S;
+			w = 207.6 * S;
 		}
 		else
 		{
-			x = OX + 1470 * S;
-			w = 92 * S;
+			x = OX + 1474 * S;
+			w = 84 * S;
 		}
 		L = Caps(Class'RIText'.static.Fit(Class'RIFontHead', TabNames[id], w - 16 * S, 0.46));
 		if (id == MainOf(ActiveTab))
@@ -1383,6 +1496,12 @@ event DrawWindow(GC gc)
 		DrawFrame(gc, a);
 		DrawTabs(gc, a);
 	}
+	else if (Class'RIModern'.static.On())
+	{
+		// the frame darkens what's under it, so it goes down first
+		DrawFrame(gc, a);
+		DrawTabs(gc, a);
+	}
 	else
 	{
 		DrawTabs(gc, a);
@@ -1414,6 +1533,7 @@ function DrawPage(GC gc, float a)
 defaultproperties
 {
      CloseHint="Esc close"
+     PersonaTitle="Persona"
      DetailLabel="Details"
      TabNames(1)="Inventory"
      TabNames(2)="Health"

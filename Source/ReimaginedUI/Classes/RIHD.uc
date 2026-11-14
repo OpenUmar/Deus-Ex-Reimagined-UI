@@ -106,6 +106,30 @@ static final function DrawStretched(GC gc, float X, float Y, float W, float H, f
 	gc.DrawStretchedTexture(X, Y, W, H, SX * K, SY * K, SW * K, SH * K, R);
 }
 
+// An aug icon fitted into X,Y,W,H. Large aug icons are 64 x 64 with the art
+// in the top-left 52 x 52 (the game draws only that part), so that part is
+// what's fitted; IFF's art also sits about 4.5 texels left of the others',
+// so it's shifted to match (the texels pulled in from the far edge are
+// black, which the translucent style drops). Small HUD icons are drawn whole.
+static final function DrawAugIcon(GC gc, float X, float Y, float W, float H, Texture T)
+{
+	local float SX, SW, SH;
+
+	if (T == None)
+		return;
+	SX = 0;
+	SW = T.USize;
+	SH = T.VSize;
+	if ((T.USize == 64) && (T.VSize == 64))
+	{
+		SW = 52;
+		SH = 52;
+		if (T == Texture'DeusExUI.UserInterface.AugIconIFF')
+			SX = -4.5;
+	}
+	DrawStretched(gc, X, Y, W, H, SX, 0, SW, SH, T);
+}
+
 // DrawStretched on exact screen pixels (RINative): neighbouring pieces of a
 // frame meet edge to edge instead of overlapping (the engine's own call rounds
 // to whole UI units, and overlaps of additive pieces show as bright seams)

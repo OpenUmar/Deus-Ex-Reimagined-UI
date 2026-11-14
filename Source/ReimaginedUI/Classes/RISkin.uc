@@ -399,7 +399,7 @@ static function DrawAmbience(GC gc, float W, float H, float Amt, float T)
 	gc.DrawStretchedTexture(W * 0.15, -H * 0.25, W * 0.7, H * 0.7, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
 
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawStretchedTexture(0, H * 0.55, W, H * 0.45, 0, 0, 8, 256, Texture'ReimaginedUI.UI.RI_FadeV');
+	gc.DrawStretchedTexture(0, H * 0.55, W, H * 0.45, 0, 2, 8, 252, Texture'ReimaginedUI.UI.RI_FadeV');
 	if (Amt > 0.6)
 		gc.DrawPattern(0, 0, W, H, 0, 0, Texture'ReimaginedUI.UI.RI_Scan');
 }

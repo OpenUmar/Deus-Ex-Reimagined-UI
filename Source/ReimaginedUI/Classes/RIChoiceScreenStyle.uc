@@ -39,13 +39,14 @@ function CyclePreviousValue()
 
 function ResetToDefault()
 {
-	SetValue(0);
+	SetValue(2);
 }
 
 defaultproperties
 {
      enumText(0)="Sleek"
      enumText(1)="Vanilla+"
-     HelpText="Sleek: hairline panels. Vanilla+: the same updated screens drawn with the original game's panel frames, highlights and buttons in HD. Menus and Settings are the same in both."
+     enumText(2)="Modern"
+     HelpText="Modern (default): the Sleek layouts in digitized chamfered frames, with a Human Revolution style belt. Sleek: hairline panels. Vanilla+: the same updated screens drawn with the original game's panel frames, highlights and buttons in HD. Menus and Settings are the same in all three."
      actionText="|&UI style"
 }

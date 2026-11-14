@@ -8,14 +8,14 @@
 //=============================================================================
 class RIScopeView extends DeusExScopeView;
 
-var localized string ZoomLabel;
+var localized string ZoomLabel, RangeLabel, RangeUnits;
 
 function bool RIOn()
 {
 	local RIRootWindow R;
 
 	R = RIRootWindow(GetRootWindow());
-	return (R != None) && !R.bClassicHUD && (player != None) && !player.bClassicScope;
+	return (R != None) && !R.bClassicHUD && (player != None) && !Class'RIUtil'.static.PBool(player, "bClassicScope");
 }
 
 function Line(GC gc, float X, float Y, float W, float H, Color C)
@@ -32,7 +32,7 @@ event DrawWindow(GC gc)
 	local string S;
 	local int zi;
 
-	if ((player == None) || !RIOn() || player.bGEPzoomActive)
+	if ((player == None) || !RIOn() || Class'RIUtil'.static.PBool(player, "bGEPzoomActive"))
 	{
 		Super.DrawWindow(gc);
 		return;
@@ -78,15 +78,15 @@ event DrawWindow(GC gc)
 	if (bBinocs)
 	{
 		// binoculars: a light gold cross with a gap, and corner brackets
-		Line(gc, cx - r * 0.42, cy - 0.25, r * 0.34, 0.5, cGold);
-		Line(gc, cx + r * 0.08, cy - 0.25, r * 0.34, 0.5, cGold);
-		Line(gc, cx - 0.25, cy - r * 0.42, 0.5, r * 0.34, cGold);
-		Line(gc, cx - 0.25, cy + r * 0.08, 0.5, r * 0.34, cGold);
+		Line(gc, cx - r * 0.42, cy - 0.5, r * 0.34, 1, cGold);
+		Line(gc, cx + r * 0.08, cy - 0.5, r * 0.34, 1, cGold);
+		Line(gc, cx - 0.5, cy - r * 0.42, 1, r * 0.34, cGold);
+		Line(gc, cx - 0.5, cy + r * 0.08, 1, r * 0.34, cGold);
 		for (i = -1; i <= 1; i += 2)
 		{
-			Line(gc, cx + i * r * 0.62 - 0.25, cy - r * 0.3, 0.5, r * 0.6, Class'RIUtil'.static.Col(150, 126, 62));
-			Line(gc, cx + i * r * 0.62 - (i + 1) * r * 0.04, cy - r * 0.3, r * 0.08, 0.5, Class'RIUtil'.static.Col(150, 126, 62));
-			Line(gc, cx + i * r * 0.62 - (i + 1) * r * 0.04, cy + r * 0.3, r * 0.08, 0.5, Class'RIUtil'.static.Col(150, 126, 62));
+			Line(gc, cx + i * r * 0.62 - 0.5, cy - r * 0.3, 1, r * 0.6, Class'RIUtil'.static.Col(150, 126, 62));
+			Line(gc, cx + i * r * 0.62 - (i + 1) * r * 0.04, cy - r * 0.3, r * 0.08, 1, Class'RIUtil'.static.Col(150, 126, 62));
+			Line(gc, cx + i * r * 0.62 - (i + 1) * r * 0.04, cy + r * 0.3 - 1, r * 0.08, 1, Class'RIUtil'.static.Col(150, 126, 62));
 		}
 	}
 	else
@@ -96,22 +96,22 @@ event DrawWindow(GC gc)
 		Line(gc, cx + r * 0.38, cy - 1.5, r * 0.62, 3, cDark);
 		Line(gc, cx - 1.5, cy + r * 0.38, 3, r * 0.62, cDark);
 		Line(gc, cx - 1.5, cy - r, 3, r * 0.62, cDark);
-		Line(gc, cx - r * 0.38, cy - 0.25, r * 0.76, 0.5, cDark);
-		Line(gc, cx - 0.25, cy - r * 0.38, 0.5, r * 0.76, cDark);
+		Line(gc, cx - r * 0.38, cy - 0.5, r * 0.76, 1, cDark);
+		Line(gc, cx - 0.5, cy - r * 0.38, 1, r * 0.76, cDark);
 		// stadia ticks along the fine lines
 		tick = r * 0.076;
 		for (i = 1; i <= 4; i += 1)
 		{
-			Line(gc, cx - i * tick - 0.25, cy - 2, 0.5, 4, cDark);
-			Line(gc, cx + i * tick - 0.25, cy - 2, 0.5, 4, cDark);
-			Line(gc, cx - 2, cy + i * tick - 0.25, 4, 0.5, cDark);
+			Line(gc, cx - i * tick - 0.5, cy - 2, 1, 4, cDark);
+			Line(gc, cx + i * tick - 0.5, cy - 2, 1, 4, cDark);
+			Line(gc, cx - 2, cy + i * tick - 0.5, 4, 1, cDark);
 		}
 		// a small gold centre point
-		Line(gc, cx - 0.75, cy - 0.75, 1.5, 1.5, cGold);
+		Line(gc, cx - 0.5, cy - 0.5, 1, 1, cGold);
 	}
 
 	// --- readout: range, and zoom from the view's field of view
-	S = getBinocsTargetRangeString();
+	S = RangeText();
 	zoom = 90.0;
 	if (player.DesiredFOV > 1)
 		zoom = 90.0 / player.DesiredFOV;
@@ -121,7 +121,23 @@ event DrawWindow(GC gc)
 	Class'RITheme'.static.SetMode(0);
 }
 
+// Distance to what the view points at, in feet (AE's binocular readout,
+// the same trace its AugmentationDisplayWindow uses)
+function string RangeText()
+{
+	local vector HitLocation, HitNormal, StartTrace, EndTrace;
+
+	StartTrace = player.Location;
+	EndTrace = player.Location + (Vector(player.ViewRotation) * 160000);
+	StartTrace.Z += player.BaseEyeHeight;
+	EndTrace.Z += player.BaseEyeHeight;
+	player.Trace(HitLocation, HitNormal, EndTrace, StartTrace, True);
+	return RangeLabel @ string(int(VSize(HitLocation - player.Location) / 16)) @ RangeUnits;
+}
+
 defaultproperties
 {
      ZoomLabel="ZOOM"
+     RangeLabel="Range"
+     RangeUnits="ft"
 }

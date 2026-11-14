@@ -26,6 +26,11 @@ var float DescScroll, DescScrollTarget, DescMax, DescTop, DescBottom;
 
 // Card placement per location (design px), filled in DrawPage
 var float LocX[7], LocY[7];
+// Where each location lights on the figure (RI_AugHi / RI_AugBody pixels)
+var float HiX0[6], HiY0[6], HiX1[6], HiY1[6];
+// Installed-location art: its place on the figure (RI_AugBody pixels) and
+// the art's own size in its texture
+var float LX0[6], LY0[6], LX1[6], LY1[6], LU[6], LV[6];
 
 var localized string AugsTitle, EnergyLabel, CansLabel, CellsLabel, LevelLabel, TypeLabel;
 var localized string ActivateLabel, DeactivateLabel, UpgradeLabel, MaxedLabel, CellLabel, ClassicLabel;
@@ -107,7 +112,7 @@ function bool CanActivate()
 	local Augmentation Aug;
 
 	Aug = AugAt(Sel);
-	return (Aug != None) && (Aug.AugmentationType != Aug_Passive);
+	return (Aug != None) && (Class'RIBase'.static.AugType(Aug) != 0);
 }
 
 function bool CanUpgrade()
@@ -227,14 +232,15 @@ function DrawPage(GC gc, float a)
 	// Figure, centred, AE's 174 x 359 art scaled up
 	bh = 690 * S;
 	k = bh / 891.0;
-	bw = 435.0 * k;
+	bw = 477.0 * k;
 	bx = OX + 640 * S - bw * 0.5;
 	by = 245 * S;
 	// soft light behind the figure, fading out on every side
 	CGlow(gc, bx - 200 * S, by - 60 * S, bw + 400 * S, bh + 120 * S, C3(30, 25, 11, a));
 	gc.SetStyle(DSTY_Masked);
 	gc.SetTileColor(C3(255, 255, 255, a));
-	gc.DrawStretchedTexture(bx, by, bw, bh, 0, 0, 435, 891, Texture'ReimaginedUI.UI.RI_AugBody');
+	gc.DrawStretchedTexture(bx, by, bw, bh, 0, 0, 477, 891, Texture'ReimaginedUI.UI.RI_AugBody');
+	DrawAugHighlights(gc, bx, by, bw, bh, a);
 
 	// Cards: left column Cranial, Arms, Subdermal, Default; right Eyes, Torso, Legs
 	LocX[0] = OX + 140 * S;   LocY[0] = 245 * S;    // cranial
@@ -254,21 +260,112 @@ function DrawPage(GC gc, float a)
 	Class'RIText'.static.Draw(gc, Class'RIFontSmall', OX + 140 * S, FY + FH + 22 * S, HintText, ALbl(a * 0.8), 0.7);
 }
 
+// The figure changes with what's installed, as on the original screen: each
+// location with an aug shows its art over the figure, in a thin frame: the
+// game's own six pieces, upscaled 4x with PBRify and fitted to the new
+// figure (arm and leg warped row by row to its limbs; the head pieces
+// placed by the head's outline, torso and subdermal by the body's). The
+// selected aug's location also glows, breathing slowly.
+function DrawAugHighlights(GC gc, float bx, float by, float bw, float bh, float a)
+{
+	local int i, L;
+	local Augmentation Aug;
+	local float Lit[6], k, x, y, w, h;
+	local Texture T;
+
+	for (i = 0; i < 13; i++)
+	{
+		Aug = AugAt(i);
+		if (Aug == None)
+			continue;
+		L = int(Aug.AugmentationLocation);
+		if ((L < 0) || (L > 5))
+			continue;
+		if (i == Sel)
+			Lit[L] = 1.0;
+		else
+			Lit[L] = FMax(Lit[L], 0.5);
+	}
+	for (L = 0; L < 6; L++)
+	{
+		x = bx + bw * LX0[L] / 477.0;
+		y = by + bh * LY0[L] / 891.0;
+		w = bw * (LX1[L] - LX0[L]) / 477.0;
+		h = bh * (LY1[L] - LY0[L]) / 891.0;
+		// every location keeps its frame on the figure, empty until an aug
+		// goes in, so the wires always have somewhere to land
+		if (Lit[L] <= 0)
+		{
+			LocBox(gc, x, y, w, h, AEdge(0.35 * a), AEdge(0.6 * a));
+			continue;
+		}
+		y = by + bh * LY0[L] / 891.0;
+		w = bw * (LX1[L] - LX0[L]) / 477.0;
+		h = bh * (LY1[L] - LY0[L]) / 891.0;
+		T = LocTex(L);
+		if (T != None)
+		{
+			gc.SetStyle(DSTY_Masked);
+			gc.SetTileColor(C3(255, 255, 255, a));
+			gc.DrawStretchedTexture(x, y, w, h, 0, 0, LU[L], LV[L], T);
+		}
+		if (Lit[L] >= 1.0)
+		{
+			k = a * (0.8 + 0.2 * Sin(Age * 3.0));
+			gc.SetStyle(DSTY_Translucent);
+			gc.SetTileColor(C3(255, 232, 150, k * 0.7));
+			gc.DrawStretchedTexture(bx + bw * HiX0[L] / 477.0, by + bh * HiY0[L] / 891.0,
+				bw * (HiX1[L] - HiX0[L]) / 477.0, bh * (HiY1[L] - HiY0[L]) / 891.0,
+				HiX0[L], HiY0[L], HiX1[L] - HiX0[L], HiY1[L] - HiY0[L], Texture'ReimaginedUI.UI.RI_AugHi');
+			LocBox(gc, x, y, w, h, AHi(a), AHi(0.9 * a));
+		}
+		else
+			LocBox(gc, x, y, w, h, AEdge(0.9 * a), AHi(0.9 * a));
+	}
+}
+
+// The box round an installed piece, after the original screen's: a 1 px
+// frame standing 2 px off the art, with short heavier ticks on its corners
+function LocBox(GC gc, float X, float Y, float W, float H, Color Col, Color BC)
+{
+	X -= 2 * S;
+	Y -= 2 * S;
+	W += 4 * S;
+	H += 4 * S;
+	Class'RIText'.static.Box(gc, X, Y, W, H, Col);
+	Class'RIModern'.static.Brackets(gc, X - 1 * S, Y - 1 * S, W + 2 * S, H + 2 * S, 6 * S, BC);
+}
+
+function Texture LocTex(int L)
+{
+	switch (L)
+	{
+		case 0: return Texture'ReimaginedUI.UI.RI_AugLocCerebral';
+		case 1: return Texture'ReimaginedUI.UI.RI_AugLocEyes';
+		case 2: return Texture'ReimaginedUI.UI.RI_AugLocTorso';
+		case 3: return Texture'ReimaginedUI.UI.RI_AugLocArm';
+		case 4: return Texture'ReimaginedUI.UI.RI_AugLocLeg';
+		case 5: return Texture'ReimaginedUI.UI.RI_AugLocSubdermal';
+	}
+	return None;
+}
+
 // Callout from a slot group's heading to its place on the body
 function DrawLocLeader(GC gc, int L, float bx, float by, float bw, float bh, float W, float a)
 {
-	local float fx, fy, px, py, ax, ay, sx, dx, dy, ln, t;
-	local int k, n;
+	local float fx, fy, px, py, ax, ay, rx, ry, rw, rh, tx, ty;
 
+	// points on the new figure, kept apart (cranial high on the skull, eyes
+	// at the eye socket)
 	switch (L)
 	{
-		case 0: fx = 0.50; fy = 0.05; break;     // cranial
-		case 1: fx = 0.56; fy = 0.09; break;     // eyes
-		case 2: fx = 0.56; fy = 0.30; break;     // torso
-		case 3: fx = 0.17; fy = 0.42; break;     // arms
-		case 4: fx = 0.62; fy = 0.72; break;     // legs
-		case 5: fx = 0.36; fy = 0.33; break;     // subdermal
-		default: return;                         // default augs: no place on the body
+		case 0: fx = 0.44;  fy = 0.025; break;    // cranial
+		case 1: fx = 0.585; fy = 0.075; break;    // eyes
+		case 2: fx = 0.60;  fy = 0.24;  break;    // torso
+		case 3: fx = 0.17;  fy = 0.28;  break;    // arms
+		case 4: fx = 0.60;  fy = 0.62;  break;    // legs
+		case 5: fx = 0.07;  fy = 0.39;  break;    // subdermal (the forearm)
+		default: return;                          // default augs: no place on the body
 	}
 	ax = bx + bw * fx;
 	ay = by + bh * fy;
@@ -277,22 +374,86 @@ function DrawLocLeader(GC gc, int L, float bx, float by, float bw, float bh, flo
 		px = LocX[L] + W;
 	else
 		px = LocX[L];
-	if (ax > px)
-		sx = px + 18 * S;
+	// an aug installed here: the wire runs to its box, as on the original
+	// screen (out level, a right angle, then into the box's near side), with
+	// a connector tab at each end
+	// every card wires to its location's frame on the figure, as on the
+	// original screen: out level, down (or up) a column just off the frame,
+	// then into the frame's near side, a connector tab at each end; dim
+	// while the location is empty
+	LocRect(L, bx, by, bw, bh, rx, ry, rw, rh);
+	if (px < rx)
+		tx = rx - 4 * S;
 	else
-		sx = px - 18 * S;
-	Class'RIText'.static.HLine(gc, FMin(px, sx), py, 18 * S, AEdge(a));
-	dx = ax - sx;
-	dy = ay - py;
-	ln = Sqrt(dx * dx + dy * dy);
-	n = int(ln / (5 * S));
-	for (k = 0; k <= n; k++)
+		tx = rx + rw + 4 * S;
+	ty = Class'RIModern'.static.P(ry + rh * 0.5);
+	py = Class'RIModern'.static.P(py);
+	if (LocInstalled(L))
 	{
-		t = float(k) / FMax(1, n);
-		Fill(gc, sx + dx * t - 1 * S, py + dy * t - 1 * S, 2 * S, 2 * S, AEdge(a));
+		Wire(gc, px, py, tx, ty, AEdge(a));
+		WireTab(gc, px, py, px < tx, AHi(a));
+		WireTab(gc, tx, ty, tx < px, AHi(a));
 	}
-	Fill(gc, ax - 3 * S, ay - 3 * S, 6 * S, 6 * S, AHi(a));
-	Class'RIText'.static.Box(gc, ax - 6 * S, ay - 6 * S, 12 * S, 12 * S, AEdge(a));
+	else
+	{
+		Wire(gc, px, py, tx, ty, AEdge(0.45 * a));
+		WireTab(gc, tx, ty, tx < px, AEdge(0.6 * a));
+	}
+}
+
+// A right-angled wire: level out of (px, py), down or up at the halfway
+// column, then level into (tx, ty); 1 px
+function Wire(GC gc, float px, float py, float tx, float ty, Color Col)
+{
+	local float mx;
+
+	// the column a short way off the frame, so the wire never cuts across
+	// the figure; one straight run when card and frame line up
+	if (Abs(ty - py) < 1)
+	{
+		Class'RIText'.static.HLine(gc, FMin(px, tx), py, Abs(tx - px), Col);
+		return;
+	}
+	if (tx > px)
+		mx = Class'RIModern'.static.P(tx - FMin(20 * S, (tx - px) * 0.5));
+	else
+		mx = Class'RIModern'.static.P(tx + FMin(20 * S, (px - tx) * 0.5));
+	Class'RIText'.static.HLine(gc, FMin(px, mx), py, Abs(mx - px) + 0.5, Col);
+	Class'RIText'.static.VLine(gc, mx, FMin(py, ty), Abs(ty - py) + 0.5, Col);
+	Class'RIText'.static.HLine(gc, FMin(mx, tx), ty, Abs(tx - mx), Col);
+}
+
+// A connector tab at a wire's end: a small solid block on the line,
+// standing off the side the wire leaves from
+function WireTab(GC gc, float X, float Y, bool bRight, Color Col)
+{
+	if (bRight)
+		Class'RIModern'.static.Blk(gc, X, Y - 2 * S, 6 * S, 4 * S, Col);
+	else
+		Class'RIModern'.static.Blk(gc, X - 6 * S, Y - 2 * S, 6 * S, 4 * S, Col);
+}
+
+function bool LocInstalled(int L)
+{
+	local int i;
+	local Augmentation Aug;
+
+	for (i = 0; i < 13; i++)
+	{
+		Aug = AugAt(i);
+		if ((Aug != None) && (int(Aug.AugmentationLocation) == L))
+			return True;
+	}
+	return False;
+}
+
+// The location's art box on screen
+function LocRect(int L, float bx, float by, float bw, float bh, out float X, out float Y, out float W, out float H)
+{
+	X = bx + bw * LX0[L] / 477.0;
+	Y = by + bh * LY0[L] / 891.0;
+	W = bw * (LX1[L] - LX0[L]) / 477.0;
+	H = bh * (LY1[L] - LY0[L]) / 891.0;
 }
 
 function DrawLocCard(GC gc, int L, float X, float Y, float W, float a)
@@ -340,9 +501,9 @@ function DrawLocCard(GC gc, int L, float X, float Y, float W, float a)
 		if (Ic != None)
 		{
 			// AE's colour for the aug's type and state
-			gc.SetStyle(DSTY_Masked);
-			gc.SetTileColor(Class'RIUtil'.static.Mix(C3(0, 0, 0, a), Aug.GetAugColor(), a));
-			Class'RIHD'.static.DrawStretched(gc, X + 6 * S, y2 + (rh - isz) * 0.5, isz, isz, 0, 0, Ic.USize, Ic.VSize, Ic);
+			gc.SetStyle(DSTY_Translucent);      // aug icons: black drops out (masked left blotches, IFF worst)
+			gc.SetTileColor(Class'RIUtil'.static.Mix(C3(0, 0, 0, a), Class'RIBase'.static.AugColor(Aug, False), a));
+			Class'RIHD'.static.DrawAugIcon(gc, X + 6 * S, y2 + (rh - isz) * 0.5, isz, isz, Ic);
 		}
 		ix = X + isz + 14 * S;
 		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', ix, y2, nw, rh,
@@ -447,7 +608,7 @@ function DrawMedBot(GC gc, float a)
 				CanBtn[NumCanBtn] = B;
 				bSel = (MBA().selectedAugButton == B);
 				bHot = (HoverId == HOT_CANAUG + NumCanBtn);
-				bLive = !((B.bHasIt || B.bSlotFull) && !B.bCanRespec);
+				bLive = !((B.bHasIt || B.bSlotFull) && !Class'RIBase'.static.AugCanRespec(B));
 				if (bSel)
 					SelRow(gc, x, y, w, rh - 6 * S, a);
 				else if (bHot)
@@ -459,14 +620,14 @@ function DrawMedBot(GC gc, float a)
 						gc.SetTileColor(C3(255, 255, 255, a));
 					else
 						gc.SetTileColor(C3(110, 110, 110, a));
-					Class'RIHD'.static.DrawStretched(gc, x + 6 * S, y + 4 * S, 38 * S, 38 * S, 0, 0, Aug.icon.USize, Aug.icon.VSize, Aug.icon);
+					Class'RIHD'.static.DrawAugIcon(gc, x + 6 * S, y + 4 * S, 38 * S, 38 * S, Aug.icon);
 				}
 				if (bLive)
 					Class'RIText'.static.Draw(gc, Class'RIFontBody', x + 56 * S, y + 6 * S, Class'RIText'.static.Fit(Class'RIFontBody', Aug.AugmentationName, w - 220 * S, 0.8), ATxt(a), 0.8);
 				else
 					Class'RIText'.static.Draw(gc, Class'RIFontBody', x + 56 * S, y + 6 * S, Class'RIText'.static.Fit(Class'RIFontBody', Aug.AugmentationName, w - 220 * S, 0.8), ALbl(a * 0.7), 0.8);
 				Tag = "";
-				if (B.bCanRespec)
+				if (Class'RIBase'.static.AugCanRespec(B))
 					Tag = ReplaceLabel;
 				else if (B.bHasIt)
 					Tag = HasItLabel;
@@ -487,7 +648,7 @@ function DrawMedBot(GC gc, float a)
 
 	// Install (or Replace, for a respec) along the bottom
 	L = InstallLabel;
-	if ((HUDMedBotAugItemButton(MBA().selectedAugButton) != None) && HUDMedBotAugItemButton(MBA().selectedAugButton).bCanRespec)
+	if ((HUDMedBotAugItemButton(MBA().selectedAugButton) != None) && Class'RIBase'.static.AugCanRespec(HUDMedBotAugItemButton(MBA().selectedAugButton)))
 		L = ReplaceLabel;
 	bLive = MBA().btnInstall.IsSensitive();
 	DrawBtn(gc, x, bottom + 20 * S, w, 50 * S, L, bLive, HoverId == HOT_INSTALL, bLive, a);
@@ -523,20 +684,20 @@ function DrawDetail(GC gc, float a)
 	{
 		if (Aug.icon != None)
 		{
-			gc.SetStyle(DSTY_Masked);
+			gc.SetStyle(DSTY_Translucent);      // aug icons: black drops out (masked left blotches, IFF worst)
 			gc.SetTileColor(C3(255, 255, 255, da));
-			Class'RIHD'.static.DrawStretched(gc, x, y, 64 * S, 64 * S, 0, 0, Aug.icon.USize, Aug.icon.VSize, Aug.icon);
+			Class'RIHD'.static.DrawAugIcon(gc, x, y, 64 * S, 64 * S, Aug.icon);
 		}
 		Class'RIText'.static.Draw(gc, Class'RIFontTitle', x + 80 * S + (1 - da) * 8 * S, y + 4 * S,
 			Caps(Class'RIText'.static.Fit(Class'RIFontTitle', Aug.AugmentationName, w - 80 * S, 0.4)), ATxt(da), 0.4);
-		T = TypeNames[Clamp(int(Aug.AugmentationType), 0, 3)];
+		T = TypeNames[Class'RIBase'.static.AugType(Aug)];
 		if (Aug.bIsActive)
 			T = T $ "  -  " $ OnLabel;
 		Class'RIText'.static.Draw(gc, Class'RIFontSmall', x + 80 * S, y + 42 * S,
 			Caps(LevelLabel) @ string(Aug.CurrentLevel + 1) $ " / " $ string(Aug.MaxLevel + 1) $ "    " $ Caps(T), AAcc(da), 0.68);
 		y += 84 * S;
 		// How to toggle it in play: a strip with the key in a badge
-		if ((AugKey(Aug) != "") || Aug.CanBeActivated())
+		if ((AugKey(Aug) != "") || Class'RIBase'.static.AugCanActivate(Aug))
 		{
 			Fill(gc, x, y, w, 40 * S, C3(126, 105, 50, 0.12 * da));
 			Class'RIText'.static.Box(gc, x, y, w, 40 * S, ADim(da));
@@ -623,12 +784,13 @@ function DrawVPPage(GC gc, float a)
 	VPTitle(gc, AugsTitle, a);
 	bh = 560 * S;
 	k = bh / 891.0;
-	bw = 435.0 * k;
+	bw = 477.0 * k;
 	bx = OX + 688 * S - bw * 0.5;
 	by = 250 * S;
 	gc.SetStyle(DSTY_Masked);
 	gc.SetTileColor(C3(255, 255, 255, a));
-	gc.DrawStretchedTexture(bx, by, bw, bh, 0, 0, 435, 891, Texture'ReimaginedUI.UI.RI_AugBody');
+	gc.DrawStretchedTexture(bx, by, bw, bh, 0, 0, 477, 891, Texture'ReimaginedUI.UI.RI_AugBody');
+	DrawAugHighlights(gc, bx, by, bw, bh, a);
 
 	LocX[0] = OX + 405 * S;   LocY[0] = 196 * S;    // cranial
 	LocX[1] = OX + 782 * S;   LocY[1] = 196 * S;    // eyes
@@ -668,7 +830,7 @@ function DrawVPDetail(GC gc, float a)
 	y = 226 * S;
 	if (Aug != None)
 	{
-		T = TypeNames[Clamp(int(Aug.AugmentationType), 0, 3)];
+		T = TypeNames[Class'RIBase'.static.AugType(Aug)];
 		if (Aug.bIsActive)
 			T = T $ "  -  " $ OnLabel;
 		Class'RIText'.static.Draw(gc, Class'RIFontSmall', x, y,
@@ -676,7 +838,7 @@ function DrawVPDetail(GC gc, float a)
 		y += 26 * S;
 		if (AugKey(Aug) != "")
 			Class'RIText'.static.Draw(gc, Class'RIFontSmall', x, y, Caps(KeyLabel) @ AugKey(Aug), ALbl(da), 0.58);
-		else if (Aug.CanBeActivated())
+		else if (Class'RIBase'.static.AugCanActivate(Aug))
 			Class'RIText'.static.Draw(gc, Class'RIFontSmall', x, y, Caps(NoKeyLabel), ALbl(da), 0.58);
 		y += 32 * S;
 		DescTop = y;
@@ -712,9 +874,9 @@ function DrawVPDetail(GC gc, float a)
 	// Lower box: the aug's icon, then the actions
 	if ((Aug != None) && (Aug.icon != None))
 	{
-		gc.SetStyle(DSTY_Masked);
+		gc.SetStyle(DSTY_Translucent);      // aug icons: black drops out (masked left blotches, IFF worst)
 		gc.SetTileColor(C3(255, 255, 255, da));
-		Class'RIHD'.static.DrawStretched(gc, OX + 1074 * S, 762 * S, 82 * S, 82 * S, 0, 0, Aug.icon.USize, Aug.icon.VSize, Aug.icon);
+		Class'RIHD'.static.DrawAugIcon(gc, OX + 1074 * S, 762 * S, 82 * S, 82 * S, Aug.icon);
 	}
 	y = 784 * S;
 	bw = 112 * S;
@@ -736,6 +898,66 @@ function DrawVPDetail(GC gc, float a)
 
 defaultproperties
 {
+     LX0(0)=189
+     LY0(0)=-2
+     LX1(0)=230
+     LY1(0)=47
+     LU(0)=64
+     LV(0)=76
+     LX0(1)=238
+     LY0(1)=44
+     LX1(1)=286
+     LY1(1)=75
+     LU(1)=76
+     LV(1)=48
+     LX0(2)=227
+     LY0(2)=162
+     LX1(2)=326
+     LY1(2)=287
+     LU(2)=136
+     LV(2)=192
+     LX0(3)=74
+     LY0(3)=167
+     LX1(3)=142
+     LY1(3)=280
+     LU(3)=68
+     LV(3)=113
+     LX0(4)=254
+     LY0(4)=460
+     LX1(4)=336
+     LY1(4)=706
+     LU(4)=82
+     LV(4)=246
+     LX0(5)=15
+     LY0(5)=298
+     LX1(5)=55
+     LY1(5)=392
+     LU(5)=56
+     LV(5)=144
+     HiX0(0)=181
+     HiY0(0)=0
+     HiX1(0)=296
+     HiY1(0)=58
+     HiX0(1)=181
+     HiY0(1)=58
+     HiX1(1)=296
+     HiY1(1)=100
+     HiX0(2)=119
+     HiY0(2)=125
+     HiX1(2)=329
+     HiY1(2)=356
+     HiX0(3)=0
+     HiY0(3)=134
+     HiX1(3)=119
+     HiY1(3)=356
+     HiX0(4)=124
+     HiY0(4)=463
+     HiX1(4)=391
+     HiY1(4)=891
+     HiX0(5)=0
+     HiY0(5)=356
+     HiX1(5)=95
+     HiY1(5)=490
      AugsTitle="Augmentations"
      MedTitle="Medical Bot"
      MedPick="Choose an augmentation from a canister, then install it."

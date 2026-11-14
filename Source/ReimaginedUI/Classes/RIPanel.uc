@@ -122,8 +122,8 @@ static function bool Supports(Window W)
 
 	if (RIMenuScreenCustomizeKeys(Scr) != None)
 		return True;
-	if (MenuScreenListWindow(Scr) != None)
-		return MenuScreenListWindow(Scr).lstItems != None;
+	if (Class'RIBase'.static.IsListScreen(Scr))
+		return Class'RIBase'.static.ScreenList(Scr) != None;
 	if (Scr.winClient == None)
 		return False;
 	for (C = Scr.winClient.GetTopChild(); C != None; C = C.GetLowerSibling())
@@ -169,7 +169,7 @@ function AttachTo(MenuUIScreenWindow NewScreen, RIMenuSettings NewShell)
 		Kind = KIND_KEYS;
 		RIMenuScreenCustomizeKeys(Screen).FocusPanel = Self;
 	}
-	else if (MenuScreenListWindow(Screen) != None)
+	else if (Class'RIBase'.static.IsListScreen(Screen))
 		Kind = KIND_LIST;
 	else
 		Kind = KIND_CHOICES;
@@ -225,7 +225,7 @@ function RebuildRows()
 	if (Kind == KIND_KEYS)
 		RowsFromList(RIMenuScreenCustomizeKeys(Screen).lstKeys);
 	else if (Kind == KIND_LIST)
-		RowsFromList(MenuScreenListWindow(Screen).lstItems);
+		RowsFromList(Class'RIBase'.static.ScreenList(Screen));
 	else
 		RowsFromChoices();
 
@@ -431,7 +431,7 @@ function Discard()
 	else if (Kind == KIND_LIST)
 	{
 		// GMDX lists write values as they change: step each back to its old value
-		L = MenuScreenListWindow(Screen).lstItems;
+		L = Class'RIBase'.static.ScreenList(Screen);
 		RebuildRows();
 		for (i = 0; i < NumRows; i++)
 		{
@@ -478,7 +478,7 @@ function CycleRow(int i, int Dir)
 
 	if (Kind == KIND_LIST)
 	{
-		L = MenuScreenListWindow(Screen).lstItems;
+		L = Class'RIBase'.static.ScreenList(Screen);
 		if (Dir > 0)
 			Screen.ListRowActivated(L, RowRef[i]);
 		else
@@ -583,7 +583,6 @@ function float SliderW() { return ListW * 0.28; }
 
 function UpdateDesc(bool bForce)
 {
-	local MenuScreenListWindow LW;
 	local int idx;
 
 	if (!bForce && (Sel == LastDescSel))
@@ -601,11 +600,8 @@ function UpdateDesc(bool bForce)
 
 	if (Kind == KIND_LIST)
 	{
-		LW = MenuScreenListWindow(Screen);
-		idx = int(LW.lstItems.GetFieldValue(RowRef[Sel], 2));
-		LW.ShowHelpString(idx);
-		if (LW.winDesc != None)
-			DescText = LW.winDesc.GetText();
+		idx = int(Class'RIBase'.static.ScreenList(Screen).GetFieldValue(RowRef[Sel], 2));
+		DescText = Class'RIBase'.static.ListHelp(Screen, idx);
 	}
 	else if ((Kind == KIND_CHOICES) && (RowChoice[Sel] != None))
 	{
@@ -1395,6 +1391,9 @@ function DrawDescription(GC gc, float a)
 	w = DescW - 48 * UIS;
 	y = ListY + 22 * UIS;
 
+	if (Screen.IsA('RIMenuScreenCrosshair'))
+		DrawCrossPreview(gc, a);
+
 	if ((Sel < 0) || (Sel >= NumRows))
 		return;
 
@@ -1426,6 +1425,45 @@ function DrawDescription(GC gc, float a)
 		Class'RIText'.static.DrawIn(gc, Class'RIFontBody', x, y + 6 * UIS, w, 30 * UIS,
 			Class'RIText'.static.Fit(Class'RIFontBody', Cur, w * 0.7), Class'RIUtil'.static.Col(240 * da, 242 * da, 255 * da), 2);
 	}
+}
+
+// Settings > Interface > Crosshair: the crosshair as set, at twice its
+// size, over a patch half dark and half light (so the outline can be judged).
+// In a game it shows the in-game crosshair's own spread right now (the held
+// weapon's real spread), so it matches what's on screen; on the main menu
+// the spread breathes in and out when dynamic spread is on. Sits above the
+// current value at the foot of the description panel.
+function DrawCrossPreview(GC gc, float a)
+{
+	local float px, py, pw, ph, sp;
+	local Color W;
+	local DeusExRootWindow R;
+	local RICrosshair X;
+
+	pw = DescW - 48 * UIS;
+	px = DescX + 24 * UIS;
+	ph = 160 * UIS;
+	py = ListY + ListH - 80 * UIS - ph;
+	if (py < ListY + 200 * UIS)
+		return;
+	gc.SetStyle(DSTY_Normal);
+	gc.SetTileColor(Class'RIUtil'.static.Raw(34 * a, 36 * a, 42 * a));
+	Class'RIText'.static.Fill(gc, px, py, pw * 0.5, ph);
+	gc.SetTileColor(Class'RIUtil'.static.Raw(150 * a, 152 * a, 160 * a));
+	Class'RIText'.static.Fill(gc, px + pw * 0.5, py, pw * 0.5, ph);
+	Class'RIText'.static.Box(gc, px, py, pw, ph, Class'RIUtil'.static.Col(40 * a, 44 * a, 116 * a));
+	Class'RIText'.static.Draw(gc, Class'RIFontSmall', px + 10 * UIS, py + 8 * UIS, "PREVIEW  2X",
+		Class'RIUtil'.static.Col(95 * a, 200 * a, 255 * a), 0.8);
+	sp = 0;
+	R = DeusExRootWindow(GetRootWindow());
+	if ((R != None) && (R.hud != None))
+		X = RICrosshair(R.hud.cross);
+	if ((X != None) && (DeusExPlayer(R.parentPawn) != None) && (DeusExPlayer(R.parentPawn).Weapon != None))
+		sp = X.Spread;
+	else if (Class'RICrosshair'.default.XDynamic)
+		sp = (0.5 + 0.5 * Sin(Age * 2.2)) * 6.0;
+	W = Class'RIUtil'.static.Raw(255, 255, 255);
+	Class'RICrosshair'.static.DrawCross(gc, px + pw * 0.5, py + ph * 0.5, 2.0, W, sp);
 }
 
 function DrawButtons(GC gc, float a)

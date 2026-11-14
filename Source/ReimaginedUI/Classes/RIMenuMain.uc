@@ -192,10 +192,11 @@ function CreateMenuButtons()
 	btnMainMenu.TextScale = 1.25;
 }
 
-// Buttons that only make sense on the title screen: New Game, Training, Play Intro
+// Buttons that only make sense on the title screen: New Game, Training,
+// Play Intro, Credits
 function bool OnlyOnTitle(int idx)
 {
-	return (idx == 0) || (idx == 4) || (idx == 5);
+	return (idx == 0) || (idx == 4) || (idx == 5) || (idx == 6);
 }
 
 // Buttons that only make sense during a game: Save Game, Back to Game
@@ -381,7 +382,7 @@ function DrawPauseMenu(GC gc)
 		DrawLogo(gc, 80 * S + panelX, (40 - 14 * (1.0 - logoT)) * S, 400 * S, 318 * S, logoT);
 
 	Class'RIText'.static.Draw(gc, Class'RIFontSmall', 96 * S + panelX, height - 70 * S,
-		Caps(GMDXText), Class'RIUtil'.static.Col(120 * panelT, 126 * panelT, 196 * panelT));
+		Caps(Class'RIBase'.static.VersionText(Self, player)), Class'RIUtil'.static.Col(120 * panelT, 126 * panelT, 196 * panelT));
 
 	DrawNativeStatus(gc, panelT);
 }
@@ -429,8 +430,8 @@ event DrawWindow(GC gc)
 
 	// Fade the art's left edge and bottom into the dark
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawStretchedTexture(artX, 0, artW * 0.28, height, 0, 0, 256, 8, Texture'ReimaginedUI.UI.RI_FadeH');
-	gc.DrawStretchedTexture(0, height * 0.62, width, height * 0.38, 0, 0, 8, 256, Texture'ReimaginedUI.UI.RI_FadeV');
+	gc.DrawStretchedTexture(artX, 0, artW * 0.28, height, 2, 0, 252, 8, Texture'ReimaginedUI.UI.RI_FadeH');
+	gc.DrawStretchedTexture(0, height * 0.62, width, height * 0.38, 0, 2, 8, 252, Texture'ReimaginedUI.UI.RI_FadeV');
 
 	// Left panel slides in: solid navy so the art behind can't show through
 	// unevenly, with a soft gradient and a glowing edge
@@ -460,7 +461,7 @@ event DrawWindow(GC gc)
 
 	// Version string, bottom-left
 	Class'RIText'.static.Draw(gc, Class'RIFontSmall', 96 * S, height - 70 * S,
-		Caps(GMDXText), Class'RIUtil'.static.Col(120 * panelT, 126 * panelT, 196 * panelT));
+		Caps(Class'RIBase'.static.VersionText(Self, player)), Class'RIUtil'.static.Col(120 * panelT, 126 * panelT, 196 * panelT));
 
 	DrawNativeStatus(gc, panelT);
 }
@@ -470,14 +471,20 @@ event DrawWindow(GC gc)
 function DrawNativeStatus(GC gc, float a)
 {
 	local string BuildLine;
+	local float sc, w;
 
 	BuildLine = "REIMAGINED UI BUILD " $ Class'RIBuildInfo'.default.BuildNumber;
 	if (Class'RIBuildInfo'.default.BuildTime != "")
 		BuildLine = BuildLine $ "  |  " $ Class'RIBuildInfo'.default.BuildTime;
 	BuildLine = BuildLine $ "  |  " $ Caps(Class'RINative'.static.RINativeVersion()) $ "  PING " $ Class'RINative'.static.RINativePing(20);
 
+	// Shrinks to stay inside the panel (the vanilla version line is longer)
+	sc = 1.0;
+	w = Class'RIText'.static.Width(Class'RIFontSmall', BuildLine);
+	if (w > PanelW - 120 * S)
+		sc = (PanelW - 120 * S) / w;
 	Class'RIText'.static.Draw(gc, Class'RIFontSmall', 96 * S, height - 46 * S, BuildLine,
-		Class'RIUtil'.static.Col(95 * a, 200 * a, 255 * a));
+		Class'RIUtil'.static.Col(95 * a, 200 * a, 255 * a), sc);
 }
 
 defaultproperties

@@ -147,6 +147,7 @@ event DrawWindow(GC gc)
 	local float a, da, pulse, hx, hy, hw, hh, x, y, w, h, tw;
 	local int i;
 	local Color Tag;
+	local string Note;
 
 	a = Class'RIUtil'.static.Phase(AnimTime, 0.0, 0.35);
 	da = a * Class'RIUtil'.static.Phase(DescAge, 0.0, 0.25);
@@ -201,12 +202,15 @@ event DrawWindow(GC gc)
 		y += 26 * S + 22 * S;
 	}
 
-	h = Class'RIText'.static.DrawWrapped(gc, Class'RIFontBody', x, y, w, DiffText[i],
+	h = Class'RIText'.static.DrawWrapped(gc, Class'RIFontBody', x, y, w, Class'RIBase'.static.DifficultyText(i, DiffText[i]),
 		Class'RIUtil'.static.Col(196 * da, 202 * da, 244 * da), 1.05, 1.45);
 	y += h + 30 * S;
 
-	// GMDX's general note, always visible at the bottom of the panel
-	h = Class'RIText'.static.DrawWrapped(None, Class'RIFontBody', 0, 0, w - 48 * S, InfoDescription,
+	// The base's general note (GMDX's), always visible at the bottom of the panel
+	Note = Class'RIUtil'.static.PStr(Self, "InfoDescription");
+	if (Note == "")
+		return;
+	h = Class'RIText'.static.DrawWrapped(None, Class'RIFontBody', 0, 0, w - 48 * S, Note,
 		Class'RIUtil'.static.Col(0, 0, 0), 0.92, 1.4);
 	y = FMax(y, InfoY + InfoH - h - 80 * S);
 	gc.SetStyle(DSTY_Translucent);
@@ -217,7 +221,7 @@ event DrawWindow(GC gc)
 	gc.SetTileColor(Class'RIUtil'.static.Col(205 * a, 210 * a, 255 * a));
 	Class'RIText'.static.Fill(gc, x, y, 1.5, h + 76 * S);
 	Class'RIText'.static.Draw(gc, Class'RIFontSmall', x + 24 * S, y + 20 * S, InfoHeader, Class'RIUtil'.static.Col(95 * a, 200 * a, 255 * a));
-	Class'RIText'.static.DrawWrapped(gc, Class'RIFontBody', x + 24 * S, y + 48 * S, w - 48 * S, InfoDescription,
+	Class'RIText'.static.DrawWrapped(gc, Class'RIFontBody', x + 24 * S, y + 48 * S, w - 48 * S, Note,
 		Class'RIUtil'.static.Col(176 * a, 182 * a, 232 * a), 0.92, 1.4);
 }
 
