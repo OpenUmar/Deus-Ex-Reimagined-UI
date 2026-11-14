@@ -58,24 +58,20 @@ Your normal `DeusEx.exe` still launches the untouched original game, and both sh
 
 ### Launching from Steam instead
 
-Steam's **Play** button starts the game with Kentie's own default settings, which load the mod's files but keep the original menus, so the new interface never appears. To make Steam start the mod, right-click Deus Ex in your library, open **Properties › General › Launch Options**, and enter:
+Run **`System\ReimaginedUI_On.cmd`** once. From then on, Steam's **Play** button (and Kentie's launcher) starts the game with the Reimagined UI, using your usual saves and display settings. Run **`System\ReimaginedUI_Off.cmd`** to get the untouched game back on Steam. Both only change two lines in the game's settings file (which menus to use, and where the mod's files are) and keep a backup of it the first time.
+
+If the script can't find your settings file, start the game from Steam once, quit, and run it again. As an alternative, you can enter this in Steam under **Properties › General › Launch Options**:
 
 ```
 INI="..\Mods\ReimaginedUI\System\Vanilla\DeusEx.ini"
 ```
-
-If the new menus still don't appear, use the full path to that file instead, for example
-`INI="C:\Program Files (x86)\Steam\steamapps\common\Deus Ex\Mods\ReimaginedUI\System\Vanilla\DeusEx.ini"`.
-Launching this way uses the mod's own settings and the game folder's `Save` folder, the same as the launcher script.
-
-Clear the launch options again whenever you want to play the untouched game from Steam.
 
 > [!TIP]
 > The included settings file defaults to Direct3D 9 at 1920×1080. If your screen differs, change the resolution in **Settings › Display** on first launch.
 
 ### Uninstalling
 
-Delete `System\Play_ReimaginedUI_Vanilla.cmd`, `System\RINative.dll` and the `Mods\ReimaginedUI` folder. Nothing else in the game is modified. The launcher marks `DeusEx.exe` as DPI-aware in your Windows user settings so the window isn't stretched on high-DPI laptops; that setting is harmless and can be left in place.
+If you turned it on for Steam, run `System\ReimaginedUI_Off.cmd` first. Then delete `System\Play_ReimaginedUI_Vanilla.cmd`, `System\ReimaginedUI_On.cmd`, `System\ReimaginedUI_Off.cmd`, `System\RINative.dll` and the `Mods\ReimaginedUI` folder. Nothing else in the game is modified. The launcher marks `DeusEx.exe` as DPI-aware in your Windows user settings so the window isn't stretched on high-DPI laptops; that setting is harmless and can be left in place.
 
 ## Controls worth knowing
 
@@ -123,12 +119,12 @@ Mods\ReimaginedUI\
 ├─ Source\RIVanillaHD\             HD texture package for Vanilla+ and the HD icons
 ├─ Native\Src\                    C/C++ source of RINative.dll
 ├─ System\                        build and launcher ini files
-└─ Install\System\                launcher scripts that go in the game's System folder
+└─ Install\                       launcher and Steam on/off scripts, laid out as they go in the game folder
 ```
 
 1. Clone this repository into `<Deus Ex>\Mods\ReimaginedUI`.
 2. Run **`Build_Vanilla.cmd`** to compile for the original game, or **`Build_ReimaginedUI.cmd`** for GMDX: Augmented Edition 1.2. The output lands in `System\Vanilla\ReimaginedUI.u` or `System\ReimaginedUI.u`, and the build number shows on the main menu.
-3. Copy the launcher from `Install\System` into the game's `System` folder and play.
+3. Copy the contents of `Install` into the game folder (they merge with `System` and `Mods`) and play.
 
 The build log is written next to the scripts (`build_ri_vanilla.log`). `Build_Quick_And_Play_Vanilla.cmd` builds and launches in one step, and `Build_All.cmd` compiles both bases in one go. The HD textures live in their own package, `RIVanillaHD.u`, which only needs rebuilding with `Build_RIVanillaHD.cmd` when the textures change.
 
