@@ -35,7 +35,7 @@ var localized string PerksLabel, GeneralLabel, GeneralDesc, PerkCol, StatusCol;
 var localized string OwnedLabel, AvailableLabel, LockedLabel, NeedsLabel;
 var localized string UpgradeLabel, BuyLabel, MasteredLabel;
 var localized string LevelNames[4];
-var localized string HintText;
+var localized string HintText, HintNoPerks;
 
 function PersonaScreenSkills Skills()
 {
@@ -353,7 +353,11 @@ function DrawPage(GC gc, float a)
 	DrawList(gc, a);
 	DrawDetail(gc, a * Class'RIUtil'.static.Phase(DescAge, 0.0, 0.2));
 
-	Class'RIText'.static.Draw(gc, Class'RIFontSmall', OX + 140 * S, FY + FH + 22 * S, HintText, ALbl(a * 0.8), 0.7);
+	// no perks on the original game: the hint leaves them out
+	if (Class'RIBase'.static.Has("Perks"))
+		Class'RIText'.static.Draw(gc, Class'RIFontSmall', OX + 140 * S, FY + FH + 22 * S, HintText, ALbl(a * 0.8), 0.7);
+	else
+		Class'RIText'.static.Draw(gc, Class'RIFontSmall', OX + 140 * S, FY + FH + 22 * S, HintNoPerks, ALbl(a * 0.8), 0.7);
 }
 
 function DrawList(GC gc, float a)
@@ -804,5 +808,6 @@ defaultproperties
      LevelNames(2)="Advanced"
      LevelNames(3)="Master"
      HintText="UP / DOWN select     LEFT / RIGHT perk     A / D skills or general perks     ENTER upgrade or buy     ESC close"
+     HintNoPerks="UP / DOWN select     ENTER upgrade     ESC close"
      bHideScreen=True
 }
