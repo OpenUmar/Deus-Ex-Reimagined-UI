@@ -57,7 +57,7 @@ Colours follow the HUD and menu themes you pick in Settings, and the size of the
 Steam's **Play** button still starts the normal, unmodded game, so you can switch between the two whenever you like.
 
 > [!TIP]
-> The included settings file defaults to Direct3D 9 at 1920×1080. If your screen differs, change the resolution in **Settings › Display** on first launch.
+> The included settings file uses the game's own Direct3D renderer at 1920×1080. If your screen differs, change the resolution in **Settings › Display** on first launch.
 
 ### Uninstalling
 

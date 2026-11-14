@@ -308,7 +308,7 @@ defaultproperties
      MissionLabel="Mission"
      BrandLabel="Reimagined UI"
      TitleLabel="DEUS EX"
-     EditionLabel="GMDX Augmented Edition  //  Reimagined UI"
+     EditionLabel="Deus Ex  //  Reimagined UI"
      Tips(0)="Lockpicks open mechanical locks. Multitools bypass electronic security such as keypads, cameras and turrets."
      Tips(1)="Read books and datacubes: many hold door codes and passwords, which are saved to your notes."
      Tips(2)="Crouching and walking make far less noise than running."

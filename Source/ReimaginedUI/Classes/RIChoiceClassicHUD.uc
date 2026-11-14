@@ -31,6 +31,6 @@ defaultproperties
 {
      enumText(0)="Reimagined"
      enumText(1)="Classic"
-     HelpText="The in-game HUD (body monitor, compass, augs, belt, weapon) in the Reimagined look, or GMDX's original HUD."
+     HelpText="The in-game HUD (body monitor, compass, augs, belt, weapon) in the Reimagined look, or the original game's HUD."
      actionText="|&HUD"
 }

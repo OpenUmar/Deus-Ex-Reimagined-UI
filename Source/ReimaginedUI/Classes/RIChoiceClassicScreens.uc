@@ -32,6 +32,6 @@ defaultproperties
 {
      enumText(0)="Reimagined"
      enumText(1)="Classic"
-     HelpText="In-game screens (inventory, health, augmentations, skills, goals and the rest) in the Reimagined look, or GMDX's original pages."
+     HelpText="In-game screens (inventory, health, augmentations, skills, goals and the rest) in the Reimagined look, or the original game's pages."
      actionText="|&In-game screens"
 }

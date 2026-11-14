@@ -228,7 +228,7 @@ event DrawWindow(GC gc)
 defaultproperties
 {
      HeaderText="SELECT DIFFICULTY"
-     InfoHeader="GMDX DIFFICULTY INFORMATION"
+     InfoHeader="DIFFICULTY INFORMATION"
      DiffLabel="DIFFICULTY"
      DiffNames(0)="Easy"
      DiffNames(1)="Medium"
@@ -238,9 +238,9 @@ defaultproperties
      DiffTags(1)="RECOMMENDED"
      DiffTags(3)="FOR VETERANS"
      DiffTags(4)="FOR VETERANS"
-     DiffText(0)="For players who are here mainly for the story. Combat and detection are at their most forgiving, so mistakes are rarely fatal."
-     DiffText(1)="The intended first playthrough of GMDX. Stealth, combat and exploration are balanced so that every approach is viable and none is free."
-     DiffText(2)="For players who already know GMDX. Enemies are more dangerous and more perceptive, and careless play is punished quickly."
-     DiffText(3)="A testing challenge where a few shots can end you. Not recommended for those new to GMDX. You will be asked to confirm."
+     DiffText(0)="For players who are here mainly for the story. Enemies do less damage and are slower to notice you, so mistakes are rarely fatal."
+     DiffText(1)="The intended experience. Stealth, combat and exploration are balanced so that every approach is viable."
+     DiffText(2)="Enemies hit harder and notice you sooner. For players who already know the game."
+     DiffText(3)="Enemies are deadly, and a few shots can end you. For veterans."
      DiffText(4)="Realistic damage with save points instead of manual saving. Additional rules include no console access, real-time inventory use, greater stamina drain, no weapon auto-reload and less ammo. You will be asked to confirm."
 }

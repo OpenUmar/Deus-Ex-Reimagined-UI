@@ -32,6 +32,6 @@ defaultproperties
 {
      enumText(0)="Reimagined"
      enumText(1)="Classic"
-     HelpText="Menus (main, pause, settings, load and save) in the Reimagined look, or GMDX's original menus. Takes effect the next time a menu opens."
+     HelpText="Menus (main, pause, settings, load and save) in the Reimagined look, or the original game's menus. Takes effect the next time a menu opens."
      actionText="|&Menus"
 }
