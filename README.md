@@ -6,7 +6,7 @@
 
 Menus, HUD, inventory, augmentations, dialogue and every in-game screen, rebuilt with a modern layout while keeping the game's own logic underneath.
 
-`BETA` · build 72 · vanilla Deus Ex · Windows
+`BETA` · build 97 · vanilla Deus Ex · Windows
 
 </div>
 
@@ -20,18 +20,21 @@ Menus, HUD, inventory, augmentations, dialogue and every in-game screen, rebuilt
 | Area | What you get |
 | --- | --- |
 | **Menus** | New main menu, pause menu, settings, load and save screens, and key binding (click a row, then press a key). |
-| **HUD** | A redesigned heads-up display with a body monitor, bioelectric bar, compass, hotbar, ammo readout and compact pickup and goal notices on the side of the screen. |
-| **In-game screens** | Inventory (with item rotation and drag-and-drop), Health, Augmentations, Skills and a combined Journal for goals, notes, images and conversations. Q and E cycle between them. |
-| **Dialogue** | Cleaner conversation text and replies, with optional cinematic black bars. Escape pauses a conversation and Enter or Space skips a line. |
+| **HUD** | A redesigned heads-up display with a body monitor, bioelectric bar, compass, aug bar, hotbar and a shooter-style ammo readout. Pickups, goals and messages share one compact log on the left. The HUD hides itself when you look through a scope or binoculars, and can trail your view slightly for a sense of depth (HUD Motion). |
+| **Crosshair** | A fully customisable crosshair in the spirit of CS:GO, with a live preview and a dozen presets (Default, Classic, Dot, T-shape, Circle, Brackets and more). Its spread follows each weapon's real accuracy and closes fully when you are on target. |
+| **In-game screens** | Inventory (with item rotation, drag-and-drop, outfits, ammo and nano keys in one place), Health, Augmentations, Skills and a combined Journal for goals, notes, images and conversations. Q and E cycle between them. |
+| **Health and Augs** | New body figures. Health lights up damaged parts and lists traumas, while Augs shows each installed aug on the figure in its own box, wired to its slot like the original screen, along with its toggle key. |
+| **Dialogue** | Cleaner conversation text and replies, which can be picked with the number keys, plus optional cinematic black bars and per-speaker subtitle colours. Escape pauses a conversation fully and Enter or Space skips a line. |
 | **Devices** | Keypads, computers, ATMs, med bots, repair bots and the book and datacube reader are all restyled. |
-| **Death screen** | A proper death screen with clickable buttons for loading the last save, loading a game or quitting to the main menu. |
+| **Death screen** | Appears on its own when you die, with buttons for Last Checkpoint, Restart Mission, Load Game and Main Menu. The mod saves its own checkpoint each time you arrive in a map, and the start of each mission, so dying never sends you far back. |
 
-### Two looks to choose from
+### Three looks to choose from
 
-Open **Settings › Interface › UI Style** to switch the whole interface at once.
+Open **Settings › Interface › UI Style** to switch the whole in-game interface at once. Menus and Settings look the same in all three.
 
-- **Sleek** is the clean, minimal look based on the concept art.
-- **Vanilla+** keeps the original game's mechanical frames and textures and wraps them around the new layout, for players who want the 2000 feel with modern usability.
+- **Modern** (the default) puts the new layouts in digitized, chamfered frames, with a hotbar modelled on the Human Revolution and Mankind Divided belts.
+- **Sleek** is the clean, minimal look based on the concept art, with hairline panels and a boxless hotbar.
+- **Vanilla+** keeps the original game's mechanical frames and textures in HD and wraps them around the new layout, for players who want the 2000 feel with modern usability.
 
 Colours follow the HUD and menu themes you pick in Settings, and the size of the HUD, hotbar, subtitles and in-game screens can each be adjusted with a slider.
 
@@ -63,10 +66,11 @@ Delete `System\Play_ReimaginedUI_Vanilla.cmd`, `System\RINative.dll` and the `Mo
 
 | Key | Action |
 | --- | --- |
-| `0`–`9` | Hotbar slots. The nano key ring lives in slot 0. |
+| `0`–`9` | Hotbar slots. The nano key ring lives in slot 0. Pressing an equipped slot's key again puts the item away. |
 | Mouse wheel | Steps through every hotbar slot in order. Landing on an empty slot puts away whatever you are holding. |
 | `F` | Interact |
 | `Q` / `E` | Cycle between the in-game screens once one is open |
+| `1`–`9` in a conversation | Pick a reply |
 | `Esc` in a conversation | Pause (the conversation waits exactly where it was) |
 | `Enter` / `Space` in a conversation | Skip to the next line |
 | `Ctrl` + `F10` | Debug overlay, if you are reporting a bug |
@@ -75,15 +79,19 @@ Delete `System\Play_ReimaginedUI_Vanilla.cmd`, `System\RINative.dll` and the `Mo
 
 | Option | What it does |
 | --- | --- |
-| UI Style | Sleek or Vanilla+ for the whole interface |
+| UI Style | Modern, Sleek or Vanilla+ for the whole interface |
 | Menus, In-game screens, Dialogue, HUD | Switch any part back to the original game's look |
 | Screen, HUD, Hotbar and Subtitle size | Separate sliders for in-game screens, HUD, hotbar and subtitles |
-| Conversation Bars | Restore the original black cinematic bars during conversations |
+| Conversation Bars | Restore the original black cinematic bars during conversations (toggles live, even mid-conversation) |
+| Crosshair | Opens the crosshair editor: presets, colour, length, gap, thickness, centre dot, outline, T-shape, dynamic spread and rifle scopes |
+| Speaker colours | Colour subtitles by who is speaking: names only, or names and lines |
+| HUD Motion | Lets the HUD trail your view slightly and glide back; the crosshair never moves |
 | Textures | Use the upscaled (HD) interface textures or the originals |
 
 ## Known issues
 
-- The **Modern** style shown in early mockups is not built yet.
+- Builds after 88 have not all been through a full playtest yet, so the newest changes (Modern style tweaks, the Augs figure boxes, crosshair presets) may still have rough edges.
+- Sound effects can play quieter while a third-person conversation is paused.
 - Toggling fullscreen from inside the game can crash some third-party DirectX 12 renderers. Change it in the ini file instead if that happens.
 - The game cannot draw anything during a level load, so the loading screen is a single still frame.
 
@@ -98,6 +106,7 @@ Mods\ReimaginedUI\
 ├─ Source\Base_Vanilla\Classes\   adapter classes for the original game
 ├─ Source\Base_AE\Classes\        adapter classes for GMDX: Augmented Edition
 ├─ Source\RINative\               script side of the native plugin
+├─ Source\RIVanillaHD\             HD texture package for Vanilla+ and the HD icons
 ├─ Native\Src\                    C/C++ source of RINative.dll
 ├─ System\                        build and launcher ini files
 └─ Install\System\                launcher scripts that go in the game's System folder
@@ -107,7 +116,7 @@ Mods\ReimaginedUI\
 2. Run **`Build_Vanilla.cmd`** to compile for the original game, or **`Build_ReimaginedUI.cmd`** for GMDX: Augmented Edition 1.2. The output lands in `System\Vanilla\ReimaginedUI.u` or `System\ReimaginedUI.u`, and the build number shows on the main menu.
 3. Copy the launcher from `Install\System` into the game's `System` folder and play.
 
-The build log is written next to the scripts (`build_ri_vanilla.log`). `Build_Quick_And_Play_Vanilla.cmd` builds and launches in one step.
+The build log is written next to the scripts (`build_ri_vanilla.log`). `Build_Quick_And_Play_Vanilla.cmd` builds and launches in one step, and `Build_All.cmd` compiles both bases in one go. The HD textures live in their own package, `RIVanillaHD.u`, which only needs rebuilding with `Build_RIVanillaHD.cmd` when the textures change.
 
 <details>
 <summary><b>UnrealScript gotchas that have broken builds before</b></summary>
@@ -115,6 +124,8 @@ The build log is written next to the scripts (`build_ri_vanilla.log`). `Build_Qu
 - Names are case-insensitive, so a local `bw` clashes with a member `BW`.
 - No bare `{ }` blocks, no `bool` arrays, and no `break` inside an `if` inside a `switch`.
 - Every local must be declared before the first statement, and functions take at most 16 parameters.
+- Locals that differ only in case (`i` and `I`) clash with each other.
+- UI coordinates are in UI units (2 screen pixels each at 1080p), so snap to 0.5 and draw hairlines 0.5 thick, or lines come out doubled.
 - `==` binds tighter than `$`, so parenthesise string joins in comparisons.
 - Casting a value to its own type is a compile error.
 - Windows shown during the engine's `WindowReady` pass break `initCount`; handlers there should only set a flag.
