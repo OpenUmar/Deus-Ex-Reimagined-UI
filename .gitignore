@@ -10,8 +10,6 @@ _bak_*/
 *.tmp.bak
 # Scratch previews
 _*.png
-# AE's own code (reference only, not part of this mod)
-AE_Source_Reference/
 # Large generated / third-party binaries (models, HD texture remasters, archives)
 Tools/esrgan/*.onnx
 Tools/esrgan/*.pth

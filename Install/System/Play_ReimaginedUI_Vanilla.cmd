@@ -1,7 +1,7 @@
 @echo off
 rem Launches the original Deus Ex with the Reimagined UI add-on.
 rem Uses its own ini (Mods\ReimaginedUI\System\Vanilla\DeusEx.ini) and the
-rem original's saves (..\Save); GMDX AE's setup is left alone.
+rem game's own saves (..\Save).
 cd /d "%~dp0"
 
 rem Steam's own DeusEx.exe (64,000 bytes) relaunches itself through Steam and
@@ -13,12 +13,6 @@ for %%A in (DeusEx.exe) do if %%~zA==64000 (
     pause
     exit /b 1
 )
-
-rem Play_ReimaginedUI.cmd (GMDX AE) swaps AE's DeusEx.int in while it runs and
-rem puts DeusEx.int_vanilla back afterwards. If AE's is still here (a crash
-rem skips that), put the other one back first.
-fc /b DeusEx.int "..\Mods\GMDX_AE\System\DeusEx.int" >nul 2>&1
-if not errorlevel 1 if exist DeusEx.int_vanilla copy /y DeusEx.int_vanilla DeusEx.int >nul
 
 rem Windows display scaling (125%/150% on laptops) makes Windows lie to the
 rem old exe about the screen size, so borderless fullscreen opens at e.g.

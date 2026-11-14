@@ -14,7 +14,7 @@ Menus, HUD, inventory, augmentations, dialogue and every in-game screen, rebuilt
 > This is a beta for friends and testers. It is stable enough to play through, but expect rough edges. If something breaks, see [Reporting a bug](#reporting-a-bug) at the bottom.
 
 > [!IMPORTANT]
-> **About other mods (Revision, GMDX, GMDX: Augmented Edition and the rest).** Reimagined UI was first built as an add-on for GMDX: Augmented Edition 1.2, and partway through development the project moved over to the original, unmodded Deus Ex as its main base. The current beta is made and tested for vanilla Deus Ex only. The older AE adapter is still in the source tree, though it has fallen behind and is unsupported for now. Running the mod alongside Revision, GMDX, AE or other overhauls is likely to break screens or features at this stage. Compatibility with those mods is planned and will be added in upcoming releases.
+> Reimagined UI is made for the original, unmodded Deus Ex. It is not compatible with overhaul mods such as Revision or GMDX.
 
 ## What it changes
 
@@ -103,8 +103,7 @@ The mod is plain UnrealScript plus a small native plugin for pixel-exact text.
 Mods\ReimaginedUI\
 ├─ Source\ReimaginedUI\Classes\   shared screens, HUD and menus (edit here)
 ├─ Source\ReimaginedUI\Textures\  8-bit PCX textures imported at build time
-├─ Source\Base_Vanilla\Classes\   adapter classes for the original game
-├─ Source\Base_AE\Classes\        adapter classes for GMDX: Augmented Edition
+├─ Source\Base_Vanilla\Classes\   game-specific adapter classes
 ├─ Source\RINative\               script side of the native plugin
 ├─ Source\RIVanillaHD\             HD texture package for Vanilla+ and the HD icons
 ├─ Native\Src\                    C/C++ source of RINative.dll
@@ -113,10 +112,10 @@ Mods\ReimaginedUI\
 ```
 
 1. Clone this repository into `<Deus Ex>\Mods\ReimaginedUI`.
-2. Run **`Build_Vanilla.cmd`** to compile for the original game, or **`Build_ReimaginedUI.cmd`** for GMDX: Augmented Edition 1.2. The output lands in `System\Vanilla\ReimaginedUI.u` or `System\ReimaginedUI.u`.
+2. Run **`Build_Vanilla.cmd`** to compile. The output lands in `System\Vanilla\ReimaginedUI.u`.
 3. Copy the contents of `Install` into the game folder (they merge with `System` and `Mods`) and play.
 
-The build log is written next to the scripts (`build_ri_vanilla.log`). `Build_Quick_And_Play_Vanilla.cmd` builds and launches in one step, and `Build_All.cmd` compiles both bases in one go. The HD textures live in their own package, `RIVanillaHD.u`, which only needs rebuilding with `Build_RIVanillaHD.cmd` when the textures change.
+The build log is written next to the scripts (`build_ri_vanilla.log`). `Build_Quick_And_Play_Vanilla.cmd` builds and launches in one step. The HD textures live in their own package, `RIVanillaHD.u`, which only needs rebuilding with `Build_RIVanillaHD.cmd` when the textures change.
 
 <details>
 <summary><b>UnrealScript gotchas that have broken builds before</b></summary>
@@ -142,7 +141,6 @@ Open an issue (or message me) with what you were doing, a screenshot, and the lo
 - **Interface concept:** Tanit Mesa, *Deus Ex 2000: Reimagined (UX/UI)* on ArtStation. The layout and look of this mod follow her concept art and mockups.
 - **Fonts:** Michroma and Exo 2, both under the SIL Open Font License.
 - **Launcher:** Kentie's DeusExe.
-- **GMDX: Augmented Edition** by Sarge and the GMDX team, the first base this mod was built on.
 - **Deus Ex** by Ion Storm and Eidos Interactive. Original game art and textures belong to their owners.
 
 ## License

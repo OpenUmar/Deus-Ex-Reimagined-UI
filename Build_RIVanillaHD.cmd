@@ -19,7 +19,7 @@ if exist "..\Mods\ReimaginedUI\System\RIVanillaHD.u" del "..\Mods\ReimaginedUI\S
 if exist "..\Mods\ReimaginedUI\System\RIVanillaHD.u" goto locked
 
 rem Compile with the add-on's build ini, but with RIVanillaHD as the only new package
-powershell -NoProfile -Command "(Get-Content '..\Mods\ReimaginedUI\System\RIBuild.ini') | Where-Object { $_ -notmatch '^EditPackages=(RINative|ReimaginedUI)$' } | ForEach-Object { $_; if ($_ -eq 'EditPackages=DeusEx') { 'EditPackages=RIVanillaHD' } } | Set-Content '..\Mods\ReimaginedUI\System\RIHDBuild.ini'"
+powershell -NoProfile -Command "(Get-Content '..\Mods\ReimaginedUI\System\RIBuild_Vanilla.ini') | Where-Object { $_ -notmatch '^EditPackages=(RINative|ReimaginedUI)$' } | ForEach-Object { $_; if ($_ -eq 'EditPackages=DeusEx') { 'EditPackages=RIVanillaHD' } } | Set-Content '..\Mods\ReimaginedUI\System\RIHDBuild.ini'"
 
 echo [2/3] Importing textures (this takes a few minutes)...
 UCC.exe make INI="..\Mods\ReimaginedUI\System\RIHDBuild.ini"

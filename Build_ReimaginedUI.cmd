@@ -1,25 +1,12 @@
 @echo off
-rem Compiles the Reimagined UI add-on for one base:
-rem   Build_ReimaginedUI.cmd           GMDX AE  -> Mods\ReimaginedUI\System\ReimaginedUI.u
-rem   Build_ReimaginedUI.cmd Vanilla   Deus Ex  -> Mods\ReimaginedUI\System\Vanilla\ReimaginedUI.u
+rem Compiles Reimagined UI for the original Deus Ex
+rem   -> Mods\ReimaginedUI\System\Vanilla\ReimaginedUI.u
 rem Source lives in Mods\ReimaginedUI\Source: the shared screens in ReimaginedUI,
-rem plus the base's adapter classes in Base_<base>. No base mod's files are modified.
+rem plus the game-specific adapter classes in Base_Vanilla. No game files are modified.
 setlocal
-set BASE=%~1
-if "%BASE%"=="" set BASE=AE
-if /i "%BASE%"=="AE" (
-    set BASE=AE
-    set OUT=..\Mods\ReimaginedUI\System
-    set BUILDINI=..\Mods\ReimaginedUI\System\RIBuild.ini
-) else if /i "%BASE%"=="Vanilla" (
-    set BASE=Vanilla
-    set OUT=..\Mods\ReimaginedUI\System\Vanilla
-    set BUILDINI=..\Mods\ReimaginedUI\System\RIBuild_Vanilla.ini
-) else (
-    echo Unknown base "%BASE%". Use AE or Vanilla.
-    pause
-    exit /b 1
-)
+set BASE=Vanilla
+set OUT=..\Mods\ReimaginedUI\System\Vanilla
+set BUILDINI=..\Mods\ReimaginedUI\System\RIBuild_Vanilla.ini
 cd /d "%~dp0..\..\System"
 if not exist "%OUT%" mkdir "%OUT%"
 echo Base: %BASE%
