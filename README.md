@@ -6,8 +6,6 @@
 
 Menus, HUD, inventory, augmentations, dialogue and every in-game screen, rebuilt with a modern layout while keeping the game's own logic underneath.
 
-`BETA` · build 97 · vanilla Deus Ex · Windows
-
 </div>
 
 ---
