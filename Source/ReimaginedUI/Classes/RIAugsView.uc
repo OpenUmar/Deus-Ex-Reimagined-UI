@@ -369,7 +369,8 @@ function DrawLocLeader(GC gc, int L, float bx, float by, float bw, float bh, flo
 	}
 	ax = bx + bw * fx;
 	ay = by + bh * fy;
-	py = LocY[L] + 12 * S;
+	// level with the card's heading rule, so the wire carries the rule on
+	py = LocY[L] + 24 * S;
 	if (LocX[L] < bx)
 		px = LocX[L] + W;
 	else
@@ -382,10 +383,11 @@ function DrawLocLeader(GC gc, int L, float bx, float by, float bw, float bh, flo
 	// then into the frame's near side, a connector tab at each end; dim
 	// while the location is empty
 	LocRect(L, bx, by, bw, bh, rx, ry, rw, rh);
+	// right up to the frame (LocBox stands 2 px off the art)
 	if (px < rx)
-		tx = rx - 4 * S;
+		tx = rx - 2 * S;
 	else
-		tx = rx + rw + 4 * S;
+		tx = rx + rw + 2 * S;
 	ty = Class'RIModern'.static.P(ry + rh * 0.5);
 	py = Class'RIModern'.static.P(py);
 	if (LocInstalled(L))
@@ -418,9 +420,11 @@ function Wire(GC gc, float px, float py, float tx, float ty, Color Col)
 		mx = Class'RIModern'.static.P(tx - FMin(20 * S, (tx - px) * 0.5));
 	else
 		mx = Class'RIModern'.static.P(tx + FMin(20 * S, (px - tx) * 0.5));
+	// each run overlaps the corner by the line's own width, so the joins
+	// close on either side (left-hand cards run right to left)
 	Class'RIText'.static.HLine(gc, FMin(px, mx), py, Abs(mx - px) + 0.5, Col);
 	Class'RIText'.static.VLine(gc, mx, FMin(py, ty), Abs(ty - py) + 0.5, Col);
-	Class'RIText'.static.HLine(gc, FMin(mx, tx), ty, Abs(tx - mx), Col);
+	Class'RIText'.static.HLine(gc, FMin(mx, tx), ty, Abs(tx - mx) + 0.5, Col);
 }
 
 // A connector tab at a wire's end: a small solid block on the line,

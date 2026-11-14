@@ -193,7 +193,21 @@ function CGlow(GC gc, float X, float Y, float W, float H, Color C)
 {
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(C);
-	Class'RIText'.static.Tex(gc, X, Y, W, H, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_GlowC');
+	// inset UVs: smoothing at the texture's edge would leave a faint box
+	Class'RIText'.static.Tex(gc, X, Y, W, H, 3, 3, 250, 58, Texture'ReimaginedUI.UI.RI_GlowC');
+}
+
+// The selected tab's light: a low soft bloom rising off its underline,
+// centred on the label and kept inside the tab row (no blob, no box)
+function BarGlow(GC gc, float CX, float LY, float TW, float H, Color C, optional bool bNoSpill)
+{
+	gc.SetStyle(DSTY_Translucent);
+	gc.SetTileColor(C);
+	// upper half of the radial glow, its bright edge sitting on the bar
+	Class'RIText'.static.Tex(gc, CX - TW * 0.5 - 30 * S, LY - H, TW + 60 * S, H, 3, 3, 250, 29, Texture'ReimaginedUI.UI.RI_GlowC');
+	// a short spill under the bar
+	if (!bNoSpill)
+		Class'RIText'.static.Tex(gc, CX - TW * 0.5 - 16 * S, LY, TW + 32 * S, H * 0.3, 3, 32, 250, 29, Texture'ReimaginedUI.UI.RI_GlowC');
 }
 
 // Vanilla+ (Settings > Interface > Style): the original persona textures,
@@ -676,7 +690,7 @@ function DrawTabs(GC gc, float a)
 		w = tw + 56 * S;
 		if (bOn)
 		{
-			CGlow(gc, x + (w - tw) * 0.5 - 48 * S, y - 6 * S, tw + 96 * S, h + 18 * S, C3(64, 54, 24, a));
+			BarGlow(gc, x + w * 0.5, ly, tw, 30 * S, C3(70, 59, 26, a));
 			Class'RIText'.static.DrawIn(gc, Class'RIFontHead', x, y, w, h, L, C3(255, 240, 190, a), 1, 0.6);
 			Fill(gc, x + (w - tw) * 0.5, ly - 1.5, tw, 3 * S, AHi(a));
 		}
@@ -736,18 +750,15 @@ function DrawSubs(GC gc, float ly, float a)
 	{
 		L = Caps(SubNames[SubId[i]]);
 		tw = Class'RIText'.static.Width(Class'RIFontHead', L, sc);
-		// the only section: a plain label, nothing to switch to
+		// the only section: nothing to switch to, so no label either
 		if (NumSubs == 1)
-		{
-			Class'RIText'.static.DrawIn(gc, Class'RIFontHead', x, y, tw, h, L, ATxt(a), 0, sc);
 			continue;
-		}
 		bOn = (SubId[i] == cur);
 		bHot = (HoverId == HOT_SUB + SubId[i]);
 		if (bOn)
 		{
 			if (!VPlus())
-				CGlow(gc, x - 24 * S, y - 2 * S, tw + 48 * S, h + 4 * S, C3(46, 38, 17, a));
+				BarGlow(gc, x + tw * 0.5, y + h - 2 * S, tw, 20 * S, C3(50, 42, 18, a));
 			Class'RIText'.static.DrawIn(gc, Class'RIFontHead', x, y, tw, h, L, C3(255, 240, 190, a), 0, sc);
 			Fill(gc, x, y + h - 3 * S, tw, 2 * S, AHi(a));
 		}
@@ -1549,7 +1560,7 @@ defaultproperties
      TabNames(1)="Inventory"
      TabNames(2)="Health"
      TabNames(3)="Augs"
-     TabNames(4)="Skills / Perks"
+     TabNames(4)="Skills"
      TabNames(5)="Journal"
      TabNames(6)="Outfit"
      TabNames(7)="Conversations"

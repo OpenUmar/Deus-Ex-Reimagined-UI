@@ -77,7 +77,7 @@ function CGlow(GC gc, float X, float Y, float W, float H, Color C)
 {
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(C);
-	Class'RIText'.static.Tex(gc, X, Y, W, H, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_GlowC');
+	Class'RIText'.static.Tex(gc, X, Y, W, H, 3, 3, 250, 58, Texture'ReimaginedUI.UI.RI_GlowC');
 }
 
 // Soft dark backing: darkest in the middle, fading out on every side
@@ -2144,8 +2144,17 @@ function DrawVPVitals(GC gc)
 	}
 	// (no stamina on this base, e.g. the original: the right bar only appears
 	// underwater, as breath; a full bar that never drains would mislead)
-	Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', LX(0), 226 * S, 196 * S, 18 * S,
-		Caps(Class'RIText'.static.Fit(Class'RIFontSmall', T, 190 * S, 0.5)), C3(200, 204, 208), 1, 0.5);
+	// the readout lives inside the monitor's glass, on the strip under the
+	// grid: BIO under its tube on the left, stamina / breath on the right
+	// (small, like a status line, well clear of the compass below)
+	Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', LX(44), 176 * S, 60 * S, 11 * S,
+		"BIO" @ string(int(Player.Energy)), C3(150, 190, 222), 0, 0.36);
+	if (bWater)
+		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', LX(156) - 90 * S, 176 * S, 90 * S, 11 * S,
+			Caps(BreathLabel) @ string(int(f * 100)), C3(170, 214, 224), 2, 0.36);
+	else if (bStam)
+		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', LX(156) - 90 * S, 176 * S, 90 * S, 11 * S,
+			Caps(StaminaLabel) @ string(int(f * 100)), C3(190, 194, 198), 2, 0.36);
 
 	if (Class'RIUtil'.static.PInt(Player, "iStanceHud") > 0)
 	{

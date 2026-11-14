@@ -777,8 +777,10 @@ function DrawPage(GC gc, float a)
 		// the left column is the belt's width (140 .. 860); the grid as large
 		// as fits above the belt, centred in the column
 		Heading(gc, OX + 140 * S, 170 * S, 720 * S, InvTitle, a);
-		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', OX + 140 * S, 170 * S, 720 * S, 40 * S,
-			Caps(CreditsLabel) @ string(Player.Credits), AAcc(a), 2, 0.72);
+		// credits, then the ammo and nano key lists, on the heading's line
+		N = Caps(CreditsLabel) @ string(Player.Credits);
+		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', OX + 140 * S, 170 * S, 720 * S, 40 * S, N, AAcc(a), 2, 0.72);
+		ListToggles(gc, OX + 860 * S - Class'RIText'.static.Width(Class'RIFontSmall', N, 0.72) - 22 * S, 175 * S, a);
 		Cell = FMin(720 * S / Cols, 560 * S / Rows);
 		GX = OX + 140 * S + (720 * S - Cols * Cell) * 0.5;
 		GY = 236 * S;
@@ -1080,12 +1082,12 @@ function ListToggles(GC gc, float R, float Y, float a)
 	T = Caps(KeysTitle);
 	if (Player.KeyRing != None)
 		T = T @ string(Player.KeyRing.GetKeyCount());
-	w = Class'RIText'.static.Width(Class'RIFontSmall', T, 0.54) + 28 * S;
+	w = Class'RIText'.static.Width(Class'RIFontSmall', T, 0.6) + 34 * S;
 	R -= w;
 	ListToggle(gc, R, Y, w, T, TAB_KEYS, InvMode == 2, a);
 	T = Caps(AmmoTitle);
-	w = Class'RIText'.static.Width(Class'RIFontSmall', T, 0.54) + 28 * S;
-	R -= w + 8 * S;
+	w = Class'RIText'.static.Width(Class'RIFontSmall', T, 0.6) + 34 * S;
+	R -= w + 10 * S;
 	ListToggle(gc, R, Y, w, T, TAB_AMMO, InvMode == 1, a);
 }
 
@@ -1096,18 +1098,18 @@ function ListToggle(GC gc, float X, float Y, float W, string T, int Id, bool bOn
 	bHot = (HoverId == HOT_SUB + Id);
 	if (bOn)
 	{
-		Fill(gc, X, Y, W, 24 * S, C3(52, 43, 19, a));
-		Class'RIText'.static.Box(gc, X, Y, W, 24 * S, AHi(a));
+		Fill(gc, X, Y, W, 30 * S, C3(52, 43, 19, a));
+		Class'RIText'.static.Box(gc, X, Y, W, 30 * S, AHi(a));
 	}
 	else if (bHot)
-		Class'RIText'.static.Box(gc, X, Y, W, 24 * S, AEdge(a));
+		Class'RIText'.static.Box(gc, X, Y, W, 30 * S, AEdge(a));
 	else
-		Class'RIText'.static.Box(gc, X, Y, W, 24 * S, ADim(a));
+		Class'RIText'.static.Box(gc, X, Y, W, 30 * S, ADim(a));
 	if (bOn || bHot)
-		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', X, Y, W, 24 * S, T, AHi(a), 1, 0.54);
+		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', X, Y, W, 30 * S, T, AHi(a), 1, 0.6);
 	else
-		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', X, Y, W, 24 * S, T, AAcc(a), 1, 0.54);
-	AddHot(HOT_SUB + Id, X, Y, W, 24 * S);
+		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', X, Y, W, 30 * S, T, AAcc(a), 1, 0.6);
+	AddHot(HOT_SUB + Id, X, Y, W, 30 * S);
 }
 
 function DrawBelt(GC gc, float a)
@@ -1141,7 +1143,6 @@ function DrawBelt(GC gc, float a)
 		ih = 70 * S;
 		pad = 2;
 		Class'RIText'.static.Draw(gc, Class'RIFontSmall', OX + 140 * S, y - 26 * S, Caps(BeltLabel), ALbl(a), 0.66);
-		ListToggles(gc, OX + 860 * S, y - 30 * S, a);
 	}
 	for (n = 0; n < cnt; n++)
 	{
@@ -1235,11 +1236,11 @@ function DrawInfo(GC gc, float X, float Top, float W, float Bottom, float da)
 	bAmmoDescDone = False;
 	// the description first, in every style (the game writes it after the
 	// stats; that copy is skipped)
-	InfoDesc = Class'RIConView'.static.Lines(SelItem.GetPropertyText("Description"));
-	if ((InfoDesc != "") && (InStr(InfoDesc, "<END NOTE>") < 0))
+	InfoDesc = TrimBreaks(Class'RIConView'.static.Lines(SelItem.GetPropertyText("Description")));
+	if ((InfoDesc != "") && (InStr(InfoDesc, "<END NOTE>") >= 0) && (InStr(InfoDesc, "<") < InStr(InfoDesc, "<END NOTE>")))
+		y = DrawNoteText(gc, X, y, W - 14 * S, InfoDesc, da);
+	else if (InfoDesc != "")
 		y += Class'RIText'.static.DrawWrapped(gc, Class'RIFontBody', X, y, W - 14 * S, InfoDesc, C3(217, 196, 150, da), 0.72, 1.45) + 4 * S;
-	else
-		InfoDesc = "";
 	if ((Inv().winInfo != None) && (Inv().winInfo.winTile != None))
 		y = InfoTree(gc, Inv().winInfo.winTile, X, y, W, da);
 	y = EndRows(y);
@@ -1456,6 +1457,7 @@ function float InfoTree(GC gc, Window Parent, float X, float y, float W, float d
 	local string Bn;
 	local Texture Ic;
 	local bool bOn;
+	local int p;
 
 	for (C = Parent.GetBottomChild(); C != None; C = C.GetHigherSibling())
 	{
@@ -1587,6 +1589,10 @@ function float InfoTree(GC gc, Window Parent, float X, float y, float W, float d
 			// AE lists every mod slot; only the ones with a value are shown
 			if (V == "")
 				continue;
+			// Sleek / Default weapons: the game's "Weapon Stats" heading is
+			// replaced by the MODS and STATS sections
+			if (!VPlus() && !bStatsHead && (DeusExWeapon(SelItem) != None))
+				PendHead = "";
 			y = FlushHead(gc, X, y, W, da);
 			// Sleek spec sheet: two columns, small label left, value right
 			if (!VPlus())
@@ -1670,8 +1676,18 @@ function float InfoTree(GC gc, Window Parent, float X, float y, float W, float d
 				continue;
 			}
 			y = CloseStat(y);
-			if ((InfoDesc != "") && (Class'RIConView'.static.Lines(T) == InfoDesc))
-				continue;
+			// the description is already drawn at the top: cut the game's
+			// copy out and keep only what it added (counts and the like)
+			if (InfoDesc != "")
+			{
+				T = Class'RIConView'.static.Lines(T);
+				p = InStr(T, InfoDesc);
+				if (p >= 0)
+					T = Left(T, p) $ Mid(T, p + Len(InfoDesc));
+				T = TrimBreaks(T);
+				if (T == "")
+					continue;
+			}
 			// the loaded ammo's name and description: already under the tiles
 			if (bAmmoDescDone && IsAmmoDescText(T))
 				continue;
@@ -1775,7 +1791,8 @@ function float DrawMods(GC gc, float X, float y, float W, float da)
 	local string T;
 
 	Wp = DeusExWeapon(SelItem);
-	if (Wp == None)
+	// melee weapons take no mods
+	if ((Wp == None) || Wp.bHandToHand)
 		return y;
 	SectionHead(gc, X, y, W, ModsTitle, ModsHint, da);
 	y += 28 * S;

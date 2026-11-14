@@ -129,7 +129,7 @@ event DrawWindow(GC gc)
 				Class'RIUtil'.static.Mix(AHi(a), C3(255, 255, 255, a), int(bHot)), 1, sc);
 		else if (bOn)
 		{
-			CGlow(gc, x + (w - tw) * 0.5 - 20, 0, tw + 40, height, C3(52, 44, 20, a));
+			BarGlow(gc, x + w * 0.5, ly, tw, FMin(height - 2, 24 * S), C3(60, 50, 22, a), True);
 			Class'RIText'.static.DrawIn(gc, Class'RIFontHead', x, 0, w, height - 2, L, C3(255, 240, 190, a), 1, sc);
 			Fill(gc, x + (w - tw) * 0.5, ly - 1, tw, 2.5, AHi(a));
 		}
