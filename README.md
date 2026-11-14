@@ -16,6 +16,39 @@ Menus, HUD, inventory, augmentations, dialogue and every in-game screen, rebuilt
 > [!IMPORTANT]
 > Reimagined UI is made for the original, unmodded Deus Ex. It is not compatible with overhaul mods such as Revision or GMDX.
 
+## Before and after
+
+<p align="center">
+  <img src="docs/screenshots/wipe_hud.gif" width="49%" alt="The original HUD wiping to the Reimagined UI Modern HUD">
+  <img src="docs/screenshots/wipe_menu.gif" width="49%" alt="The original main menu wiping to the Reimagined UI main menu">
+</p>
+
+### HUD
+
+| Original | Modern | Vanilla+ |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/hud_original.jpg" alt="Original HUD"> | <img src="docs/screenshots/hud_modern.jpg" alt="Modern HUD"> | <img src="docs/screenshots/hud_vplus.jpg" alt="Vanilla+ HUD"> |
+
+Prefer the original arrangement? **Settings › Interface › HUD Layout › Vanilla** puts every piece back where the 2000 game had it, with the new look intact:
+
+<p align="center"><img src="docs/screenshots/hud_vplus_vanilla_layout.jpg" width="66%" alt="Vanilla+ HUD in the Vanilla layout"></p>
+
+### Conversations
+
+| Original | Vanilla+ (cinematic bars) | Modern |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/conv_original.jpg" alt="Original conversation subtitles"> | <img src="docs/screenshots/conv_vplus.jpg" alt="Vanilla+ conversation with cinematic bars"> | <img src="docs/screenshots/conv_modern.jpg" alt="Modern conversation without bars"> |
+
+### Menus
+
+| Original | Reimagined UI |
+| :---: | :---: |
+| <img src="docs/screenshots/menu_original.jpg" alt="Original main menu"> | <img src="docs/screenshots/menu_reimagined.jpg" alt="Reimagined UI main menu"> |
+
+| Pause menu | New Game |
+| :---: | :---: |
+| <img src="docs/screenshots/pause_reimagined.jpg" alt="Reimagined UI pause menu"> | <img src="docs/screenshots/newgame_reimagined.jpg" alt="Reimagined UI New Game screen"> |
+
 ## What it changes
 
 | Area | What you get |
