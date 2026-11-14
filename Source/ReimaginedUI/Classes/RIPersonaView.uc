@@ -185,7 +185,7 @@ function Glow(GC gc, float X, float Y, float W, float H, Color C)
 {
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(C);
-	gc.DrawStretchedTexture(X, Y, W, H, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
+	Class'RIText'.static.Tex(gc, X, Y, W, H, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
 }
 
 // Centred glow: bright in the middle, fading out on every side
@@ -193,7 +193,7 @@ function CGlow(GC gc, float X, float Y, float W, float H, Color C)
 {
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(C);
-	gc.DrawStretchedTexture(X, Y, W, H, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_GlowC');
+	Class'RIText'.static.Tex(gc, X, Y, W, H, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_GlowC');
 }
 
 // Vanilla+ (Settings > Interface > Style): the original persona textures,
@@ -511,8 +511,7 @@ function BuildSubs()
 		SubId[NumSubs++] = TAB_INV;
 		if (Class'RIBase'.static.HasOutfits(Nav()))
 			SubId[NumSubs++] = TAB_OUTFIT;
-		SubId[NumSubs++] = TAB_AMMO;
-		SubId[NumSubs++] = TAB_KEYS;
+		// ammo and nano keys are listed in the item panel, as in the original
 	}
 	else if (MainOf(ActiveTab) == TAB_GOALS)
 	{
@@ -666,7 +665,7 @@ function DrawTabs(GC gc, float a)
 	// Rule along the whole bar, fading at both ends
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(C3(126, 105, 50, a));
-	gc.DrawStretchedTexture(x - 40 * S, ly, 1720 * S + 80 * S, 1.5, 0, 28, 256, 8, Texture'ReimaginedUI.UI.RI_GlowC');
+	Class'RIText'.static.Tex(gc, x - 40 * S, ly, 1720 * S + 80 * S, 1.5, 0, 28, 256, 8, Texture'ReimaginedUI.UI.RI_GlowC');
 
 	for (i = 0; i < NumTabs; i++)
 	{
@@ -737,6 +736,12 @@ function DrawSubs(GC gc, float ly, float a)
 	{
 		L = Caps(SubNames[SubId[i]]);
 		tw = Class'RIText'.static.Width(Class'RIFontHead', L, sc);
+		// the only section: a plain label, nothing to switch to
+		if (NumSubs == 1)
+		{
+			Class'RIText'.static.DrawIn(gc, Class'RIFontHead', x, y, tw, h, L, ATxt(a), 0, sc);
+			continue;
+		}
 		bOn = (SubId[i] == cur);
 		bHot = (HoverId == HOT_SUB + SubId[i]);
 		if (bOn)
@@ -827,7 +832,7 @@ function Black(GC gc, float X, float Y, float W, float H)
 {
 	gc.SetStyle(DSTY_Normal);
 	gc.SetTileColor(Class'RIUtil'.static.Col(255, 255, 255));
-	gc.DrawStretchedTexture(X, Y, W, H, 0, 0, 1, 1, Texture'ReimaginedUI.UI.RI_Clear');
+	Class'RIText'.static.Tex(gc, X, Y, W, H, 0, 0, 1, 1, Texture'ReimaginedUI.UI.RI_Clear');
 }
 
 function DrawVPBackdrop(GC gc, float a)
@@ -1003,9 +1008,9 @@ function Piece(GC gc, float X, float Y, float W, float H, int Mode, Color C)
 	}
 	gc.SetStyle(DSTY_Modulated);
 	if (Mode == 1)
-		gc.DrawStretchedTexture(X, Y, W, H, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dark');
+		Class'RIText'.static.Tex(gc, X, Y, W, H, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dark');
 	else
-		gc.DrawStretchedTexture(X, Y, W, H, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dim4');
+		Class'RIText'.static.Tex(gc, X, Y, W, H, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dim4');
 }
 
 // The root draws this round a scaled-down board (screen coordinates)
@@ -1018,17 +1023,17 @@ function DrawVeil(GC gc, float RW, float RH)
 	gc.SetStyle(DSTY_Modulated);
 	if (HoleW <= 0)
 	{
-		gc.DrawStretchedTexture(0, 0, RW, RH, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dim4');
+		Class'RIText'.static.Tex(gc, 0, 0, RW, RH, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dim4');
 		return;
 	}
 	hx0 = x + HoleX;
 	hy0 = y + HoleY;
 	hx1 = hx0 + HoleW;
 	hy1 = hy0 + HoleH;
-	gc.DrawStretchedTexture(0, 0, RW, hy0, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dim4');
-	gc.DrawStretchedTexture(0, hy1, RW, RH - hy1, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dim4');
-	gc.DrawStretchedTexture(0, hy0, hx0, HoleH, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dim4');
-	gc.DrawStretchedTexture(hx1, hy0, RW - hx1, HoleH, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dim4');
+	Class'RIText'.static.Tex(gc, 0, 0, RW, hy0, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dim4');
+	Class'RIText'.static.Tex(gc, 0, hy1, RW, RH - hy1, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dim4');
+	Class'RIText'.static.Tex(gc, 0, hy0, hx0, HoleH, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dim4');
+	Class'RIText'.static.Tex(gc, hx1, hy0, RW - hx1, HoleH, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dim4');
 }
 
 // Chamfered button (left cap, stretched middle, chamfered right end)
@@ -1117,6 +1122,12 @@ function DrawVPSubRow(GC gc, float x, float y, float h, float sc, float gap, int
 	{
 		L = Caps(SubNames[SubId[i]]);
 		tw = Class'RIText'.static.Width(Class'RIFontHead', L, sc);
+		// the only section: a plain title, no box (nothing to switch to)
+		if (NumSubs == 1)
+		{
+			Class'RIText'.static.DrawIn(gc, Class'RIFontHead', x, y - 1 * S, tw, h, L, ATxt(a), 0, sc);
+			continue;
+		}
 		if (i == 0)
 			sx = x - 14 * S;
 		else

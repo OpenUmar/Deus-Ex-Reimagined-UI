@@ -239,7 +239,7 @@ function DrawPage(GC gc, float a)
 	CGlow(gc, bx - 200 * S, by - 60 * S, bw + 400 * S, bh + 120 * S, C3(30, 25, 11, a));
 	gc.SetStyle(DSTY_Masked);
 	gc.SetTileColor(C3(255, 255, 255, a));
-	gc.DrawStretchedTexture(bx, by, bw, bh, 0, 0, 477, 891, Texture'ReimaginedUI.UI.RI_AugBody');
+	Class'RIText'.static.Tex(gc, bx, by, bw, bh, 0, 0, 477, 891, Texture'ReimaginedUI.UI.RI_AugBody');
 	DrawAugHighlights(gc, bx, by, bw, bh, a);
 
 	// Cards: left column Cranial, Arms, Subdermal, Default; right Eyes, Torso, Legs
@@ -307,14 +307,14 @@ function DrawAugHighlights(GC gc, float bx, float by, float bw, float bh, float 
 		{
 			gc.SetStyle(DSTY_Masked);
 			gc.SetTileColor(C3(255, 255, 255, a));
-			gc.DrawStretchedTexture(x, y, w, h, 0, 0, LU[L], LV[L], T);
+			Class'RIText'.static.Tex(gc, x, y, w, h, 0, 0, LU[L], LV[L], T);
 		}
 		if (Lit[L] >= 1.0)
 		{
 			k = a * (0.8 + 0.2 * Sin(Age * 3.0));
 			gc.SetStyle(DSTY_Translucent);
 			gc.SetTileColor(C3(255, 232, 150, k * 0.7));
-			gc.DrawStretchedTexture(bx + bw * HiX0[L] / 477.0, by + bh * HiY0[L] / 891.0,
+			Class'RIText'.static.Tex(gc, bx + bw * HiX0[L] / 477.0, by + bh * HiY0[L] / 891.0,
 				bw * (HiX1[L] - HiX0[L]) / 477.0, bh * (HiY1[L] - HiY0[L]) / 891.0,
 				HiX0[L], HiY0[L], HiX1[L] - HiX0[L], HiY1[L] - HiY0[L], Texture'ReimaginedUI.UI.RI_AugHi');
 			LocBox(gc, x, y, w, h, AHi(a), AHi(0.9 * a));
@@ -789,7 +789,7 @@ function DrawVPPage(GC gc, float a)
 	by = 250 * S;
 	gc.SetStyle(DSTY_Masked);
 	gc.SetTileColor(C3(255, 255, 255, a));
-	gc.DrawStretchedTexture(bx, by, bw, bh, 0, 0, 477, 891, Texture'ReimaginedUI.UI.RI_AugBody');
+	Class'RIText'.static.Tex(gc, bx, by, bw, bh, 0, 0, 477, 891, Texture'ReimaginedUI.UI.RI_AugBody');
 	DrawAugHighlights(gc, bx, by, bw, bh, a);
 
 	LocX[0] = OX + 405 * S;   LocY[0] = 196 * S;    // cranial

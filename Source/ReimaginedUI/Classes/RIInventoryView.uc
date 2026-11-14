@@ -64,6 +64,7 @@ var localized string KindWeapon, KindAmmo, KindItem, SlotWord, EquippedWord;
 var localized string StatsLabel, ClickLoadLabel;
 var localized string ModsTitle, ModsHint, ModNames[8], NoneWord;
 var bool bModsDone;       // the weapon's MODS section is drawn
+var bool bAmmoDescDone;   // the loaded ammo's description is drawn (under the ammo tiles)
 var localized string InvTitle, CreditsLabel, KeysLabel, BeltLabel, ClassicLabel, PickLabel, NoRoomLabel, HintText;
 
 // Vanilla+: the item page sits on the Inventory board (grid, belt, buttons)
@@ -79,14 +80,18 @@ function bool VPFooterBar()
 
 function string VPDetailTitle()
 {
-	if ((InvMode == 0) && (SelItem != None))
+	if (InvMode == 1)
+		return AmmoTitle;
+	if (InvMode == 2)
+		return KeysTitle;
+	if (SelItem != None)
 		return KindLine(SelItem);
 	return DetailLabel;
 }
 
 function bool VPItemDividers()
 {
-	return InvMode == 0;
+	return True;
 }
 
 function PersonaScreenInventory Inv()
@@ -104,30 +109,34 @@ function ScreenAttached()
 
 function int CurrentSub()
 {
-	if (InvMode == 1)
-		return TAB_AMMO;
-	if (InvMode == 2)
-		return TAB_KEYS;
 	return TAB_INV;
 }
 
-// Items, ammo and keys are all this page
+// Ammo and nano keys show in the item panel, as the original game showed
+// them, with the grid and belt still there (InvMode: 0 the item, 1 ammo,
+// 2 keys). A second click on the same one goes back to the item.
 function bool LocalSub(int Id)
 {
 	if (Id == TAB_INV)
-		InvMode = 0;
+		ShowList(0);
 	else if (Id == TAB_AMMO)
-		InvMode = 1;
+		ShowList(1);
 	else if (Id == TAB_KEYS)
-		InvMode = 2;
+		ShowList(2);
 	else
 		return False;
+	return True;
+}
+
+function ShowList(int M)
+{
+	if ((M != 0) && (M == InvMode))
+		M = 0;
+	InvMode = M;
 	ListSel = -1;
 	ListScroll = 0;
 	ListScrollTarget = 0;
-	DragItem = None;
-	bDragging = False;
-	return True;
+	DescAge = 0;
 }
 
 // Nothing selected (a click on an empty cell)
@@ -144,8 +153,17 @@ function Deselect()
 
 function Select(Inventory I)
 {
+	// picking an item brings the panel back to it from the ammo / key list
 	if (I == SelItem)
+	{
+		if (InvMode != 0)
+		{
+			InvMode = 0;
+			DescAge = 0;
+		}
 		return;
+	}
+	InvMode = 0;
 	SelItem = I;
 	DescAge = 0;
 	InfoScroll = 0;
@@ -549,16 +567,14 @@ function PageClick(int Id, EInputKey button, int numClicks)
 	local Inventory I;
 	local int col, row;
 
-	if (InvMode != 0)
+	// a row of the ammo list: opens (or closes) its description
+	if ((button == IK_LeftMouse) && (Id >= HOT_LIST) && (Id < HOT_LIST + 64))
 	{
-		if ((button == IK_LeftMouse) && (Id >= HOT_LIST) && (Id < HOT_LIST + 64))
-		{
+		if (ListSel == Id - HOT_LIST)
+			ListSel = -1;
+		else
 			ListSel = Id - HOT_LIST;
-			DescAge = 0;
-			PlaySound(Sound'Menu_Press', 0.2);
-		}
-		else if ((button == IK_LeftMouse) && (Id == HOT_CLASSIC))
-			SwitchView(True);
+		PlaySound(Sound'Menu_Press', 0.2);
 		return;
 	}
 
@@ -605,6 +621,13 @@ function PageClick(int Id, EInputKey button, int numClicks)
 	if ((Id >= HOT_BELT) && (Id < HOT_BELT + 12))
 	{
 		I = BeltItem(Id - HOT_BELT);
+		// the key ring lists the keys in the item panel, as in the original
+		if ((I != None) && (NanoKeyRing(I) != None) && (button == IK_LeftMouse))
+		{
+			ShowList(2);
+			PlaySound(Sound'Menu_Press', 0.2);
+			return;
+		}
 		if ((I == None) || (NanoKeyRing(I) != None) || !Owned(I))
 			return;
 		if (button == IK_RightMouse)
@@ -666,16 +689,13 @@ function bool PageKey(EInputKey key, bool bRepeat)
 		if ((key == IK_Up) && (NumList > 0))
 		{
 			ListSel = Max(0, ListSel - 1);
-			DescAge = 0;
 			return True;
 		}
 		if ((key == IK_Down) && (NumList > 0))
 		{
 			ListSel = Min(NumList - 1, ListSel + 1);
-			DescAge = 0;
 			return True;
 		}
-		return False;
 	}
 	if ((key == IK_MouseWheelUp) || (key == IK_MouseWheelDown))
 	{
@@ -741,11 +761,6 @@ function DrawPage(GC gc, float a)
 	local string N;
 	local DeusExPickup P;
 
-	if (InvMode != 0)
-	{
-		DrawListPage(gc, a);
-		return;
-	}
 	// Grid
 	Cols = Max(1, Player.maxInvCols);
 	Rows = Max(1, Player.maxInvRows);
@@ -759,12 +774,14 @@ function DrawPage(GC gc, float a)
 	}
 	else
 	{
-		Heading(gc, OX + 140 * S, 170 * S, 680 * S, InvTitle, a);
-		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', OX + 140 * S, 170 * S, 680 * S, 40 * S,
+		// the left column is the belt's width (140 .. 860); the grid as large
+		// as fits above the belt, centred in the column
+		Heading(gc, OX + 140 * S, 170 * S, 720 * S, InvTitle, a);
+		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', OX + 140 * S, 170 * S, 720 * S, 40 * S,
 			Caps(CreditsLabel) @ string(Player.Credits), AAcc(a), 2, 0.72);
-		Cell = FMin(680 * S / Cols, 590 * S / Rows);
-		GX = OX + 140 * S;
-		GY = 240 * S;
+		Cell = FMin(720 * S / Cols, 560 * S / Rows);
+		GX = OX + 140 * S + (720 * S - Cols * Cell) * 0.5;
+		GY = 236 * S;
 	}
 	for (r = 0; r < Rows; r++)
 		for (c = 0; c < Cols; c++)
@@ -942,89 +959,105 @@ function GatherList()
 		ListSel = NumList - 1;
 }
 
-function DrawListPage(GC gc, float a)
+// ----------------------------------------------------------------------
+// Ammo and nano keys in the item panel, as the original game showed them:
+// every ammo you carry (icon, name, rounds against the most you can carry;
+// click one for its description), or every key on the ring
+// ----------------------------------------------------------------------
+
+function DrawPanelList(GC gc, float X, float Top, float Bottom, float W, float a)
 {
-	local float x, y, w, rh, f, sh, kh;
+	local float y, rh, f, sh, kh, th, lw;
 	local int n, mx, st;
 	local bool bSel, bHot;
 	local DeusExAmmo Am;
-	local string T;
+	local string T, D;
 
 	GatherList();
-	if (VPlus())
-		DrawVPBeltItems(gc, a);
-	if (!VPlus())
-	{
-		if (InvMode == 1)
-			Heading(gc, OX + 140 * S, 170 * S, 1000 * S, AmmoTitle, a);
-		else
-			Heading(gc, OX + 140 * S, 170 * S, 1000 * S, KeysTitle, a);
-		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', OX + 140 * S, 170 * S, 1000 * S, 40 * S,
-			Caps(CreditsLabel) @ string(Player.Credits), AAcc(a), 2, 0.72);
-	}
-
-	x = OX + 140 * S;
-	w = 1000 * S;
 	if (InvMode == 1)
-		rh = 66 * S;
+		T = AmmoTitle;
 	else
-		rh = 52 * S;
-	ListTop = 240 * S;
-	ListBottom = 940 * S;
+		T = KeysTitle;
 	if (VPlus())
 	{
-		// inside the left frame (the section row is in its header)
-		x = OX + 402 * S;
-		w = 560 * S;
-		ListTop = 182 * S;
-		ListBottom = 808 * S;
+		// the name bar, as an item's name
+		Class'RIText'.static.DrawIn(gc, Class'RIFontHead', X, Top, W, 28 * S, Caps(T), ATxt(a), 0, 0.5);
+		Top += 45 * S;
 	}
+	else
+	{
+		Class'RIText'.static.Draw(gc, Class'RIFontTitle', X, Top + 4 * S, Caps(T), ATxt(a), 0.42);
+		Top += 64 * S;
+	}
+	ListTop = Top;
+	ListBottom = Bottom;
+	if (NumList == 0)
+	{
+		ListMax = 0;
+		if (InvMode == 1)
+			Class'RIText'.static.Draw(gc, Class'RIFontBody', X, Top, NoAmmoLabel, ALbl(a), 0.8);
+		else
+			Class'RIText'.static.Draw(gc, Class'RIFontBody', X, Top, NoKeysLabel, ALbl(a), 0.8);
+		return;
+	}
+	lw = W - 14 * S;     // clear of the scroll bar
 	st = gc.PushGC();
-	gc.Intersect(x - 4 * S, ListTop, w + 8 * S, ListBottom - ListTop);
-	y = ListTop - ListScroll;
+	gc.Intersect(X - 4 * S, Top, W + 8 * S, Bottom - Top);
+	y = Top - ListScroll;
 	for (n = 0; n < NumList; n++)
 	{
 		bSel = (n == ListSel);
 		bHot = (HoverId == HOT_LIST + n);
-		Fill(gc, x, y, w, rh, C3(30, 25, 11, 0.5 * a));
-		if (bSel)
-			SelRow(gc, x, y, w, rh, a);
-		else if (bHot)
-			Class'RIText'.static.Box(gc, x, y, w, rh, AEdge(a));
-		else
-			Class'RIText'.static.HLine(gc, x + 8 * S, y + rh, w - 16 * S, C3(60, 50, 24, a));
-
 		if (InvMode == 1)
 		{
 			Am = DeusExAmmo(ListItems[n]);
+			rh = 58 * S;
+			D = "";
+			th = 0;
+			if (bSel)
+			{
+				D = Class'RIConView'.static.Lines(Am.GetPropertyText("Description"));
+				if (D != "")
+					th = Class'RIText'.static.DrawWrapped(None, Class'RIFontBody', 0, 0, lw - 24 * S, D, ATxt(a), 0.62, 1.36) + 14 * S;
+			}
+			Fill(gc, X, y, lw, rh + th, C3(30, 25, 11, 0.5 * a));
+			if (bSel)
+				SelRow(gc, X, y, lw, rh + th, a);
+			else if (bHot)
+				Class'RIText'.static.Box(gc, X, y, lw, rh, AEdge(a));
 			if (Am.icon != None)
 			{
 				gc.SetStyle(DSTY_Masked);
 				gc.SetTileColor(C3(255, 255, 255, a));
-				Class'RIHD'.static.DrawStretched(gc, x + 14 * S, y + (rh - 46 * S) * 0.5, 52 * S, 46 * S, 0, 0, 42, 37, Am.icon);
+				Class'RIHD'.static.DrawStretched(gc, X + 10 * S, y + (rh - 40 * S) * 0.5, 45 * S, 40 * S, 0, 0, 42, 37, Am.icon);
 			}
-			Class'RIText'.static.DrawIn(gc, Class'RIFontHead', x + 84 * S, y + 6 * S, w - 304 * S, 32 * S,
-				Caps(Class'RIText'.static.Fit(Class'RIFontHead', Am.ItemName, w - 304 * S, 0.56)),
-				Class'RIUtil'.static.Mix(ATxt(a), C3(255, 255, 255, a), int(bSel)), 0, 0.56);
 			mx = Max(1, Class'RIBase'.static.MaxAmmo(Player, Am));
 			f = FClamp(float(Am.AmmoAmount) / float(mx), 0, 1);
-			Fill(gc, x + 84 * S, y + rh - 18 * S, w - 304 * S, 5 * S, C3(40, 33, 15, a));
-			Fill(gc, x + 84 * S, y + rh - 18 * S, (w - 304 * S) * f, 5 * S, AAcc(a));
-			Class'RIText'.static.DrawIn(gc, Class'RIFontHead', x + w - 260 * S, y, 240 * S, rh,
-				string(Am.AmmoAmount) $ " / " $ string(mx), AHi(a), 2, 0.6);
+			Class'RIText'.static.DrawIn(gc, Class'RIFontHead', X + 68 * S, y + 6 * S, lw - 190 * S, 26 * S,
+				Caps(Class'RIText'.static.Fit(Class'RIFontHead', Am.ItemName, lw - 190 * S, 0.46)),
+				Class'RIUtil'.static.Mix(ATxt(a), C3(255, 255, 255, a), int(bSel)), 0, 0.46);
+			Fill(gc, X + 68 * S, y + rh - 16 * S, lw - 190 * S, 4 * S, C3(40, 33, 15, a));
+			Fill(gc, X + 68 * S, y + rh - 16 * S, (lw - 190 * S) * f, 4 * S, AAcc(a));
+			Class'RIText'.static.DrawIn(gc, Class'RIFontHead', X + lw - 116 * S, y, 104 * S, rh,
+				string(Am.AmmoAmount) $ " / " $ string(mx), AHi(a), 2, 0.5);
+			if (D != "")
+				Class'RIText'.static.DrawWrapped(gc, Class'RIFontBody', X + 12 * S, y + rh + 2 * S, lw - 24 * S, D, C3(217, 196, 150, a), 0.62, 1.36);
+			rh += th;
+			if ((y + rh > ListTop) && (y < ListBottom))
+				AddHot(HOT_LIST + n, X, FMax(y, ListTop), lw, FMin(y + rh, ListBottom) - FMax(y, ListTop));
+			y += rh + 6 * S;
 		}
 		else
 		{
 			T = KeyInfos[n].Description;
 			if (T == "")
 				T = string(KeyInfos[n].KeyID);
-			Class'RIText'.static.DrawIn(gc, Class'RIFontBody', x + 20 * S, y, w - 40 * S, rh,
-				Class'RIText'.static.Fit(Class'RIFontBody', T, w - 40 * S, 0.8),
-				Class'RIUtil'.static.Mix(ATxt(a), C3(255, 255, 255, a), int(bSel)), 0, 0.8);
+			th = Class'RIText'.static.DrawWrapped(None, Class'RIFontBody', 0, 0, lw - 24 * S, T, ATxt(a), 0.66, 1.3);
+			rh = FMax(40 * S, th + 16 * S);
+			Class'RIText'.static.DrawWrapped(gc, Class'RIFontBody', X + 12 * S, y + (rh - th) * 0.5, lw - 24 * S, T, ATxt(a), 0.66, 1.3);
+			Class'RIText'.static.HLine(gc, X + 8 * S, y + rh, lw - 16 * S, C3(60, 50, 24, a));
+			y += rh;
 		}
-		if ((y + rh > ListTop) && (y < ListBottom))
-			AddHot(HOT_LIST + n, x, FMax(y, ListTop), w, FMin(y + rh, ListBottom) - FMax(y, ListTop));
-		y += rh + 6 * S;
 	}
 	gc.PopGC(st);
 	ListMax = FMax(0, (y + ListScroll - ListTop) - (ListBottom - ListTop));
@@ -1032,79 +1065,49 @@ function DrawListPage(GC gc, float a)
 	{
 		sh = ListBottom - ListTop;
 		kh = FMax(30 * S, sh * sh / (sh + ListMax));
-		Fill(gc, x + w + 10 * S, ListTop, 2 * S, sh, C3(50, 42, 20, a));
-		Fill(gc, x + w + 10 * S, ListTop + (sh - kh) * (ListScroll / ListMax), 2 * S, kh, AAcc(a));
+		Fill(gc, X + W - 2 * S, ListTop, 1 * S, sh, C3(30, 25, 11, a));
+		Fill(gc, X + W - 3 * S, ListTop + (sh - kh) * (ListScroll / ListMax), 3 * S, kh, C3(126, 105, 50, a));
 	}
-	if (NumList == 0)
-	{
-		if (InvMode == 1)
-			Class'RIText'.static.Draw(gc, Class'RIFontBody', x, ListTop, NoAmmoLabel, ALbl(a), 0.8);
-		else
-			Class'RIText'.static.Draw(gc, Class'RIFontBody', x, ListTop, NoKeysLabel, ALbl(a), 0.8);
-	}
-
-	DrawListDetail(gc, a);
-	if (!VPlus())
-		Class'RIText'.static.Draw(gc, Class'RIFontSmall', OX + 140 * S, FY + FH + 22 * S, ListHint, ALbl(a * 0.8), 0.7);
 }
 
-function DrawListDetail(GC gc, float a)
+// Sleek / Default: AMMO and NANO KEYS on the belt's label line, right-aligned
+// to the belt (R); each lists in the item panel, lit while it does
+function ListToggles(GC gc, float R, float Y, float a)
 {
-	local float x, y, w, h, da, iw, ih, k;
-	local DeusExAmmo Am;
-	local string T, D;
-	local int st;
+	local string T;
+	local float w;
 
-	da = a * Class'RIUtil'.static.Phase(DescAge, 0.0, 0.2);
-	if (VPlus())
-	{
-		DrawVPListDetail(gc, a, da);
-		return;
-	}
-	x = OX + 1180 * S;
-	y = 240 * S;
-	w = 600 * S;
-	h = 700 * S;
-	Panel(gc, x, y, w, h, a);
-	x += 26 * S;
-	w -= 52 * S;
-	y += 24 * S;
+	T = Caps(KeysTitle);
+	if (Player.KeyRing != None)
+		T = T @ string(Player.KeyRing.GetKeyCount());
+	w = Class'RIText'.static.Width(Class'RIFontSmall', T, 0.54) + 28 * S;
+	R -= w;
+	ListToggle(gc, R, Y, w, T, TAB_KEYS, InvMode == 2, a);
+	T = Caps(AmmoTitle);
+	w = Class'RIText'.static.Width(Class'RIFontSmall', T, 0.54) + 28 * S;
+	R -= w + 8 * S;
+	ListToggle(gc, R, Y, w, T, TAB_AMMO, InvMode == 1, a);
+}
 
-	if ((ListSel < 0) || (ListSel >= NumList))
-		Class'RIText'.static.Draw(gc, Class'RIFontBody', x, y, PickListLabel, ALbl(a), 0.8);
-	else if (InvMode == 1)
+function ListToggle(GC gc, float X, float Y, float W, string T, int Id, bool bOn, float a)
+{
+	local bool bHot;
+
+	bHot = (HoverId == HOT_SUB + Id);
+	if (bOn)
 	{
-		Am = DeusExAmmo(ListItems[ListSel]);
-		Class'RIText'.static.Draw(gc, Class'RIFontTitle', x + (1 - da) * 8 * S, y, Caps(Class'RIText'.static.Fit(Class'RIFontTitle', Am.ItemName, w, 0.42)), ATxt(da), 0.42);
-		y += 56 * S;
-		CGlow(gc, x + w * 0.1, y, w * 0.8, 200 * S, C3(36, 30, 13, da));
-		if (Am.largeIcon != None)
-		{
-			iw = FMax(1, Am.largeIconWidth);
-			ih = FMax(1, Am.largeIconHeight);
-			k = FMin((w - 40 * S) / iw, 180 * S / ih);
-			if (k >= 1)
-				k = float(int(k));
-			gc.SetStyle(DSTY_Masked);
-			gc.SetTileColor(C3(255, 255, 255, da));
-			Class'RIHD'.static.DrawStretched(gc, x + (w - iw * k) * 0.5, y + 10 * S + (180 * S - ih * k) * 0.5, iw * k, ih * k, 0, 0, iw, ih, Am.largeIcon);
-		}
-		y += 210 * S;
-		Class'RIText'.static.Draw(gc, Class'RIFontSmall', x, y, Caps(RoundsLabel) @ string(Am.AmmoAmount) $ " / " $ string(Class'RIBase'.static.MaxAmmo(Player, Am)), AAcc(da), 0.72);
-		y += 34 * S;
-		D = Am.GetPropertyText("Description");
-		Class'RIText'.static.DrawWrapped(gc, Class'RIFontBody', x, y, w, Class'RIConView'.static.Lines(D), C3(230, 210, 165, da), 0.74, 1.38);
+		Fill(gc, X, Y, W, 24 * S, C3(52, 43, 19, a));
+		Class'RIText'.static.Box(gc, X, Y, W, 24 * S, AHi(a));
 	}
+	else if (bHot)
+		Class'RIText'.static.Box(gc, X, Y, W, 24 * S, AEdge(a));
 	else
-	{
-		T = KeyInfos[ListSel].Description;
-		if (T == "")
-			T = string(KeyInfos[ListSel].KeyID);
-		Class'RIText'.static.Draw(gc, Class'RIFontSmall', x, y, Caps(KeysTitle), AAcc(da), 0.72);
-		y += 34 * S;
-		Class'RIText'.static.DrawWrapped(gc, Class'RIFontBody', x + (1 - da) * 8 * S, y, w, T, ATxt(da), 0.86, 1.38);
-	}
-
+		Class'RIText'.static.Box(gc, X, Y, W, 24 * S, ADim(a));
+	if (bOn || bHot)
+		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', X, Y, W, 24 * S, T, AHi(a), 1, 0.54);
+	else
+		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', X, Y, W, 24 * S, T, AAcc(a), 1, 0.54);
+	AddHot(HOT_SUB + Id, X, Y, W, 24 * S);
 }
 
 function DrawBelt(GC gc, float a)
@@ -1138,6 +1141,7 @@ function DrawBelt(GC gc, float a)
 		ih = 70 * S;
 		pad = 2;
 		Class'RIText'.static.Draw(gc, Class'RIFontSmall', OX + 140 * S, y - 26 * S, Caps(BeltLabel), ALbl(a), 0.66);
+		ListToggles(gc, OX + 860 * S, y - 30 * S, a);
 	}
 	for (n = 0; n < cnt; n++)
 	{
@@ -1228,15 +1232,14 @@ function DrawInfo(GC gc, float X, float Top, float W, float Bottom, float da)
 	BtnRowX = -1;
 	bStatsHead = False;
 	bModsDone = False;
-	InfoDesc = "";
-	if (!VPlus())
-	{
-		InfoDesc = Class'RIConView'.static.Lines(SelItem.GetPropertyText("Description"));
-		if ((InfoDesc != "") && (InStr(InfoDesc, "<END NOTE>") < 0))
-			y += Class'RIText'.static.DrawWrapped(gc, Class'RIFontBody', X, y, W - 14 * S, InfoDesc, C3(217, 196, 150, da), 0.72, 1.45) + 4 * S;
-		else
-			InfoDesc = "";
-	}
+	bAmmoDescDone = False;
+	// the description first, in every style (the game writes it after the
+	// stats; that copy is skipped)
+	InfoDesc = Class'RIConView'.static.Lines(SelItem.GetPropertyText("Description"));
+	if ((InfoDesc != "") && (InStr(InfoDesc, "<END NOTE>") < 0))
+		y += Class'RIText'.static.DrawWrapped(gc, Class'RIFontBody', X, y, W - 14 * S, InfoDesc, C3(217, 196, 150, da), 0.72, 1.45) + 4 * S;
+	else
+		InfoDesc = "";
 	if ((Inv().winInfo != None) && (Inv().winInfo.winTile != None))
 		y = InfoTree(gc, Inv().winInfo.winTile, X, y, W, da);
 	y = EndRows(y);
@@ -1459,6 +1462,10 @@ function float InfoTree(GC gc, Window Parent, float X, float y, float W, float d
 		if (!C.IsVisible(False))
 			continue;
 
+		// the ammo tiles' row just ended: the loaded ammo's description under it
+		if ((AmmoRowX >= 0) && !bAmmoDescDone && !C.IsA('PersonaAmmoDetailButton'))
+			y = AmmoDescAfterTiles(gc, X, EndRows(y), W, da);
+
 		// Ammo choice: a tile with the ammo's icon and rounds
 		if (C.IsA('PersonaAmmoDetailButton'))
 		{
@@ -1663,7 +1670,10 @@ function float InfoTree(GC gc, Window Parent, float X, float y, float W, float d
 				continue;
 			}
 			y = CloseStat(y);
-			if (!VPlus() && (InfoDesc != "") && (Class'RIConView'.static.Lines(T) == InfoDesc))
+			if ((InfoDesc != "") && (Class'RIConView'.static.Lines(T) == InfoDesc))
+				continue;
+			// the loaded ammo's name and description: already under the tiles
+			if (bAmmoDescDone && IsAmmoDescText(T))
 				continue;
 			PendHead = "";
 			y += 6 * S;
@@ -1683,6 +1693,53 @@ function float InfoTree(GC gc, Window Parent, float X, float y, float W, float d
 		y = InfoTree(gc, C, X, y, W, da);
 	}
 	return y;
+}
+
+// The loaded ammo (None for weapons that take none)
+function class<DeusExAmmo> LoadedAmmo()
+{
+	local DeusExWeapon Wp;
+
+	Wp = DeusExWeapon(SelItem);
+	if ((Wp == None) || Wp.bHandToHand || (Wp.ReloadCount == 0) || (Wp.AmmoName == None) || (Wp.AmmoName == Class'AmmoNone'))
+		return None;
+	return class<DeusExAmmo>(Wp.AmmoName);
+}
+
+// The loaded ammo's name and description, under the ammo tiles (the game
+// adds them at the very end, after the stats)
+function float AmmoDescAfterTiles(GC gc, float X, float y, float W, float da)
+{
+	local class<DeusExAmmo> AC;
+	local string D;
+
+	bAmmoDescDone = True;
+	AC = LoadedAmmo();
+	if (AC == None)
+		return y;
+	D = Class'RIConView'.static.Lines(AC.default.Description);
+	if (D == "")
+		return y;
+	Class'RIText'.static.Draw(gc, Class'RIFontSmall', X, y, Caps(AC.default.ItemName), ALbl(da), 0.5);
+	y += 20 * S;
+	y += Class'RIText'.static.DrawWrapped(gc, Class'RIFontBody', X, y, W - 14 * S, D, C3(200, 182, 140, da), 0.64, 1.38) + 8 * S;
+	return y;
+}
+
+// The game's copy of the loaded ammo's description (skipped: it is drawn
+// under the tiles)
+function bool IsAmmoDescText(string T)
+{
+	local class<DeusExAmmo> AC;
+	local string D;
+
+	AC = LoadedAmmo();
+	if (AC == None)
+		return False;
+	D = AC.default.Description;
+	if (D == "")
+		return False;
+	return InStr(T, Left(D, 30)) >= 0;
 }
 
 // A stat row that's one of the attachments (scope / laser / silencer), shown
@@ -1874,7 +1931,9 @@ function DrawDetail(GC gc, float a)
 	y += 28 * S;
 	da = a * Class'RIUtil'.static.Phase(DescAge, 0.0, 0.2);
 
-	if (SelItem == None)
+	if (InvMode != 0)
+		DrawPanelList(gc, x, y, 170 * S + h - 104 * S, w, da);
+	else if (SelItem == None)
 		Class'RIText'.static.Draw(gc, Class'RIFontBody', x, y, PickLabel, ALbl(a), 0.8);
 	else
 	{
@@ -1934,10 +1993,6 @@ function DrawDetail(GC gc, float a)
 	AddHot(HOT_DROP, x + (bw + 12 * S) * 2, y, bw, 50 * S);
 	DrawBtn(gc, x + (bw + 12 * S) * 3, y, bw, 50 * S, LabelOf(Inv().btnChangeAmmo, "Change ammo"), (SelItem != None) && Live(Inv().btnChangeAmmo), HoverId == HOT_AMMO, False, a);
 	AddHot(HOT_AMMO, x + (bw + 12 * S) * 3, y, bw, 50 * S);
-
-	// Keys
-	if (Player.KeyRing != None)
-		Class'RIText'.static.Draw(gc, Class'RIFontSmall', x, 170 * S + h + 10 * S, Caps(KeysLabel) @ string(Player.KeyRing.GetKeyCount()), ALbl(a), 0.66);
 }
 
 // ----------------------------------------------------------------------
@@ -1973,7 +2028,9 @@ function DrawVPDetail(GC gc, float a)
 	x = OX + 1068 * S;
 	w = 460 * S;
 	da = a * Class'RIUtil'.static.Phase(DescAge, 0.0, 0.2);
-	if (SelItem == None)
+	if (InvMode != 0)
+		DrawPanelList(gc, x, 177 * S, 700 * S, w, da);
+	else if (SelItem == None)
 		Class'RIText'.static.DrawIn(gc, Class'RIFontHead', x, 177 * S, w, 28 * S, Caps(PickLabel), ALbl(a), 0, 0.46);
 	else
 	{
@@ -2011,74 +2068,14 @@ function DrawVPDetail(GC gc, float a)
 	T = Caps(KeysLabel);
 	if (Player.KeyRing != None)
 		T = T @ string(Player.KeyRing.GetKeyCount());
-	bHot = (HoverId == HOT_SUB + TAB_KEYS);
+	bHot = (HoverId == HOT_SUB + TAB_KEYS) || (InvMode == 2);
 	Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', OX + 1170 * S, 756 * S, 128 * S, 50 * S, T, Class'RIUtil'.static.Mix(ATxt(a), AHi(a), int(bHot)), 1, 0.56);
 	Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', OX + 1170 * S, 802 * S, 128 * S, 40 * S, "CLICK TO LIST", ALbl(a), 1, 0.46);
 	AddHot(HOT_SUB + TAB_KEYS, OX + 1061 * S, 750 * S, 239 * S, 107 * S);
-	bHot = (HoverId == HOT_SUB + TAB_AMMO);
+	bHot = (HoverId == HOT_SUB + TAB_AMMO) || (InvMode == 1);
 	Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', OX + 1409 * S, 756 * S, 131 * S, 50 * S, Caps(AmmoTitle), Class'RIUtil'.static.Mix(ATxt(a), AHi(a), int(bHot)), 1, 0.56);
 	Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', OX + 1409 * S, 802 * S, 131 * S, 40 * S, "CLICK TO LIST", ALbl(a), 1, 0.46);
 	AddHot(HOT_SUB + TAB_AMMO, OX + 1300 * S, 750 * S, 242 * S, 107 * S);
-}
-
-// Vanilla+ ammo / key details: name in the title bar, picture, rounds and
-// description in the body (clipped to it), credits in the footer bar,
-// the belt icon in the lower box
-function DrawVPListDetail(GC gc, float a, float da)
-{
-	local float x, y, w, iw, ih, k;
-	local DeusExAmmo Am;
-	local string T, D;
-	local int st;
-
-	x = OX + 1072 * S;
-	w = 446 * S;
-	y = 226 * S;
-	Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', x, 670 * S, w, 30 * S, Caps(CreditsLabel) @ string(Player.Credits), ALbl(a), 0, 0.54);
-	if ((ListSel < 0) || (ListSel >= NumList))
-	{
-		Class'RIText'.static.DrawIn(gc, Class'RIFontHead', x, 177 * S, w, 28 * S, Caps(PickListLabel), ALbl(a), 0, 0.46);
-		return;
-	}
-	st = gc.PushGC();
-	gc.Intersect(x - 2 * S, 216 * S, w + 4 * S, 440 * S);
-	if (InvMode == 1)
-	{
-		Am = DeusExAmmo(ListItems[ListSel]);
-		Class'RIText'.static.DrawIn(gc, Class'RIFontHead', x, 177 * S, w, 28 * S, Caps(Class'RIText'.static.Fit(Class'RIFontHead', Am.ItemName, w, 0.5)), ATxt(da), 0, 0.5);
-		if (Am.largeIcon != None)
-		{
-			iw = FMax(1, Am.largeIconWidth);
-			ih = FMax(1, Am.largeIconHeight);
-			k = FMin((w - 40 * S) / iw, 150 * S / ih);
-			if (k >= 1)
-				k = float(int(k));
-			gc.SetStyle(DSTY_Masked);
-			gc.SetTileColor(C3(255, 255, 255, da));
-			Class'RIHD'.static.DrawStretched(gc, x + (w - iw * k) * 0.5, y + (150 * S - ih * k) * 0.5, iw * k, ih * k, 0, 0, iw, ih, Am.largeIcon);
-		}
-		y += 164 * S;
-		Class'RIText'.static.Draw(gc, Class'RIFontSmall', x, y, Caps(RoundsLabel) @ string(Am.AmmoAmount) $ " / " $ string(Class'RIBase'.static.MaxAmmo(Player, Am)), AAcc(da), 0.62);
-		y += 30 * S;
-		D = Am.GetPropertyText("Description");
-		Class'RIText'.static.DrawWrapped(gc, Class'RIFontBody', x, y, w, Class'RIConView'.static.Lines(D), C3(230, 210, 165, da), 0.68, 1.34);
-		gc.PopGC(st);
-		if (Am.icon != None)
-		{
-			gc.SetStyle(DSTY_Masked);
-			gc.SetTileColor(C3(255, 255, 255, da));
-			Class'RIHD'.static.DrawStretched(gc, OX + 1072 * S, 766 * S, 84 * S, 74 * S, 0, 0, 42, 37, Am.icon);
-		}
-	}
-	else
-	{
-		T = KeyInfos[ListSel].Description;
-		if (T == "")
-			T = string(KeyInfos[ListSel].KeyID);
-		Class'RIText'.static.DrawIn(gc, Class'RIFontHead', x, 177 * S, w, 28 * S, Caps(KeysTitle), ATxt(da), 0, 0.5);
-		Class'RIText'.static.DrawWrapped(gc, Class'RIFontBody', x, y, w, T, ATxt(da), 0.8, 1.36);
-		gc.PopGC(st);
-	}
 }
 
 // Text on one of the board's buttons (the frame is part of the board)

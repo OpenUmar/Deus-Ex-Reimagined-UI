@@ -97,7 +97,7 @@ event DrawWindow(GC gc)
 	ly = height - 2;
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(C3(126, 105, 50, a));
-	gc.DrawStretchedTexture(0, ly, width, 1.5, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
+	Class'RIText'.static.Tex(gc, 0, ly, width, 1.5, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
 
 	// This page's section row, after a gap (no room for a second tier here)
 	for (i = 0; i < NumSubs; i++)

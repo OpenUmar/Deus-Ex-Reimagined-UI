@@ -39,13 +39,28 @@ static final function Color Lbl(float a)   { return C(156, 134, 72, a); }
 // Primitives
 // ----------------------------------------------------------------------
 
+// Every piece of a Modern shape (edges, cuts, fills, corner caps) sits on
+// the same screen-pixel grid, snapped edge by edge, so the parts of one
+// outline meet exactly and move as one piece (in the 3D tilt, where tiles
+// aren't rounded, unsnapped edges sat half a pixel off the snapped cuts and
+// shimmered against them)
 static final function Blk(GC gc, float X, float Y, float W, float H, Color Col)
 {
+	local float x0, y0, x1, y1;
+
 	if ((W <= 0) || (H <= 0))
 		return;
+	x0 = P(X);
+	y0 = P(Y);
+	x1 = P(X + W);
+	y1 = P(Y + H);
+	if (x1 <= x0)
+		x1 = x0 + 0.5;
+	if (y1 <= y0)
+		y1 = y0 + 0.5;
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(Col);
-	Class'RIText'.static.Fill(gc, X, Y, W, H);
+	Class'RIText'.static.Fill(gc, x0, y0, x1 - x0, y1 - y0);
 }
 
 static final function Darken(GC gc, float X, float Y, float W, float H)
@@ -162,7 +177,7 @@ static final function Scan(GC gc, float X, float Y, float W, float H)
 	if ((W <= 0) || (H <= 0))
 		return;
 	gc.SetStyle(DSTY_Modulated);
-	Class'RIText'.static.Pat(gc, X, Y, W, H, 0, 0, Texture'ReimaginedUI.UI.RI_Scan');
+	Class'RIText'.static.Pat(gc, P(X), P(Y), P(X + W) - P(X), P(Y + H) - P(Y), 0, 0, Texture'ReimaginedUI.UI.RI_Scan');
 }
 
 static final function Pip(GC gc, float X, float Y, float Z, Color Col)
@@ -186,8 +201,15 @@ static final function TickMark(GC gc, float X, float Y, float Z, Color Col)
 // and the pip row used on full screen frames.
 static final function Frame(GC gc, float X, float Y, float W, float H, float S, float a, optional string Title, optional bool bBig)
 {
-	local float K, th, tw, by, i;
+	local float K, th, tw, by, i, Z;
 	local int j;
+
+	// the whole frame on the pixel grid first: every part below is measured
+	// from these, so they all land on the same pixels
+	X = P(X);
+	Y = P(Y);
+	W = P(W);
+	H = P(H);
 
 	if (bBig)
 		K = 28 * S;
@@ -201,9 +223,12 @@ static final function Frame(GC gc, float X, float Y, float W, float H, float S, 
 			th = 22 * S;
 		tw = Class'RIText'.static.Width(Class'RIFontHead', Caps(Title), 0.5) + 44 * S;
 	}
+	th = P(th);
+	tw = P(tw);
 	by = Y + th;
 	if (K * 2 > FMin(W, H - th))
 		K = FMin(W, H - th) * 0.5;
+	K = P(K);
 
 	// fill: the world darkened, scanlines, a faint warm lift
 	Body(gc, 0, X, by, W, H - th, K, C(0, 0, 0, 0));
@@ -233,11 +258,15 @@ static final function Frame(GC gc, float X, float Y, float W, float H, float S, 
 	// heavier gold on the two cuts
 	Diag(gc, X + W - K, by + 0.5, K, FMax(1.0, P(2.5 * S)), 1, Gold(a));
 	Diag(gc, X, by + H - th - K + 0.5, K, FMax(1.0, P(2.5 * S)), 1, Gold(a));
-	// corner pips and crosshair ticks
-	Pip(gc, X + 3 * S, by + 3 * S, 5 * S, Gold(a));
-	Pip(gc, X + W - 3 * S, Y + H - 3 * S, 5 * S, Gold(a));
-	Pip(gc, X + 3 * S, Y + H - K - 3 * S, 5 * S, Gold(a));
-	Pip(gc, X + W - 3 * S, by + K + 3 * S, 5 * S, Gold(a));
+	// corner caps: part of the outline, a solid square in its own colour,
+	// flush with its outer edges (the two square corners, and where each cut
+	// meets a straight side), drawn on the same grid as the rest of it
+	Z = P(5 * S);
+	Blk(gc, X, by, Z, Z, Edge(0.85 * a));                              // top left
+	Blk(gc, X + W - Z, Y + H - Z, Z, Z, Edge(0.85 * a));               // bottom right
+	Blk(gc, X + W - Z, P(by + K), Z, Z, Edge(0.85 * a));               // under the top right cut
+	Blk(gc, X, P(Y + H - K) - Z, Z, Z, Edge(0.85 * a));                // above the bottom left cut
+	// crosshair ticks off two corners
 	TickMark(gc, X - 8 * S, Y + H + 8 * S, 5 * S, Keyl(a));
 	TickMark(gc, X + W + 8 * S, by - 8 * S, 5 * S, Keyl(a));
 	if (bBig)
@@ -356,10 +385,15 @@ static final function float Slot(GC gc, float X, float Y, float W, float H, floa
 	th = P(FMax(2.5, H * 0.18));
 	tx = X + P(W * 0.46);
 
-	// backing: deep and dark, as the game's; tab and body as one shape
+	// backing: deep and dark, as the game's; tab and body as one shape,
+	// each part darkened the same number of times (the body was darkened
+	// twice and the tab once, so the tab showed lighter, with a light
+	// square and a gap where its pieces met)
 	Piece(gc, 0, X, Y + th, W, H - th, C(0, 0, 0, 0));
 	Piece(gc, 0, X, Y + th, W, H - th, C(0, 0, 0, 0));
 	TriLR(gc, 0, tx, Y, th, C(0, 0, 0, 0));
+	TriLR(gc, 0, tx, Y, th, C(0, 0, 0, 0));
+	Piece(gc, 0, tx + th, Y, X + W - tx - th, th, C(0, 0, 0, 0));
 	Piece(gc, 0, tx + th, Y, X + W - tx - th, th, C(0, 0, 0, 0));
 	// the tab gets the same fill as the body (it read as a black hole)
 	if (bWarn)

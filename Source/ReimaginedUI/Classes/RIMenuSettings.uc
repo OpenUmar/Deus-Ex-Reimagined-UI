@@ -415,7 +415,7 @@ event DrawWindow(GC gc)
 	hh = 54 * S;
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(Class'RIUtil'.static.Col(20 * a, 22 * a, 70 * a));
-	gc.DrawStretchedTexture(hx, hy, hw, hh, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
+	Class'RIText'.static.Tex(gc, hx, hy, hw, hh, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
 	Class'RIText'.static.Box(gc, hx, hy, hw, hh, Class'RIUtil'.static.Col(150 * a, 154 * a, 240 * a));
 	Class'RIText'.static.DrawIn(gc, Class'RIFontTitle', hx, hy, hw, hh, HeaderText,
 		Class'RIUtil'.static.Col(236 * a, 238 * a, 255 * a), 1, 0.62);

@@ -617,7 +617,7 @@ function Glow(GC gc, float X, float Y, float W, float H, Color C)
 {
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(C);
-	gc.DrawStretchedTexture(X, Y, W, H, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
+	Class'RIText'.static.Tex(gc, X, Y, W, H, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
 }
 
 function float Pill(GC gc, float X, float Y, string L, Color C)
@@ -801,7 +801,7 @@ function DrawPreview(GC gc, float a)
 		sh = FMin(T.VSize, 120);
 		gc.SetStyle(DSTY_Normal);
 		gc.SetTileColor(Class'RIUtil'.static.Col(255, 255, 255));
-		gc.DrawStretchedTexture(x, y, iw, ih, 0, 0, sw, sh, T);
+		Class'RIText'.static.Tex(gc, x, y, iw, ih, 0, 0, sw, sh, T);
 		if (da < 0.99)
 			Class'RISkin'.static.DrawDim(gc, x, y, iw, ih, 1.0 - da);
 	}

@@ -281,7 +281,7 @@ event DrawWindow(GC gc)
 	gc.SetTileColor(Class'RIUtil'.static.Col(12 * a, 14 * a, 48 * a));
 	Class'RIText'.static.Fill(gc, PX, PY, PW, PH);
 	gc.SetTileColor(Class'RIUtil'.static.Col(26 * a, 28 * a, 84 * a));
-	gc.DrawStretchedTexture(PX, PY, PW, 70 * UIS, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
+	Class'RIText'.static.Tex(gc, PX, PY, PW, 70 * UIS, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
 
 	Class'RIText'.static.Box(gc, PX, PY, PW, PH, Class'RIUtil'.static.Col(110 * a, 116 * a, 214 * a));
 	Class'RIText'.static.Box(gc, PX - 3 * UIS, PY - 3 * UIS, PW + 6 * UIS, PH + 6 * UIS, Class'RIUtil'.static.Col(26 * a, 28 * a, 84 * a));
@@ -322,7 +322,7 @@ event DrawWindow(GC gc)
 
 		gc.SetStyle(DSTY_Translucent);
 		gc.SetTileColor(Fill);
-		gc.DrawStretchedTexture(BX[b], BY[b], BW[b], BH[b], 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
+		Class'RIText'.static.Tex(gc, BX[b], BY[b], BW[b], BH[b], 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
 		Class'RIText'.static.Box(gc, BX[b], BY[b], BW[b], BH[b], Edge);
 
 		// Keyboard focus: accent bar on the left edge

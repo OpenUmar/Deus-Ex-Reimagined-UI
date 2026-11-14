@@ -1209,7 +1209,7 @@ function DrawBrightnessBars(GC gc, float a)
 		if ((i == 2) || (i == 3)) C.B = 255 * a;
 		gc.SetStyle(DSTY_Normal);
 		gc.SetTileColor(C);
-		gc.DrawStretchedTexture(x + i * (bw + gap), y, bw, h, 0, 0, T.USize, T.VSize, T);
+		Class'RIText'.static.Tex(gc, x + i * (bw + gap), y, bw, h, 0, 0, T.USize, T.VSize, T);
 		Class'RIText'.static.Box(gc, x + i * (bw + gap), y, bw, h, Class'RIUtil'.static.Col(40 * a, 42 * a, 100 * a));
 	}
 }
@@ -1226,8 +1226,8 @@ function DrawOwnFrame(GC gc, float a)
 	}
 	pulse = 0.85 + 0.15 * Sin(Age * 2.0);
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawStretchedTexture(0, 0, width, height, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dark');
-	gc.DrawStretchedTexture(0, 0, width, height, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dark');
+	Class'RIText'.static.Tex(gc, 0, 0, width, height, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dark');
+	Class'RIText'.static.Tex(gc, 0, 0, width, height, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dark');
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(Class'RIUtil'.static.Col(6 * a, 7 * a, 26 * a));
 	Class'RIText'.static.Fill(gc, 0, 0, width, height);
@@ -1247,7 +1247,7 @@ function DrawHighlight(GC gc, float y, float a)
 	}
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(Class'RIUtil'.static.Col(34 * a, 36 * a, 106 * a));
-	gc.DrawStretchedTexture(ListX, y, ListW, RowH, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
+	Class'RIText'.static.Tex(gc, ListX, y, ListW, RowH, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
 	Class'RIText'.static.Box(gc, ListX, y, ListW, RowH, Class'RIUtil'.static.Col(104 * a, 108 * a, 200 * a));
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(Class'RIUtil'.static.Col(205 * a, 210 * a, 255 * a));
@@ -1273,7 +1273,7 @@ function DrawRow(GC gc, int i, float y, float a)
 	{
 		gc.SetStyle(DSTY_Translucent);
 		gc.SetTileColor(Class'RIUtil'.static.Col(14 * ra, 15 * ra, 44 * ra));
-		gc.DrawStretchedTexture(ListX, Class'RIText'.static.Snap(y), ListW, RowH, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
+		Class'RIText'.static.Tex(gc, ListX, Class'RIText'.static.Snap(y), ListW, RowH, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
 	}
 
 	if (RowOn[i] == 0)
@@ -1332,7 +1332,7 @@ function DrawRow(GC gc, int i, float y, float a)
 			Class'RIText'.static.Snap(sw * f), 1.0);
 		kx = Class'RIText'.static.Snap(sx + sw * f - 1.0);
 		gc.SetTileColor(LabelC);
-		gc.DrawStretchedTexture(kx, Class'RIText'.static.Snap(y + RowH * 0.5 - 6 * UIS), 2.0, Class'RIText'.static.Snap(12 * UIS),
+		Class'RIText'.static.Tex(gc, kx, Class'RIText'.static.Snap(y + RowH * 0.5 - 6 * UIS), 2.0, Class'RIText'.static.Snap(12 * UIS),
 			0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_White');
 		Class'RIText'.static.DrawIn(gc, Class'RIFontBody', vr - 90 * UIS, y, 90 * UIS, RowH, V, ValueC, 2, 0.95);
 	}
@@ -1520,7 +1520,7 @@ function DrawButtons(GC gc, float a)
 		}
 		gc.SetStyle(DSTY_Translucent);
 		gc.SetTileColor(Fill);
-		gc.DrawStretchedTexture(BtnX[b], BtnY[b], BtnW[b], BtnH[b], 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
+		Class'RIText'.static.Tex(gc, BtnX[b], BtnY[b], BtnW[b], BtnH[b], 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
 		Class'RIText'.static.Box(gc, BtnX[b], BtnY[b], BtnW[b], BtnH[b], Edge);
 		if (bLive)
 		{

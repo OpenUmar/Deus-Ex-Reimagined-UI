@@ -476,7 +476,7 @@ function AmberRow(GC gc, float X, float Y, float W, float H, float a)
 {
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(C3(70, 58, 26, a));
-	gc.DrawStretchedTexture(X, Y, W, H, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
+	Class'RIText'.static.Tex(gc, X, Y, W, H, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
 	Class'RIText'.static.Box(gc, X, Y, W, H, C3(200, 170, 96, a));
 	Class'RISkin'.static.FillC(gc, X, Y, 1.5, H, AmberHi(a));
 }
@@ -522,8 +522,8 @@ event DrawWindow(GC gc)
 
 	// Lower band: see-through, darkened towards the bottom so text reads
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawStretchedTexture(0, bandY - 120 * S, width, bandH + 120 * S, 0, 2, 8, 252, Texture'ReimaginedUI.UI.RI_FadeV');
-	gc.DrawStretchedTexture(0, bandY, width, bandH, 0, 2, 8, 252, Texture'ReimaginedUI.UI.RI_FadeV');
+	Class'RIText'.static.Tex(gc, 0, bandY - 120 * S, width, bandH + 120 * S, 0, 2, 8, 252, Texture'ReimaginedUI.UI.RI_FadeV');
+	Class'RIText'.static.Tex(gc, 0, bandY, width, bandH, 0, 2, 8, 252, Texture'ReimaginedUI.UI.RI_FadeV');
 
 
 	// Upper band: credits on the right

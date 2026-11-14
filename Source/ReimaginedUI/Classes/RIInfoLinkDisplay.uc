@@ -105,10 +105,10 @@ function DrawBackground(GC gc)
 		Class'RITheme'.static.SetMode(2);
 		// a soft shade with no edges (a rectangle showed as a box inside the frame)
 		gc.SetStyle(DSTY_Modulated);
-		gc.DrawStretchedTexture(-width * 0.08, -height * 0.25, width * 1.16, height * 1.5, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_ShadeC');
+		Class'RIText'.static.Tex(gc, -width * 0.08, -height * 0.25, width * 1.16, height * 1.5, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_ShadeC');
 		gc.SetStyle(DSTY_Translucent);
 		gc.SetTileColor(Class'RIVP'.static.Acc(1));
-		gc.DrawStretchedTexture(-20 * width / 848.0, -23 * height / 215.0, 896 * width / 848.0, 256 * height / 215.0,
+		Class'RIText'.static.Tex(gc, -20 * width / 848.0, -23 * height / 215.0, 896 * width / 848.0, 256 * height / 215.0,
 			0, 0, 896, 256, Texture'ReimaginedUI.VPlus.VPH_Info');
 		return;
 	}

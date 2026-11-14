@@ -23,9 +23,13 @@ function SaveSetting()
 	}
 }
 
+// On by default for the Vanilla+ style, off for the others
 function ResetToDefault()
 {
-	SetValue(0);
+	if (Class'RIRootWindow'.default.ScreenStyle == 1)
+		SetValue(1);
+	else
+		SetValue(0);
 }
 
 defaultproperties

@@ -28,6 +28,7 @@ var globalconfig bool bClassicScreens;
 var globalconfig bool bClassicDialogue;
 var globalconfig bool bHudSway;          // the HUD trails the view a little and bobs with walking
 var globalconfig int  HudTilt;           // 3D HUD: the side panels turned toward the eye. 0 flat, 1 tilted, 2 deep
+var globalconfig int  HudLayout;         // where the HUD's pieces sit: 0 Reimagined, 1 Vanilla (the original game's places)
 var globalconfig bool bConBars;          // keep the black letterbox bars in conversations
 var globalconfig int  SubColors;         // speaker colours in subtitles: 0 off, 1 names, 2 names and lines
 var globalconfig bool bClassicHUD;
@@ -898,8 +899,6 @@ event bool VirtualKeyPressed(EInputKey key, bool bRepeat)
 	}
 	if (((key == IK_MouseWheelUp) || (key == IK_MouseWheelDown)) && WheelBelt(key))
 		return True;
-	if (!bRepeat && BeltToggle(key))
-		return True;
 	if (IsKeyDown(IK_Ctrl) && !bRepeat)
 	{
 		if (key == IK_F10)
@@ -973,6 +972,32 @@ function bool BeltToggle(EInputKey key)
 		return False;
 	P.PutInHand(None);
 	return True;
+}
+
+// The game's ActivateBelt (number keys) lands here. The slot's item already
+// in hand (or on its way up) is put away, as modern shooters do: 1 draws
+// the pistol, 1 again holsters it. While it is being put away, the key
+// draws it again. (Done here, not on the key press: the game ran its own
+// ActivateBelt after the press and drew the item straight back.)
+function bool ActivateObjectInBelt(int pos)
+{
+	local DeusExPlayer P;
+	local Inventory Item, Cur;
+
+	P = DeusExPlayer(parentPawn);
+	if ((P != None) && (hud != None) && (hud.belt != None))
+	{
+		Item = hud.belt.GetObjectFromBelt(pos);
+		Cur = P.inHandPending;
+		if ((Cur == None) && (P.inHand != None) && !P.inHand.IsInState('DownWeapon') && !P.inHand.IsInState('DownItem'))
+			Cur = P.inHand;
+		if ((Item != None) && (Item == Cur) && !Item.IsA('Ammo'))
+		{
+			P.PutInHand(None);
+			return True;
+		}
+	}
+	return Super.ActivateObjectInBelt(pos);
 }
 
 function bool WheelBelt(EInputKey key)

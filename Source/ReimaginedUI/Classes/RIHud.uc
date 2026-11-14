@@ -39,6 +39,7 @@ var localized string VitalsTitle;
 var float SwayX, SwayY, BobT, BobAmt, RateX, RateY, SwayVX, SwayVY, DispX, DispY;
 var int   LastYaw, LastPitch;
 var bool  bSwayInit;
+var float BeltDX, WeapDX;    // Vanilla layout: how far the Vanilla+ belt and weapon box art move from their Reimagined places
 var bool  bSleekFig;    // Sleek: the figure in its gold palette   // Modern: the body monitor frame's tab
 
 event InitWindow()
@@ -326,10 +327,15 @@ function DrawAugBar(GC gc)
 	DrawBarSide(gc, D.winItemsContainer);
 }
 
-// Whether the aug bar is drawn tilted (Settings > Interface > HUD Depth)
+// Whether the HUD draws the whole aug bar itself (frames, icons, charge
+// bars), flat or tilted: always, while the plugin draws. The game's own
+// icons were drawn by the engine (whole UI units, two pixels at 1080p) over
+// the plugin's frames (whole pixels), so with HUD motion they stepped
+// differently from their own boxes. With the plugin's drawing off
+// (Ctrl+F10, Ctrl+F8) the game draws its icons again.
 function bool AugBarTilts()
 {
-	return (Class'RIRootWindow'.static.HudTiltDeg() > 0) && Class'RIText'.static.Can3D();
+	return Class'RIText'.static.Can3D();
 }
 
 // One of the bar's columns, turned toward the eye like the other side
@@ -642,7 +648,7 @@ event DrawWindow(GC gc)
 // tilted toward the eye. Side -1 left half, +1 right half; End3D after each.
 function Begin3D(GC gc, int Side)
 {
-	Class'RIText'.static.Begin3D(Self, gc, Side, Class'RIRootWindow'.static.HudTiltDeg());
+	Class'RIText'.static.Begin3D(Self, gc, Side, Class'RIRootWindow'.static.HudTiltDeg(), Self);
 }
 
 function End3D()
@@ -684,12 +690,22 @@ function DrawHud(GC gc)
 		End3D();
 	}
 	if (Player.bCompassVisible)
+	{
+		if (VanillaLayout())
+			Begin3D(gc, -1);
 		DrawCompass(gc);
+		End3D();
+	}
 	if (Player.bObjectBeltVisible)
+	{
+		if (VanillaLayout())
+			Begin3D(gc, 1);
 		DrawBelt(gc);
+		End3D();
+	}
 	if (Player.bAmmoDisplayVisible)
 	{
-		Begin3D(gc, 1);
+		Begin3D(gc, WeaponSide());
 		DrawWeapon(gc);
 		End3D();
 	}
@@ -876,6 +892,7 @@ function string StanceText()
 function DrawCompass(GC gc)
 {
 	local float cx, y, w, h, heading, d, x, a, span;
+	local float CmpS, CmpY, CmpH, CmpT;
 	local int i;
 	local DeusExLevelInfo Info;
 	local string L;
@@ -892,7 +909,25 @@ function DrawCompass(GC gc)
 	h = 40 * S;
 	cx = width * 0.5;
 	y = 24 * S;
-	span = 70;        // degrees either side of the centre
+	span = 70;
+	CmpS = 1.0;            // label size
+	CmpY = 4 * S;          // labels' top, from y
+	CmpH = 26 * S;         // labels' height
+	CmpT = 8 * S;          // tick length
+	// Vanilla layout: a compact strip under the body monitor, as the
+	// original had it
+	if (VanillaLayout())
+	{
+		w = 140 * S;
+		h = 20 * S;
+		cx = 30 * S + w * 0.5;
+		y = VCompassTop() * S;
+		span = 50;
+		CmpS = 0.62;
+		CmpY = 0;
+		CmpH = 16 * S;
+		CmpT = 4 * S;
+	}        // degrees either side of the centre
 
 	if (Class'RIVP'.static.On())
 	{
@@ -922,12 +957,12 @@ function DrawCompass(GC gc)
 		{
 			L = CompassNames[i / 3];
 			if (Abs(d) < 8)
-				Class'RIText'.static.DrawIn(gc, Class'RIFontHead', x - 30 * S, y + 4 * S, 60 * S, 26 * S, L, CA(255, 241, 194, a), 1, 0.56);
+				Class'RIText'.static.DrawIn(gc, Class'RIFontHead', x - 30 * S, y + CmpY, 60 * S, CmpH, L, CA(255, 241, 194, a), 1, 0.56 * CmpS);
 			else
-				Class'RIText'.static.DrawIn(gc, Class'RIFontHead', x - 30 * S, y + 4 * S, 60 * S, 26 * S, L, CA(184, 154, 87, a), 1, 0.5);
+				Class'RIText'.static.DrawIn(gc, Class'RIFontHead', x - 30 * S, y + CmpY, 60 * S, CmpH, L, CA(184, 154, 87, a), 1, 0.5 * CmpS);
 		}
 		else
-			Fill(gc, x, y + h - 12 * S, 1, 8 * S, CA(126, 105, 50, a));
+			Fill(gc, x, y + h - CmpT - 4 * S, 1, CmpT, CA(126, 105, 50, a));
 	}
 	// Centre mark
 	Fill(gc, cx - 1 * S, y - 2 * S, 2 * S, 7 * S, C3(242, 211, 107));
@@ -1082,7 +1117,7 @@ function DrawBelt(GC gc)
 	sw = 74 * S;
 	sh = 68 * S;
 	gap = 6 * S;
-	x0 = width * 0.5 - (cnt * sw + (cnt - 1) * gap) * 0.5;
+	x0 = BeltLeft(cnt * sw + (cnt - 1) * gap, 36 * S);
 	y = height - 30 * S - sh;
 	if (Class'RIVP'.static.On())
 		Class'RIVP'.static.Panel(gc, x0 - 14 * S, y - 12 * S, cnt * (sw + gap) - gap + 28 * S, sh + 24 * S, 12 * S, 1);
@@ -1185,7 +1220,7 @@ function DrawSleekBelt(GC gc)
 	sw = 72 * S;
 	sh = 58 * S;
 	gap = 8 * S;
-	x0 = width * 0.5 - (cnt * sw + (cnt - 1) * gap) * 0.5;
+	x0 = BeltLeft(cnt * sw + (cnt - 1) * gap, 36 * S);
 	y = height - 34 * S - sh;
 	Shade(gc, x0 - 180 * S, y - 80 * S, cnt * (sw + gap) + 360 * S, sh + 150 * S);
 	Cur = Player.inHandPending;
@@ -1290,7 +1325,7 @@ function DrawModernBelt(GC gc)
 	sw = 80 * S;
 	sh = 92 * S;
 	gap = 7 * S;
-	x0 = width * 0.5 - (cnt * sw + (cnt - 1) * gap) * 0.5;
+	x0 = BeltLeft(cnt * sw + (cnt - 1) * gap, 36 * S);
 	y = height - 40 * S - sh;
 	Cur = Player.inHandPending;
 	if (Cur == None)
@@ -1425,7 +1460,10 @@ function DrawModernWeapon(GC gc, Inventory Inv, DeusExWeapon W, string Big, bool
 
 	FW = 420 * S;
 	FH = 150 * S;
-	FX = width - 24 * S - FW;
+	if (VanillaLayout())
+		FX = 24 * S;
+	else
+		FX = width - 24 * S - FW;
 	FY = height - 24 * S - FH;
 	N = Inv.beltDescription;
 	if (N == "")
@@ -1529,6 +1567,8 @@ function DrawWeapon(GC gc)
 	local DeusExWeapon W;
 	local DeusExPickup P;
 	local float RX, y, k, px, pw, BigW, ResW, NumY, TagsW, IconX, fy;
+	local float NR, WLeft;
+	local bool bLeftW;
 	local int clip, i, pips, Reserve, Carried;
 	local bool bReload, bLow, bMulti, bMag, bNoAmmo;
 	local string Big, ResT, N, AmmoT;
@@ -1578,8 +1618,16 @@ function DrawWeapon(GC gc)
 	}
 	RX = width - 40 * S;
 	y = height - 30 * S;
+	// Vanilla layout: bottom left, every row starting from the left edge
+	bLeftW = VanillaLayout();
+	WLeft = 40 * S;
 	if (Class'RIVP'.static.On())
-		Class'RIVP'.static.Panel(gc, width - 340 * S, height - 190 * S, 318 * S, 172 * S, 10 * S, 1);
+	{
+		if (bLeftW)
+			Class'RIVP'.static.Panel(gc, 22 * S, height - 190 * S, 318 * S, 172 * S, 10 * S, 1);
+		else
+			Class'RIVP'.static.Panel(gc, width - 340 * S, height - 190 * S, 318 * S, 172 * S, 10 * S, 1);
+	}
 	else if (Class'RIModern'.static.On())
 	{
 		// sized to the readout: name row on top, tags and pips when shown
@@ -1588,8 +1636,13 @@ function DrawWeapon(GC gc)
 			fy -= 14 * S;
 		if (bMulti && !bReload)
 			fy -= 20 * S;
-		Class'RIModern'.static.Frame(gc, width - 408 * S, fy, 384 * S, height - 24 * S - fy, S, 1);
+		if (bLeftW)
+			Class'RIModern'.static.Frame(gc, 24 * S, fy, 384 * S, height - 24 * S - fy, S, 1);
+		else
+			Class'RIModern'.static.Frame(gc, width - 408 * S, fy, 384 * S, height - 24 * S - fy, S, 1);
 	}
+	else if (bLeftW)
+		Shade(gc, -140 * S, height - 260 * S, 760 * S, 330 * S);
 	else
 		Shade(gc, width - 620 * S, height - 260 * S, 760 * S, 330 * S);
 
@@ -1606,7 +1659,10 @@ function DrawWeapon(GC gc)
 	y -= 20 * S;
 	if (TagsW > 0)
 	{
-		px = RX - TagsW + 6 * S;
+		if (bLeftW)
+			px = WLeft;
+		else
+			px = RX - TagsW + 6 * S;
 		if (AmmoT != "")
 			px = Tag(gc, px, y, AmmoT, False);
 		if (W.bHasScope)
@@ -1624,7 +1680,10 @@ function DrawWeapon(GC gc)
 		pips = W.ReloadCount;
 		pw = FMin(9 * S, (440 * S - (pips - 1) * 2 * S) / pips);
 		y -= 10 * S;
-		px = RX - (pips * (pw + 2 * S) - 2 * S);
+		if (bLeftW)
+			px = WLeft;
+		else
+			px = RX - (pips * (pw + 2 * S) - 2 * S);
 		for (i = 0; i < pips; i++)
 		{
 			if (i < clip)
@@ -1638,6 +1697,25 @@ function DrawWeapon(GC gc)
 
 	// Numbers: magazine large, reserve beside it
 	NumY = y - 58 * S;
+	// the numbers row's right edge: the readout's right edge, or (Vanilla
+	// layout) wherever the row ends when it starts at the left edge
+	NR = RX;
+	if (bLeftW)
+	{
+		ResW = 0;
+		if (bMag)
+			ResW = Class'RIText'.static.Width(Class'RIFontHead', "/ " $ string(Reserve), 0.8) + 12 * S;
+		BigW = 0;
+		if (bReload)
+			BigW = Class'RIText'.static.Width(Class'RIFontHead', Caps(ReloadLabel), 0.6);
+		else if (bNoAmmo)
+			BigW = Class'RIText'.static.Width(Class'RIFontTitle', "--", 1.0);
+		else if (Big != "")
+			BigW = Class'RIText'.static.Width(Class'RIFontTitle', Big, 1.0);
+		NR = WLeft + ResW + BigW;
+		if (Inv.icon != None)
+			NR += 24 * S + 42 * FMin(2.0, 64 * S / 37.0);
+	}
 	ResW = 0;
 	if (bMag)
 	{
@@ -1647,19 +1725,19 @@ function DrawWeapon(GC gc)
 			ResC = C3(255, 120, 90);
 		else
 			ResC = C3(230, 195, 117);
-		Class'RIText'.static.Draw(gc, Class'RIFontHead', RX - ResW, NumY + 22 * S, ResT, ResC, 0.8);
+		Class'RIText'.static.Draw(gc, Class'RIFontHead', NR - ResW, NumY + 22 * S, ResT, ResC, 0.8);
 		ResW += 12 * S;
 	}
 	BigW = 0;
 	if (bReload)
 	{
 		BigW = Class'RIText'.static.Width(Class'RIFontHead', Caps(ReloadLabel), 0.6);
-		Class'RIText'.static.Draw(gc, Class'RIFontHead', RX - ResW - BigW, NumY + 26 * S, Caps(ReloadLabel), C3(242, 211, 107), 0.6);
+		Class'RIText'.static.Draw(gc, Class'RIFontHead', NR - ResW - BigW, NumY + 26 * S, Caps(ReloadLabel), C3(242, 211, 107), 0.6);
 	}
 	else if (bNoAmmo)
 	{
 		BigW = Class'RIText'.static.Width(Class'RIFontTitle', "--", 1.0);
-		Class'RIText'.static.Draw(gc, Class'RIFontTitle', RX - BigW, NumY, "--", C3(168, 143, 78), 1.0);
+		Class'RIText'.static.Draw(gc, Class'RIFontTitle', NR - BigW, NumY, "--", C3(168, 143, 78), 1.0);
 	}
 	else if (Big != "")
 	{
@@ -1668,14 +1746,14 @@ function DrawWeapon(GC gc)
 		else
 			BigC = C3(255, 241, 194);
 		BigW = Class'RIText'.static.Width(Class'RIFontTitle', Big, 1.0);
-		Class'RIText'.static.Draw(gc, Class'RIFontTitle', RX - ResW - BigW, NumY, Big, BigC, 1.0);
+		Class'RIText'.static.Draw(gc, Class'RIFontTitle', NR - ResW - BigW, NumY, Big, BigC, 1.0);
 	}
 
 	// Icon, left of the numbers
 	if (Inv.icon != None)
 	{
 		k = FMin(2.0, 64 * S / 37.0);
-		IconX = RX - ResW - BigW - 24 * S - 42 * k;
+		IconX = NR - ResW - BigW - 24 * S - 42 * k;
 		gc.SetStyle(DSTY_Masked);
 		gc.SetTileColor(C3(255, 255, 255));
 		Class'RIHD'.static.DrawExact(gc, IconX, NumY + 4 * S, 42 * k, 37 * k, 0, 0, 42, 37, Inv.icon);
@@ -1688,7 +1766,10 @@ function DrawWeapon(GC gc)
 	N = Caps(N);
 	if (Inv.bInObjectBelt && (Inv.beltPos >= 0) && (Inv.beltPos < 12))
 		N = N $ "   " $ Mid("0123456789-=", Inv.beltPos, 1);
-	Class'RIText'.static.DrawIn(gc, Class'RIFontHead', RX - 460 * S, NumY - 30 * S, 460 * S, 24 * S, N, C3(230, 195, 117), 2, 0.5);
+	if (bLeftW)
+		Class'RIText'.static.DrawIn(gc, Class'RIFontHead', WLeft, NumY - 30 * S, 460 * S, 24 * S, N, C3(230, 195, 117), 0, 0.5);
+	else
+		Class'RIText'.static.DrawIn(gc, Class'RIFontHead', RX - 460 * S, NumY - 30 * S, 460 * S, 24 * S, N, C3(230, 195, 117), 2, 0.5);
 }
 
 function float TagW(string L)
@@ -1736,6 +1817,10 @@ function DrawReceived(GC gc)
 	// still sits at 0,0 and the box landed in the top-left corner.
 	LeftX = 36 * S;
 	y = 390 * S;
+	// Vanilla layout: the left column under the compass (where the log
+	// starts), clear of the view and of transmissions along the top
+	if (VanillaLayout())
+		y = (VCompassTop() + 92) * S;
 	if ((L != None) && L.IsVisible())
 	{
 		LeftX = L.x + 8 * S;
@@ -1828,6 +1913,51 @@ function float BY(float Y) { return height - (1080 - Y) * S; }      // kept at t
 function float MY(float Y) { return height * 0.5 + (Y - 540) * S; }  // kept at mid-height
 function float CX(float X) { return (width - 1920 * S) * 0.5 + X * S; }
 function float RX(float X) { return width - (1920 - X) * S; }
+function float BeltCX(float X) { return CX(X) + BeltDX; }    // the Vanilla+ belt art (moved in the Vanilla layout)
+function float WeapRX(float X) { return RX(X) + WeapDX; }    // the Vanilla+ weapon box art (moved in the Vanilla layout)
+
+// ----------------------------------------------------------------------
+// HUD layout (Settings > Interface > HUD Layout). Reimagined: compass top
+// centre, belt bottom centre, weapon readout bottom right. Vanilla: the
+// original game's places: the compass under the body monitor, messages and
+// transmissions along the top beside it, the weapon readout bottom left and
+// the belt bottom right (the aug bar is already down the right edge, as in
+// the original). Every style keeps its own pieces and features; only where
+// they sit changes.
+// ----------------------------------------------------------------------
+
+static function bool VanillaLayout()
+{
+	return Class'RIRootWindow'.default.HudLayout == 1;
+}
+
+// Vanilla layout: the top of the compass strip (design units), just under
+// each style's body monitor
+static function float VCompassTop()
+{
+	if (Class'RIVP'.static.On())
+		return 248;
+	if (Class'RIModern'.static.On())
+		return 186;
+	return 242;
+}
+
+// The weapon readout's side, for the 3D HUD's tilt
+function int WeaponSide()
+{
+	if (VanillaLayout())
+		return -1;
+	return 1;
+}
+
+// The belt's left edge: centred, or (Vanilla layout) ending RightM in from
+// the right edge
+function float BeltLeft(float TotalW, float RightM)
+{
+	if (VanillaLayout())
+		return width - RightM - TotalW;
+	return (width - TotalW) * 0.5;
+}
 
 // The world darkened behind a HUD panel: a soft shade, darkest in the middle
 // and fading out on every side, kept inside the panel's width (it must never
@@ -1854,12 +1984,22 @@ function DrawVP(GC gc)
 		End3D();
 	}
 	if (Player.bCompassVisible)
+	{
+		if (VanillaLayout())
+			Begin3D(gc, -1);
 		DrawCompass(gc);
+		End3D();
+	}
 	if (Player.bObjectBeltVisible)
+	{
+		if (VanillaLayout())
+			Begin3D(gc, 1);
 		DrawVPBelt(gc);
+		End3D();
+	}
 	if (Player.bAmmoDisplayVisible)
 	{
-		Begin3D(gc, 1);
+		Begin3D(gc, WeaponSide());
 		DrawVPWeapon(gc);
 		End3D();
 	}
@@ -2141,6 +2281,15 @@ function DrawVPBeltIn(GC gc)
 	H = Hud();
 	if ((H == None) || (H.belt == None))
 		return;
+	// Vanilla layout: the whole board moved to end at the right edge
+	BeltDX = 0;
+	if (VanillaLayout())
+	{
+		if (Class'RIUtil'.static.PBool(Player, "bBiggerBelt"))
+			BeltDX = width - 24 * S - CX(1626);
+		else
+			BeltDX = width - 24 * S - CX(1520);
+	}
 	// the art's slots: 85.5 wide, 102 apart, 888..986 (names under 964).
 	// The 12-slot belt has its own art, two slots wider, still centred.
 	if (Class'RIUtil'.static.PBool(Player, "bBiggerBelt"))
@@ -2151,10 +2300,10 @@ function DrawVPBeltIn(GC gc)
 		// the right end (its gold bar sits outside the frame): skip it and use
 		// the right end's cap, mirrored into its own texture (VPH_Belt12_L;
 		// the slots are centred on 944.25)
-		Art(gc, CX(338), BY(856), 400 * S, 176 * S, 44, 0, 400, 176, Texture'ReimaginedUI.VPlus.VPH_Belt12_0');
-		Art(gc, CX(306.5), BY(856), 31 * S, 176 * S, 0, 0, 31, 176, Texture'ReimaginedUI.VPlus.VPH_Belt12_L');
-		Art(gc, CX(738), BY(856), 444 * S, 176 * S, 0, 0, 444, 176, Texture'ReimaginedUI.VPlus.VPH_Belt12_1');
-		Art(gc, CX(1182), BY(856), 444 * S, 176 * S, 0, 0, 444, 176, Texture'ReimaginedUI.VPlus.VPH_Belt12_2');
+		Art(gc, BeltCX(338), BY(856), 400 * S, 176 * S, 44, 0, 400, 176, Texture'ReimaginedUI.VPlus.VPH_Belt12_0');
+		Art(gc, BeltCX(306.5), BY(856), 31 * S, 176 * S, 0, 0, 31, 176, Texture'ReimaginedUI.VPlus.VPH_Belt12_L');
+		Art(gc, BeltCX(738), BY(856), 444 * S, 176 * S, 0, 0, 444, 176, Texture'ReimaginedUI.VPlus.VPH_Belt12_1');
+		Art(gc, BeltCX(1182), BY(856), 444 * S, 176 * S, 0, 0, 444, 176, Texture'ReimaginedUI.VPlus.VPH_Belt12_2');
 	}
 	else
 	{
@@ -2164,8 +2313,8 @@ function DrawVPBeltIn(GC gc)
 		// (design x 940). The old three pieces met at 768, inside slot 4,
 		// and the join showed as a line through it. The left end is the right
 		// end's cap mirrored (the art's own left end didn't match).
-		Art(gc, CX(372), BY(856), 568 * S, 176 * S, 0, 0, 568, 176, Texture'ReimaginedUI.VPlus.VPH_BeltA');
-		Art(gc, CX(940), BY(856), 580 * S, 176 * S, 0, 0, 580, 176, Texture'ReimaginedUI.VPlus.VPH_BeltB');
+		Art(gc, BeltCX(372), BY(856), 568 * S, 176 * S, 0, 0, 568, 176, Texture'ReimaginedUI.VPlus.VPH_BeltA');
+		Art(gc, BeltCX(940), BY(856), 580 * S, 176 * S, 0, 0, 580, 176, Texture'ReimaginedUI.VPlus.VPH_BeltB');
 	}
 	pitch = 102;
 	sw = 85.5 * S;
@@ -2176,7 +2325,7 @@ function DrawVPBeltIn(GC gc)
 		Cur = Player.inHand;
 	for (n = 0; n < cnt; n++)
 	{
-		x = CX(x0 + Class'RIUtil'.static.BeltPos(n) * pitch);
+		x = BeltCX(x0 + Class'RIUtil'.static.BeltPos(n) * pitch);
 		I = H.belt.GetObjectFromBelt(n);
 		bSel = (I != None) && (I == Cur);
 		if (bSel)
@@ -2275,8 +2424,12 @@ function DrawVPWeapon(GC gc)
 	else if ((P != None) && (P.NumCopies > 0))
 		Big = string(P.NumCopies);
 
-	VDim(gc, RX(1673), BY(837), 162 * S, 108 * S);
-	Art(gc, RX(1632), BY(796), 256 * S, 192 * S, 0, 0, 256, 192, Texture'ReimaginedUI.VPlus.VPH_Weapon');
+	// Vanilla layout: the box at the bottom left
+	WeapDX = 0;
+	if (VanillaLayout())
+		WeapDX = 24 * S - RX(1632);
+	VDim(gc, WeapRX(1673), BY(837), 162 * S, 108 * S);
+	Art(gc, WeapRX(1632), BY(796), 256 * S, 192 * S, 0, 0, 256, 192, Texture'ReimaginedUI.VPlus.VPH_Weapon');
 
 	N = Inv.beltDescription;
 	if (N == "")
@@ -2284,14 +2437,14 @@ function DrawVPWeapon(GC gc)
 	N = Caps(N);
 	if (Inv.bInObjectBelt && (Inv.beltPos >= 0) && (Inv.beltPos < 12))
 		N = N $ "  " $ Mid("0123456789-=", Inv.beltPos, 1);
-	Class'RIText'.static.DrawIn(gc, Class'RIFontHead', RX(1600), BY(808), 234 * S, 22 * S,
+	Class'RIText'.static.DrawIn(gc, Class'RIFontHead', WeapRX(1600), BY(808), 234 * S, 22 * S,
 		Class'RIText'.static.Fit(Class'RIFontHead', N, 234 * S, 0.42), C3(255, 241, 194), 2, 0.42);
 
 	// main box (1689, 848, 86 x 76)
 	if (bReload)
-		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', RX(1689), BY(848), 86 * S, 76 * S, Caps(ReloadLabel), C3(242, 211, 107), 1, 0.46);
+		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', WeapRX(1689), BY(848), 86 * S, 76 * S, Caps(ReloadLabel), C3(242, 211, 107), 1, 0.46);
 	else if (bNoAmmo)
-		Class'RIText'.static.DrawIn(gc, Class'RIFontTitle', RX(1689), BY(848), 86 * S, 76 * S, "--", C3(168, 143, 78), 1, 0.7);
+		Class'RIText'.static.DrawIn(gc, Class'RIFontTitle', WeapRX(1689), BY(848), 86 * S, 76 * S, "--", C3(168, 143, 78), 1, 0.7);
 	else if (Big != "")
 	{
 		if (bLow)
@@ -2300,27 +2453,27 @@ function DrawVPWeapon(GC gc)
 			BigC = C3(255, 241, 194);
 		if (Sub != "")
 		{
-			Class'RIText'.static.DrawIn(gc, Class'RIFontTitle', RX(1689), BY(850), 86 * S, 48 * S, Big, BigC, 1, 0.72);
+			Class'RIText'.static.DrawIn(gc, Class'RIFontTitle', WeapRX(1689), BY(850), 86 * S, 48 * S, Big, BigC, 1, 0.72);
 			if (Reserve == 0)
-				Class'RIText'.static.DrawIn(gc, Class'RIFontHead', RX(1689), BY(898), 86 * S, 22 * S, Sub, C3(255, 120, 90), 1, 0.46);
+				Class'RIText'.static.DrawIn(gc, Class'RIFontHead', WeapRX(1689), BY(898), 86 * S, 22 * S, Sub, C3(255, 120, 90), 1, 0.46);
 			else
-				Class'RIText'.static.DrawIn(gc, Class'RIFontHead', RX(1689), BY(898), 86 * S, 22 * S, Sub, C3(230, 195, 117), 1, 0.46);
+				Class'RIText'.static.DrawIn(gc, Class'RIFontHead', WeapRX(1689), BY(898), 86 * S, 22 * S, Sub, C3(230, 195, 117), 1, 0.46);
 		}
 		else
-			Class'RIText'.static.DrawIn(gc, Class'RIFontTitle', RX(1689), BY(848), 86 * S, 76 * S, Big, BigC, 1, 0.72);
+			Class'RIText'.static.DrawIn(gc, Class'RIFontTitle', WeapRX(1689), BY(848), 86 * S, 76 * S, Big, BigC, 1, 0.72);
 	}
 
 	// small boxes (1779, 865 / 888, 40 x 19)
 	if (AmmoT != "")
-		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', RX(1779), BY(865), 40 * S, 19 * S,
+		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', WeapRX(1779), BY(865), 40 * S, 19 * S,
 			Caps(Class'RIText'.static.Fit(Class'RIFontSmall', AmmoT, 38 * S, 0.34)), C3(230, 195, 117), 1, 0.34);
 	if (ModT != "")
 	{
 		if (bModLit)
-			Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', RX(1779), BY(888), 40 * S, 19 * S,
+			Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', WeapRX(1779), BY(888), 40 * S, 19 * S,
 				Caps(Class'RIText'.static.Fit(Class'RIFontSmall', ModT, 38 * S, 0.34)), C3(255, 241, 194), 1, 0.34);
 		else
-			Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', RX(1779), BY(888), 40 * S, 19 * S,
+			Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', WeapRX(1779), BY(888), 40 * S, 19 * S,
 				Caps(Class'RIText'.static.Fit(Class'RIFontSmall', ModT, 38 * S, 0.34)), C3(168, 143, 78), 1, 0.34);
 	}
 }

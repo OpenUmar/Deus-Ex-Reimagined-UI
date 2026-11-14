@@ -160,7 +160,11 @@ static final function bool Can3D()
 	return (default.Native3D == 1) && !default.bAtlasText;
 }
 
-static function bool Begin3D(Window W, GC gc, int Side, float Yaw)
+// Frame is the window the hinge (its edge) and the eye (its centre) belong
+// to: the screen by default. The HUD passes its own moving layer, so with HUD
+// motion the tilted panels move as one rigid piece instead of changing shape
+// (and shimmering) as the layer slides past a fixed eye.
+static function bool Begin3D(Window W, GC gc, int Side, float Yaw, optional Window Frame)
 {
 	local Window R;
 	local float hx, hy, ex, ey;
@@ -168,7 +172,9 @@ static function bool Begin3D(Window W, GC gc, int Side, float Yaw)
 	End3D();
 	if ((W == None) || (gc == None) || (Side == 0) || (Yaw <= 0) || !Can3D())
 		return False;
-	R = W.GetRootWindow();
+	R = Frame;
+	if (R == None)
+		R = W.GetRootWindow();
 	if ((R == None) || (R.width <= 0) || (R.height <= 0))
 		return False;
 	// the hinge (a screen edge) and the eye (screen centre), in W's coordinates
@@ -191,40 +197,63 @@ static function End3D()
 	default.b3D = False;
 }
 
-// gc.DrawStretchedTexture, tilted while a 3D panel is open
+// ----------------------------------------------------------------------
+// One drawing path for the whole UI. Every texture, fill, line and glyph
+// goes through RINative and lands on whole SCREEN pixels (tilted when a 3D
+// panel is open). The engine's own calls (gc.DrawStretchedTexture,
+// DrawTexture, DrawPattern, DrawBox) round to whole UI units, two pixels at
+// 1080p: mixed with the plugin's pixels, the parts of one panel sat up to a
+// pixel apart and moved by different steps (a one-pixel HUD shift moved
+// plugin parts one pixel and engine parts zero or two), so nothing in the
+// mod calls them directly; these are the drop-ins. The engine's calls are
+// used only with the plugin's drawing switched off (Ctrl+F10, Ctrl+F8).
+// ----------------------------------------------------------------------
+
+// gc.DrawStretchedTexture
 static function Tex(GC gc, float X, float Y, float W, float H, float U, float V, float UL, float VL, Texture T)
 {
-	if (default.b3D)
-	{
-		if ((T != None) && (W > 0) && (H > 0))
-			Class'RINative'.static.RINativeDrawTile(gc, T, X, Y, W, H, U, V, UL, VL);
-	}
-	else
+	if (default.bAtlasText)
 		gc.DrawStretchedTexture(X, Y, W, H, U, V, UL, VL, T);
+	else if ((T != None) && (W > 0) && (H > 0))
+		Class'RINative'.static.RINativeDrawTile(gc, T, X, Y, W, H, U, V, UL, VL);
 }
 
-// gc.DrawTexture (one texel per UI unit), tilted while a 3D panel is open
+// gc.DrawTexture (one texel per UI unit)
 static function TexAt(GC gc, float X, float Y, float W, float H, float U, float V, Texture T)
 {
-	if (default.b3D)
-	{
-		if ((T != None) && (W > 0) && (H > 0))
-			Class'RINative'.static.RINativeDrawTile(gc, T, X, Y, W, H, U, V, W, H);
-	}
-	else
+	if (default.bAtlasText)
 		gc.DrawTexture(X, Y, W, H, U, V, T);
+	else if ((T != None) && (W > 0) && (H > 0))
+		Class'RINative'.static.RINativeDrawTile(gc, T, X, Y, W, H, U, V, W, H);
 }
 
-// gc.DrawPattern (the texture repeated), tilted while a 3D panel is open
+// gc.DrawPattern (the texture repeated, one texel per UI unit)
 static function Pat(GC gc, float X, float Y, float W, float H, float OX, float OY, Texture T)
 {
-	if (default.b3D)
-	{
-		if ((T != None) && (W > 0) && (H > 0))
-			Class'RINative'.static.RINativeDrawTile(gc, T, X, Y, W, H, OX, OY, W, H);
-	}
-	else
+	if (default.bAtlasText)
 		gc.DrawPattern(X, Y, W, H, OX, OY, T);
+	else if ((T != None) && (W > 0) && (H > 0))
+		Class'RINative'.static.RINativeDrawTile(gc, T, X, Y, W, H, OX, OY, W, H);
+}
+
+// gc.DrawBox: an outline Thick wide just inside X,Y,W,H
+static function BoxTex(GC gc, float X, float Y, float W, float H, float OX, float OY, float Thick, Texture T)
+{
+	if (default.bAtlasText)
+	{
+		gc.DrawBox(X, Y, W, H, OX, OY, Thick, T);
+		return;
+	}
+	if ((T == None) || (W <= 0) || (H <= 0) || (Thick <= 0))
+		return;
+	Thick = FMin(Thick, FMin(W, H) * 0.5);
+	Tex(gc, X, Y, W, Thick, 0, 0, 1, 1, T);
+	Tex(gc, X, Y + H - Thick, W, Thick, 0, 0, 1, 1, T);
+	if (H > 2 * Thick)
+	{
+		Tex(gc, X, Y + Thick, Thick, H - 2 * Thick, 0, 0, 1, 1, T);
+		Tex(gc, X + W - Thick, Y + Thick, Thick, H - 2 * Thick, 0, 0, 1, 1, T);
+	}
 }
 
 // ----------------------------------------------------------------------

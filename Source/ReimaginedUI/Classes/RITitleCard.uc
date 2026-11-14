@@ -109,7 +109,7 @@ event DrawWindow(GC gc)
 	// Solid base so the menu underneath never shows through
 	gc.SetStyle(DSTY_Normal);
 	gc.SetTileColor(Class'RIUtil'.static.Col(255 * k, 255 * k, 255 * k));
-	gc.DrawStretchedTexture(0, 0, width, height, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Navy');
+	Class'RIText'.static.Tex(gc, 0, 0, width, height, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Navy');
 	if (k < 0.999)
 		Class'RISkin'.static.DrawDim(gc, 0, 0, width, height, 1.0 - k);
 
@@ -135,13 +135,13 @@ event DrawWindow(GC gc)
 
 	// Darken the bottom (text) and the left edge (logo)
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawStretchedTexture(0, height * 0.45, width, height * 0.55, 0, 2, 8, 252, Texture'ReimaginedUI.UI.RI_FadeV');
-	gc.DrawStretchedTexture(0, height * 0.62, width, height * 0.38, 0, 2, 8, 252, Texture'ReimaginedUI.UI.RI_FadeV');
-	gc.DrawStretchedTexture(0, 0, width * 0.25, height, 2, 0, 252, 8, Texture'ReimaginedUI.UI.RI_FadeH');
+	Class'RIText'.static.Tex(gc, 0, height * 0.45, width, height * 0.55, 0, 2, 8, 252, Texture'ReimaginedUI.UI.RI_FadeV');
+	Class'RIText'.static.Tex(gc, 0, height * 0.62, width, height * 0.38, 0, 2, 8, 252, Texture'ReimaginedUI.UI.RI_FadeV');
+	Class'RIText'.static.Tex(gc, 0, 0, width * 0.25, height, 2, 0, 252, 8, Texture'ReimaginedUI.UI.RI_FadeH');
 
 	// Scanlines
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawPattern(0, 0, width, height, 0, 0, Texture'ReimaginedUI.UI.RI_Scan');
+	Class'RIText'.static.Pat(gc, 0, 0, width, height, 0, 0, Texture'ReimaginedUI.UI.RI_Scan');
 
 	// Logo, top left
 	if (Menu != None)
@@ -162,7 +162,7 @@ event DrawWindow(GC gc)
 	y += Class'RIText'.static.LineHeight(Class'RIFontTitle', 0.8) + 16 * S;
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(Class'RIUtil'.static.Col(166 * pulse, 170 * pulse, 255 * pulse));
-	gc.DrawStretchedTexture((width - 340 * S) * 0.5, y, 340 * S, 1.5, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
+	Class'RIText'.static.Tex(gc, (width - 340 * S) * 0.5, y, 340 * S, 1.5, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
 
 	// Footer
 	if (Menu != None)

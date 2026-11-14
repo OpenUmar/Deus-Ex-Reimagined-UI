@@ -69,9 +69,9 @@ event DrawWindow(GC gc)
 	}
 	gc.SetStyle(DSTY_Modulated);
 	if (bBinocs)
-		gc.DrawStretchedTexture(lx, ly, lw, lh, 0, 0, 512, 256, Texture'ReimaginedUI.UI.RI_BinocMask');
+		Class'RIText'.static.Tex(gc, lx, ly, lw, lh, 0, 0, 512, 256, Texture'ReimaginedUI.UI.RI_BinocMask');
 	else
-		gc.DrawStretchedTexture(lx, ly, lw, lh, 0, 0, 256, 256, Texture'ReimaginedUI.UI.RI_ScopeMask');
+		Class'RIText'.static.Tex(gc, lx, ly, lw, lh, 0, 0, 256, 256, Texture'ReimaginedUI.UI.RI_ScopeMask');
 
 	// --- reticle
 	r = lh * 0.5;

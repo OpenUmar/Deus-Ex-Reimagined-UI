@@ -81,9 +81,9 @@ event DrawWindow(GC gc)
 		glowW = width;
 		gc.SetTileColor(Class'RIUtil'.static.Col(34 * k + 40 * PressT, 36 * k + 40 * PressT, 104 * k + 40 * PressT));
 		if (bAlignRight)
-			gc.DrawStretchedTexture(off + width - glowW, 0, glowW, h, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
+			Class'RIText'.static.Tex(gc, off + width - glowW, 0, glowW, h, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
 		else
-			gc.DrawStretchedTexture(off, 0, glowW, h, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
+			Class'RIText'.static.Tex(gc, off, 0, glowW, h, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
 
 		Class'RIText'.static.Box(gc, off, 0, width, h, Class'RIUtil'.static.Col(120 * k, 124 * k, 210 * k));
 		gc.SetTileColor(Class'RIUtil'.static.Col(200 * k, 204 * k, 255 * k));

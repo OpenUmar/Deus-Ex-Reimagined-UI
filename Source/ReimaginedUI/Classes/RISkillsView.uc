@@ -732,21 +732,52 @@ function DrawVPActions(GC gc, float a)
 		gc.SetTileColor(C3(255, 255, 255, a));
 		Class'RIHD'.static.DrawStretched(gc, OX + 1080 * S, 768 * S, 72 * S, 72 * S, 0, 0, Sk.SkillIcon.USize, Sk.SkillIcon.VSize, Sk.SkillIcon);
 	}
+	// right of the icon: the skill and what the next level costs, then the
+	// board's own button across the box (Buy beside it for a chosen perk)
 	if (Sk != None)
 	{
+		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', OX + 1180 * S, 760 * S, 346 * S, 26 * S,
+			Caps(Class'RIText'.static.Fit(Class'RIFontSmall', Sk.SkillName, 220 * S, 0.54)), ATxt(a), 0, 0.54);
 		if (Sk.CurrentLevel >= 3)
-			DrawBtn(gc, OX + 1182 * S, 784 * S, 168 * S, 40 * S, MasteredLabel, False, False, False, a);
+		{
+			Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', OX + 1180 * S, 760 * S, 346 * S, 26 * S, Caps(MasteredLabel), AHi(a), 2, 0.54);
+			Class'RIText'.static.DrawIn(gc, Class'RIFontHead', OX + 1180 * S, 800 * S, 346 * S, 36 * S, Caps(MasteredLabel), ALbl(a), 1, 0.42);
+		}
 		else
 		{
-			DrawBtn(gc, OX + 1182 * S, 784 * S, 168 * S, 40 * S, UpgradeLabel, CanUpgrade(), HoverId == HOT_UPGRADE, CanUpgrade() && (PerkSel < 0), a);
-			AddHot(HOT_UPGRADE, OX + 1182 * S, 784 * S, 168 * S, 40 * S);
+			if (Player.SkillPointsAvail >= Sk.GetCost())
+				Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', OX + 1180 * S, 760 * S, 346 * S, 26 * S, string(Sk.GetCost()), AHi(a), 2, 0.54);
+			else
+				Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', OX + 1180 * S, 760 * S, 346 * S, 26 * S, string(Sk.GetCost()), ABad(a), 2, 0.54);
+			if ((PerkSel >= 0) && (PerkSel < NumPerks))
+				SkBtn(gc, 1178, 800, 170, UpgradeLabel, CanUpgrade(), HOT_UPGRADE, a);
+			else
+				SkBtn(gc, 1178, 800, 350, UpgradeLabel, CanUpgrade(), HOT_UPGRADE, a);
 		}
 	}
 	if ((PerkSel >= 0) && (PerkSel < NumPerks))
-	{
-		DrawBtn(gc, OX + 1362 * S, 784 * S, 168 * S, 40 * S, BuyLabel, CanBuy(PerkSel), HoverId == HOT_BUY, CanBuy(PerkSel), a);
-		AddHot(HOT_BUY, OX + 1362 * S, 784 * S, 168 * S, 40 * S);
-	}
+		SkBtn(gc, 1358, 800, 170, BuyLabel, CanBuy(PerkSel), HOT_BUY, a);
+}
+
+// One of the board's buttons (the Inventory's frame), in design pixels; the
+// label lit on hover, faint when it can't be used. Always clickable, so a
+// click without the points still flashes the points.
+function SkBtn(GC gc, float X, float Y, float W, string L, bool bLive, int Id, float a)
+{
+	local Color C;
+	local bool bHot;
+
+	bHot = bLive && (HoverId == Id);
+	if (!bLive)
+		C = C3(110, 95, 60, a);
+	else if (bHot)
+		C = AHi(a);
+	else
+		C = ATxt(a);
+	VPBtnK(gc, X, Y, W, 36, bHot, a);
+	Class'RIText'.static.DrawIn(gc, Class'RIFontHead', OX + X * S, Y * S, W * S - 10 * S, 36 * S,
+		Caps(Class'RIText'.static.Fit(Class'RIFontHead', L, W * S - 20 * S, 0.42)), C, 1, 0.42);
+	AddHot(Id, OX + X * S, Y * S, W * S, 36 * S);
 }
 
 defaultproperties

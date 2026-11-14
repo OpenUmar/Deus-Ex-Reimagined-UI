@@ -170,7 +170,7 @@ function DrawPanel(GC gc, float a, float pulse, float x0, float y0, float x1, fl
 	}
 	// Darken, then a faint navy wash
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawStretchedTexture(x0, y0, x1 - x0, y1 - y0, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dark');
+	Class'RIText'.static.Tex(gc, x0, y0, x1 - x0, y1 - y0, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dark');
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(Class'RIUtil'.static.Col(8 * a, 10 * a, 38 * a));
 	Class'RIText'.static.Fill(gc, x0, y0, x1 - x0, y1 - y0);
@@ -196,7 +196,7 @@ function DrawHighlightAndTitle(GC gc, float a, float x0, float y0, float x1)
 		HY = Class'RIText'.static.Snap(HY);
 		gc.SetStyle(DSTY_Translucent);
 		gc.SetTileColor(Class'RIUtil'.static.Col(34 * HA * a, 36 * HA * a, 104 * HA * a));
-		gc.DrawStretchedTexture(HX, HY, HW, HH, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
+		Class'RIText'.static.Tex(gc, HX, HY, HW, HH, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
 		Class'RIText'.static.Box(gc, HX, HY, HW, HH, Class'RIUtil'.static.Col(120 * HA * a, 124 * HA * a, 210 * HA * a));
 		gc.SetStyle(DSTY_Translucent);
 		gc.SetTileColor(Class'RIUtil'.static.Col(200 * HA * a, 204 * HA * a, 255 * HA * a));

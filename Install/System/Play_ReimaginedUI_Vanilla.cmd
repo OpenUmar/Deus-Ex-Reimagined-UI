@@ -21,4 +21,6 @@ set "RI_LAYERS=HKCU\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\
 reg query "%RI_LAYERS%" /v "%~dp0DeusEx.exe" 2>nul | find /i "HIGHDPIAWARE" >nul
 if errorlevel 1 reg add "%RI_LAYERS%" /v "%~dp0DeusEx.exe" /t REG_SZ /d "~ HIGHDPIAWARE" /f >nul
 
-DeusEx.exe INI="..\Mods\ReimaginedUI\System\Vanilla\DeusEx.ini" -log ABSLOG="%~dp0..\Mods\ReimaginedUI\System\Vanilla\ReimaginedUI.log" %*
+rem Started on its own, so this window closes as soon as the game is up
+start "" "%~dp0DeusEx.exe" INI="..\Mods\ReimaginedUI\System\Vanilla\DeusEx.ini" -log ABSLOG="%~dp0..\Mods\ReimaginedUI\System\Vanilla\ReimaginedUI.log" %*
+exit

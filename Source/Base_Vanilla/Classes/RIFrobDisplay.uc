@@ -356,6 +356,13 @@ function DrawVanilla(GC gc, Actor Target)
 
 	// the original's box and corner rules
 	FindBox(Target);
+	// on whole UI units: the engine rounds each line on its own, so at
+	// fractional positions the brackets and the tag's two outlines came out
+	// uneven (doubled on one side, gapped on the other)
+	FbL = int(FbL + 0.5);
+	FbT = int(FbT + 0.5);
+	FbR = int(FbR + 0.5);
+	FbB = int(FbB + 0.5);
 	boxW = FbR - FbL;
 	boxH = FbB - FbT;
 	corner = FClamp((boxW + boxH) * 0.1, 4.0, 40.0);
@@ -366,14 +373,14 @@ function DrawVanilla(GC gc, Actor Target)
 	gc.SetTileColorRGB(0, 0, 0);
 	for (i = 1; i >= 0; i--)
 	{
-		gc.DrawBox(FbL + i + offset, FbT + i + offset, corner, 1, 0, 0, 1, Texture'Solid');
-		gc.DrawBox(FbL + i + offset, FbT + i + offset, 1, corner, 0, 0, 1, Texture'Solid');
-		gc.DrawBox(FbR + i - corner - offset, FbT + i + offset, corner, 1, 0, 0, 1, Texture'Solid');
-		gc.DrawBox(FbR + i - offset, FbT + i + offset, 1, corner, 0, 0, 1, Texture'Solid');
-		gc.DrawBox(FbL + i + offset, FbB + i - offset, corner, 1, 0, 0, 1, Texture'Solid');
-		gc.DrawBox(FbL + i + offset, FbB + i - corner - offset, 1, corner, 0, 0, 1, Texture'Solid');
-		gc.DrawBox(FbR + i - corner + 1 - offset, FbB + i - offset, corner, 1, 0, 0, 1, Texture'Solid');
-		gc.DrawBox(FbR + i - offset, FbB + i - corner - offset, 1, corner, 0, 0, 1, Texture'Solid');
+		Class'RIText'.static.BoxTex(gc, FbL + i + offset, FbT + i + offset, corner, 1, 0, 0, 1, Texture'Solid');
+		Class'RIText'.static.BoxTex(gc, FbL + i + offset, FbT + i + offset, 1, corner, 0, 0, 1, Texture'Solid');
+		Class'RIText'.static.BoxTex(gc, FbR + i - corner - offset, FbT + i + offset, corner, 1, 0, 0, 1, Texture'Solid');
+		Class'RIText'.static.BoxTex(gc, FbR + i - offset, FbT + i + offset, 1, corner, 0, 0, 1, Texture'Solid');
+		Class'RIText'.static.BoxTex(gc, FbL + i + offset, FbB + i - offset, corner, 1, 0, 0, 1, Texture'Solid');
+		Class'RIText'.static.BoxTex(gc, FbL + i + offset, FbB + i - corner - offset, 1, corner, 0, 0, 1, Texture'Solid');
+		Class'RIText'.static.BoxTex(gc, FbR + i - corner + 1 - offset, FbB + i - offset, corner, 1, 0, 0, 1, Texture'Solid');
+		Class'RIText'.static.BoxTex(gc, FbR + i - offset, FbB + i - corner - offset, 1, corner, 0, 0, 1, Texture'Solid');
 		gc.SetTileColor(colText);
 	}
 
@@ -466,23 +473,27 @@ function DrawVanilla(GC gc, Actor Target)
 	infoH = n * lh + 6;      // 4 above the first line, 4 below the last (lh has a 2 gap)
 	infoX = FClamp(FbL + 10, infoW / 2 + 10, width - 10 - infoW / 2);
 	infoY = FClamp(FbT + 10, infoH / 2 + 10, height - 10 - infoH / 2);
+	infoX = int(infoX + 0.5);
+	infoY = int(infoY + 0.5);
+	infoW = int(infoW + 0.99);
+	infoH = int(infoH + 0.99);
 
 	// dark background
 	gc.SetStyle(DSTY_Modulated);
 	gc.SetTileColorRGB(0, 0, 0);
-	gc.DrawPattern(infoX, infoY, infoW, infoH, 0, 0, Texture'ConWindowBackground');
+	Class'RIText'.static.Pat(gc, infoX, infoY, infoW, infoH, 0, 0, Texture'ConWindowBackground');
 
 	// coloured bars: the lock / bypass row, then the door row
 	gc.SetStyle(DSTY_Translucent);
 	if (f1 >= 0)
 	{
 		gc.SetTileColor(GetColorScaled(f1));
-		gc.DrawPattern(infoX + (infoW - barLength - 4), infoY + 4 + lh, barLength * FClamp(f1, 0, 1), lh - 2, 0, 0, Texture'ConWindowBackground');
+		Class'RIText'.static.Pat(gc, infoX + (infoW - barLength - 4), infoY + 4 + lh, barLength * FClamp(f1, 0, 1), lh - 2, 0, 0, Texture'ConWindowBackground');
 	}
 	if (f2 >= 0)
 	{
 		gc.SetTileColor(GetColorScaled(f2));
-		gc.DrawPattern(infoX + (infoW - barLength - 4), infoY + 4 + 2 * lh, barLength * FClamp(f2, 0, 1), lh - 2, 0, 0, Texture'ConWindowBackground');
+		Class'RIText'.static.Pat(gc, infoX + (infoW - barLength - 4), infoY + 4 + 2 * lh, barLength * FClamp(f2, 0, 1), lh - 2, 0, 0, Texture'ConWindowBackground');
 	}
 
 	// text
@@ -508,9 +519,9 @@ function DrawVanilla(GC gc, Actor Target)
 	// the two highlight boxes
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(colBorder);
-	gc.DrawBox(infoX, infoY, infoW, infoH, 0, 0, 1, Texture'Solid');
+	Class'RIText'.static.BoxTex(gc, infoX, infoY, infoW, infoH, 0, 0, 1, Texture'Solid');
 	gc.SetTileColor(colBackground);
-	gc.DrawBox(infoX + 1, infoY + 1, infoW - 2, infoH - 2, 0, 0, 1, Texture'Solid');
+	Class'RIText'.static.BoxTex(gc, infoX + 1, infoY + 1, infoW - 2, infoH - 2, 0, 0, 1, Texture'Solid');
 
 	// picks / multitools needed, on top of the bar
 	if (Tl != "")

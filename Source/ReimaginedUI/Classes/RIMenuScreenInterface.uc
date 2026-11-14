@@ -5,13 +5,18 @@
 //=============================================================================
 class RIMenuScreenInterface extends MenuUIScreenWindow;
 
-// The base class holds 13 rows; HUD Motion is added as a 14th, placed the same way
+// The base class holds 13 rows; HUD Depth and HUD Layout are added as the
+// 14th and 15th, placed the same way
 function CreateChoices()
 {
 	local MenuUIChoice newChoice;
 
 	Super.CreateChoices();
 	newChoice = MenuUIChoice(winClient.NewChild(Class'ReimaginedUI.RIChoiceHudSway'));
+	newChoice.SetPos(choiceStartX, choiceStartY + (choiceCount * choiceVerticalGap) - newChoice.buttonVerticalOffset);
+	choiceCount++;
+	newChoice.SetSensitivity(True);
+	newChoice = MenuUIChoice(winClient.NewChild(Class'ReimaginedUI.RIChoiceHudLayout'));
 	newChoice.SetPos(choiceStartX, choiceStartY + (choiceCount * choiceVerticalGap) - newChoice.buttonVerticalOffset);
 	choiceCount++;
 	newChoice.SetSensitivity(True);

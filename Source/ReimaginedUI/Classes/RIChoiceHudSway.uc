@@ -64,9 +64,15 @@ function CyclePreviousValue()
 	SaveSetting();
 }
 
+// 3D Tilt + Motion; the Vanilla HUD layout Motion only; the Vanilla+ style Flat
 function ResetToDefault()
 {
-	SetValue(3);
+	if (Class'RIRootWindow'.default.ScreenStyle == 1)
+		SetValue(0);
+	else if (Class'RIRootWindow'.default.HudLayout == 1)
+		SetValue(1);
+	else
+		SetValue(3);
 }
 
 defaultproperties

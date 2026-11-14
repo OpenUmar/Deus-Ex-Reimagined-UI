@@ -189,7 +189,7 @@ function ConfigurationChanged()
 
 function Relayout()
 {
-	local float K, SideL, TopY, NextY, QW, QH, LogW;
+	local float K, SideL, TopY, NextY, QW, QH, LogW, GoalY;
 	local Window GW;
 
 	K = height / 1080.0 * Class'RIRootWindow'.static.HudK();
@@ -203,7 +203,10 @@ function Relayout()
 	if (infolink != None)
 	{
 		infolink.QueryPreferredSize(QW, QH);
-		infolink.ConfigureChild((width - QW) * 0.5, TopY, QW, QH);
+		if (Class'RIHud'.static.VanillaLayout())
+			infolink.ConfigureChild(340 * K, 24 * K, QW, QH);   // Vanilla layout: top, beside the body monitor
+		else
+			infolink.ConfigureChild((width - QW) * 0.5, TopY, QW, QH);
 		if (infolink.IsVisible())
 			NextY = TopY + QH + 12 * K;
 	}
@@ -216,11 +219,18 @@ function Relayout()
 		LogW = FMin(560 * K, width * 0.4);
 		QH = msgLog.QueryPreferredHeight(LogW);
 		NextY = 380 * K;
+		GoalY = 300 * K;
+		// Vanilla layout: the same column, starting under the compact compass
+		if (Class'RIHud'.static.VanillaLayout())
+		{
+			NextY = (Class'RIHud'.static.VCompassTop() + 92) * K;
+			GoalY = (Class'RIHud'.static.VCompassTop() + 80) * K;
+		}
 		GW = Class'RIBase'.static.HudGoals(Self);
 		if ((GW != None) && GW.IsVisible())
 		{
 			GW.QueryPreferredSize(QW, QH);
-			NextY = FMax(NextY, 300 * K + QH + 16 * K);
+			NextY = FMax(NextY, GoalY + QH + 16 * K);
 			QH = msgLog.QueryPreferredHeight(LogW);
 		}
 		msgLog.ConfigureChild(28 * K, NextY, LogW, QH);   // panel drawn 8 in, so it lines up at 36
@@ -229,6 +239,8 @@ function Relayout()
 	// Damage halo: the whole screen (RIDamageDisplay; its icons sit under
 	// the body monitor); goals under the body monitor, below those icons
 	NextY = 300 * K;
+	if (Class'RIHud'.static.VanillaLayout())
+		NextY = (Class'RIHud'.static.VCompassTop() + 80) * K;   // under the compass and the damage icons
 	if (damageDisplay != None)
 		damageDisplay.ConfigureChild(0, 0, width, height);
 	GW = Class'RIBase'.static.HudGoals(Self);
@@ -260,7 +272,10 @@ function Relayout()
 	if (timer != None)
 	{
 		timer.QueryPreferredSize(QW, QH);
-		timer.ConfigureChild(width - 36 * K - QW, height - (30 + 176 + 16) * K - QH, QW, QH);
+		if (Class'RIHud'.static.VanillaLayout())
+			timer.ConfigureChild(36 * K, height - (30 + 176 + 16) * K - QH, QW, QH);
+		else
+			timer.ConfigureChild(width - 36 * K - QW, height - (30 + 176 + 16) * K - QH, QW, QH);
 	}
 }
 

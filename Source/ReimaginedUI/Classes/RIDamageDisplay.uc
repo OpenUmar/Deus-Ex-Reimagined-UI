@@ -79,7 +79,7 @@ function Glow(GC gc, float X, float Y, float W, float H, Color C, float a)
 {
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(Class'RIUtil'.static.Raw(C.R * a, C.G * a, C.B * a));
-	gc.DrawStretchedTexture(X, Y, W, H, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_GlowC');
+	Class'RIText'.static.Tex(gc, X, Y, W, H, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_GlowC');
 }
 
 // A ring of light round the whole edge
@@ -162,6 +162,9 @@ function DrawWindow(GC gc)
 	// Damage type icons, small, under the body monitor (AE's fade)
 	ix = 40 * S;
 	iy = 256 * S;
+	// Vanilla layout: under the compass, which sits under the body monitor
+	if (Class'RIHud'.static.VanillaLayout())
+		iy = (Class'RIHud'.static.VCompassTop() + 42) * S * Class'RIRootWindow'.static.HudK();
 	for (i = 0; i < ArrayCount(iconInfo); i++)
 	{
 		if (!iconInfo[i].bActive)

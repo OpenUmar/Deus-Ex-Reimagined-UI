@@ -136,7 +136,7 @@ event DrawWindow(GC gc)
 		{
 			gc.SetStyle(DSTY_Translucent);
 			gc.SetTileColor(Class'RIUtil'.static.Col(70 * hot * ba, 58 * hot * ba, 26 * hot * ba));
-			gc.DrawStretchedTexture(BX[b], BY[b], BW[b], BH[b], 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
+			Class'RIText'.static.Tex(gc, BX[b], BY[b], BW[b], BH[b], 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
 			Edge = Class'RIUtil'.static.Col((126 + 100 * hot) * ba, (105 + 90 * hot) * ba, (50 + 60 * hot) * ba);
 			Txt  = Class'RIUtil'.static.Col((230 + 25 * hot) * ba, (195 + 46 * hot) * ba, (117 + 77 * hot) * ba);
 			Class'RIText'.static.Box(gc, BX[b], BY[b], BW[b], BH[b], Edge);

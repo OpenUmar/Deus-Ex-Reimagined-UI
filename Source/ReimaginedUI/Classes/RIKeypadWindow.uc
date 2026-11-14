@@ -162,7 +162,7 @@ function DrawBackground(GC gc)
 
 	// --- panel
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawStretchedTexture(-60 * s, -60 * s, fw + 120 * s, h + 120 * s, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_ShadeC');
+	Class'RIText'.static.Tex(gc, -60 * s, -60 * s, fw + 120 * s, h + 120 * s, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_ShadeC');
 	if (!Class'RIVP'.static.On())
 	{
 		Class'RIVP'.static.Dim(gc, 0, 0, w, h);

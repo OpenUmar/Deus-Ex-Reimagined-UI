@@ -124,7 +124,7 @@ event DrawWindow(GC gc)
 	{
 		gc.SetStyle(DSTY_Masked);
 		gc.SetTileColor(CrossCol);
-		gc.DrawTexture((width - 16) * 0.5, (height - 16) * 0.5, 16, 16, 0, 0, Texture'CrossSquare');
+		Class'RIText'.static.TexAt(gc, (width - 16) * 0.5, (height - 16) * 0.5, 16, 16, 0, 0, Texture'CrossSquare');
 		return;
 	}
 	// scopes: only with "show in rifle scopes" on; never through binoculars

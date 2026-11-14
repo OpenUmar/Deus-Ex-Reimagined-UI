@@ -337,11 +337,11 @@ event Tick(float deltaSeconds)
 function DrawLogo(GC gc, float X, float Y, float W, float H, float Bright)
 {
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawStretchedTexture(X, Y, W, H, 0, 0, 1024, 813, Texture'ReimaginedUI.UI.RI_LogoMask');
+	Class'RIText'.static.Tex(gc, X, Y, W, H, 0, 0, 1024, 813, Texture'ReimaginedUI.UI.RI_LogoMask');
 
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(Class'RIUtil'.static.Col(255 * Bright, 255 * Bright, 255 * Bright));
-	gc.DrawStretchedTexture(X, Y, W, H, 0, 0, 1024, 813, Texture'ReimaginedUI.UI.RI_LogoAdd');
+	Class'RIText'.static.Tex(gc, X, Y, W, H, 0, 0, 1024, 813, Texture'ReimaginedUI.UI.RI_LogoAdd');
 }
 
 // ----------------------------------------------------------------------
@@ -368,13 +368,13 @@ function DrawPauseMenu(GC gc)
 		gc.SetTileColor(Class'RIUtil'.static.Col(3 * panelT, 4 * panelT, 14 * panelT));
 		Class'RIText'.static.Fill(gc, panelX, 0, PanelW, height);
 		gc.SetTileColor(Class'RIUtil'.static.Col(4 * panelT, 5 * panelT, 16 * panelT));
-		gc.DrawStretchedTexture(panelX, 0, PanelW, height, 0, 0, 256, 8, Texture'ReimaginedUI.UI.RI_EdgeGlow');
+		Class'RIText'.static.Tex(gc, panelX, 0, PanelW, height, 0, 0, 256, 8, Texture'ReimaginedUI.UI.RI_EdgeGlow');
 
 		Class'RIText'.static.VLine(gc, panelX + PanelW - 1.0, 0, height, Class'RIUtil'.static.Col(59 * panelT, 63 * panelT, 196 * panelT));
 		Class'RIText'.static.VLine(gc, panelX + PanelW - 2.0, 0, height, Class'RIUtil'.static.Col(40 * panelT, 43 * panelT, 140 * panelT));
 		gc.SetStyle(DSTY_Translucent);
 		gc.SetTileColor(Class'RIUtil'.static.Col(9 * panelT, 10 * panelT, 36 * panelT));
-		gc.DrawStretchedTexture(panelX + PanelW, 0, 30 * S, height, 0, 0, 256, 8, Texture'ReimaginedUI.UI.RI_EdgeGlow');
+		Class'RIText'.static.Tex(gc, panelX + PanelW, 0, 30 * S, height, 0, 0, 256, 8, Texture'ReimaginedUI.UI.RI_EdgeGlow');
 	}
 
 	logoT = Class'RIUtil'.static.Phase(AnimTime, 0.04, 0.3) * k;
@@ -411,7 +411,7 @@ event DrawWindow(GC gc)
 	// Base
 	gc.SetStyle(DSTY_Normal);
 	gc.SetTileColor(Class'RIUtil'.static.Col(255 * fade, 255 * fade, 255 * fade));
-	gc.DrawStretchedTexture(0, 0, width, height, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Navy');
+	Class'RIText'.static.Tex(gc, 0, 0, width, height, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Navy');
 
 	// Key art: fills the height, right-aligned, eases in from 6% zoom
 	zoom = 1.0 + 0.06 * (1.0 - Class'RIUtil'.static.Phase(AnimTime, 0.0, 1.6));
@@ -426,12 +426,12 @@ event DrawWindow(GC gc)
 	beam = (0.55 + 0.25 * Sin(AnimTime * 1.4)) * fade;
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(Class'RIUtil'.static.Col(70 * beam, 74 * beam, 170 * beam));
-	gc.DrawStretchedTexture(artX + artW * 0.42, artY, artW * 0.16, height * 0.5, 0, 0, 64, 256, Texture'ReimaginedUI.UI.RI_Beam');
+	Class'RIText'.static.Tex(gc, artX + artW * 0.42, artY, artW * 0.16, height * 0.5, 0, 0, 64, 256, Texture'ReimaginedUI.UI.RI_Beam');
 
 	// Fade the art's left edge and bottom into the dark
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawStretchedTexture(artX, 0, artW * 0.28, height, 2, 0, 252, 8, Texture'ReimaginedUI.UI.RI_FadeH');
-	gc.DrawStretchedTexture(0, height * 0.62, width, height * 0.38, 0, 2, 8, 252, Texture'ReimaginedUI.UI.RI_FadeV');
+	Class'RIText'.static.Tex(gc, artX, 0, artW * 0.28, height, 2, 0, 252, 8, Texture'ReimaginedUI.UI.RI_FadeH');
+	Class'RIText'.static.Tex(gc, 0, height * 0.62, width, height * 0.38, 0, 2, 8, 252, Texture'ReimaginedUI.UI.RI_FadeV');
 
 	// Left panel slides in: solid navy so the art behind can't show through
 	// unevenly, with a soft gradient and a glowing edge
@@ -439,15 +439,15 @@ event DrawWindow(GC gc)
 	panelX = -PanelW * (1.0 - panelT);
 	gc.SetStyle(DSTY_Normal);
 	gc.SetTileColor(Class'RIUtil'.static.Col(150 * fade, 150 * fade, 150 * fade));
-	gc.DrawStretchedTexture(panelX, 0, PanelW, height, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Navy');
+	Class'RIText'.static.Tex(gc, panelX, 0, PanelW, height, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Navy');
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(Class'RIUtil'.static.Col(10 * panelT, 11 * panelT, 40 * panelT));
-	gc.DrawStretchedTexture(panelX, 0, PanelW, height, 0, 0, 256, 8, Texture'ReimaginedUI.UI.RI_EdgeGlow');
+	Class'RIText'.static.Tex(gc, panelX, 0, PanelW, height, 0, 0, 256, 8, Texture'ReimaginedUI.UI.RI_EdgeGlow');
 
 	Class'RIText'.static.VLine(gc, panelX + PanelW - 0.5, 0, height, Class'RIUtil'.static.Col(90 * panelT, 94 * panelT, 200 * panelT));
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(Class'RIUtil'.static.Col(16 * panelT, 17 * panelT, 60 * panelT));
-	gc.DrawStretchedTexture(panelX + PanelW, 0, 34 * S, height, 0, 0, 256, 8, Texture'ReimaginedUI.UI.RI_EdgeGlow');
+	Class'RIText'.static.Tex(gc, panelX + PanelW, 0, 34 * S, height, 0, 0, 256, 8, Texture'ReimaginedUI.UI.RI_EdgeGlow');
 
 	// Logo drops in
 	logoT = Class'RIUtil'.static.Phase(AnimTime, 0.3, 0.6);
@@ -456,7 +456,7 @@ event DrawWindow(GC gc)
 
 	// Faint scanlines
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawPattern(0, 0, width, height, 0, 0, Texture'ReimaginedUI.UI.RI_Scan');
+	Class'RIText'.static.Pat(gc, 0, 0, width, height, 0, 0, Texture'ReimaginedUI.UI.RI_Scan');
 
 
 	// Version string, bottom-left

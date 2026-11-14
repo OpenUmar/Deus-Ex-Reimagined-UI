@@ -48,10 +48,10 @@ function DrawDropShadowBox(GC gc, float x, float y, float w, float h)
 	cAcc  = Class'RIUtil'.static.Col(230, 195, 117);
 	// a dark keyline just outside, then the gold hairline
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawStretchedTexture(x - 2, y - 2, w + 4, 2, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dark');
-	gc.DrawStretchedTexture(x - 2, y + h, w + 4, 2, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dark');
-	gc.DrawStretchedTexture(x - 2, y, 2, h, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dark');
-	gc.DrawStretchedTexture(x + w, y, 2, h, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dark');
+	Class'RIText'.static.Tex(gc, x - 2, y - 2, w + 4, 2, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dark');
+	Class'RIText'.static.Tex(gc, x - 2, y + h, w + 4, 2, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dark');
+	Class'RIText'.static.Tex(gc, x - 2, y, 2, h, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dark');
+	Class'RIText'.static.Tex(gc, x + w, y, 2, h, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dark');
 	Class'RIText'.static.Box(gc, x - 0.5, y - 0.5, w + 1, h + 1, cEdge);
 	// corner brackets
 	k = FMin(10, FMin(w, h) * 0.2);
@@ -100,14 +100,14 @@ function DrawVisionAugmentation(GC gc)
 	if (visionLevel >= 1)
 	{
 		gc.SetStyle(DSTY_Modulated);
-		gc.DrawPattern(0, 0, width, by, 0, 0, Texture'ConWindowBackground');
-		gc.DrawPattern(0, by + bh, width, height - by - bh, 0, 0, Texture'ConWindowBackground');
-		gc.DrawPattern(0, by, bx, bh, 0, 0, Texture'ConWindowBackground');
-		gc.DrawPattern(bx + bw, by, width - bx - bw, bh, 0, 0, Texture'ConWindowBackground');
-		gc.DrawPattern(0, 0, width, by, 0, 0, Texture'SolidRed');
-		gc.DrawPattern(0, by + bh, width, height - by - bh, 0, 0, Texture'SolidRed');
-		gc.DrawPattern(0, by, bx, bh, 0, 0, Texture'SolidRed');
-		gc.DrawPattern(bx + bw, by, width - bx - bw, bh, 0, 0, Texture'SolidRed');
+		Class'RIText'.static.Pat(gc, 0, 0, width, by, 0, 0, Texture'ConWindowBackground');
+		Class'RIText'.static.Pat(gc, 0, by + bh, width, height - by - bh, 0, 0, Texture'ConWindowBackground');
+		Class'RIText'.static.Pat(gc, 0, by, bx, bh, 0, 0, Texture'ConWindowBackground');
+		Class'RIText'.static.Pat(gc, bx + bw, by, width - bx - bw, bh, 0, 0, Texture'ConWindowBackground');
+		Class'RIText'.static.Pat(gc, 0, 0, width, by, 0, 0, Texture'SolidRed');
+		Class'RIText'.static.Pat(gc, 0, by + bh, width, height - by - bh, 0, 0, Texture'SolidRed');
+		Class'RIText'.static.Pat(gc, 0, by, bx, bh, 0, 0, Texture'SolidRed');
+		Class'RIText'.static.Pat(gc, bx + bw, by, width - bx - bw, bh, 0, 0, Texture'SolidRed');
 		gc.SetStyle(DSTY_Translucent);
 
 		loc = Player.Location;
@@ -129,8 +129,8 @@ function DrawVisionAugmentation(GC gc)
 
 	// light amp in the window
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawPattern(bx, by, bw, bh, 0, 0, Texture'SolidGreen');
-	gc.DrawPattern(bx, by, bw, bh, 0, 0, Texture'SolidGreen');
+	Class'RIText'.static.Pat(gc, bx, by, bw, bh, 0, 0, Texture'SolidGreen');
+	Class'RIText'.static.Pat(gc, bx, by, bw, bh, 0, 0, Texture'SolidGreen');
 	gc.SetStyle(DSTY_Normal);
 
 	// frame: rounded edge, the DX trim, brackets and centre ticks

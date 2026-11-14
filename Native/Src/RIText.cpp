@@ -244,6 +244,7 @@ struct FRI3D
 	XGC*  Gc;
 	FLOAT Hinge, Ex, Ey, D, Cs, Sn;
 	INT   Grid;     // slice width in screen pixels, on one grid for the whole card
+	FLOAT FX, FY;   // the window's sub-pixel offset, taken off so the card sits on whole pixels
 };
 static FRI3D G3D;
 
@@ -296,9 +297,14 @@ UBOOL RINativeSet3DUI( XGC* gc, FLOAT HingeUI, FLOAT EyeXUI, FLOAT EyeYUI, FLOAT
 	KH = gc->hMultiplier > 0 ? (FLOAT)gc->hMultiplier : 1.f;
 	KV = gc->vMultiplier > 0 ? (FLOAT)gc->vMultiplier : 1.f;
 	A  = YawDeg * (3.14159265f / 180.f);
-	G3D.Hinge = (gc->clipRect.originX + HingeUI) * KH;
-	G3D.Ex    = (gc->clipRect.originX + EyeXUI) * KH;
-	G3D.Ey    = (gc->clipRect.originY + EyeYUI) * KV;
+	// A window that moves by a fraction of a pixel (HUD motion at a scale
+	// that isn't a whole number of pixels per UI unit) is drawn snapped to the
+	// nearest whole pixel, so the card's pixels stay put relative to each other
+	G3D.FX    = gc->clipRect.originX * KH - (FLOAT)appFloor( gc->clipRect.originX * KH + 0.5f );
+	G3D.FY    = gc->clipRect.originY * KV - (FLOAT)appFloor( gc->clipRect.originY * KV + 0.5f );
+	G3D.Hinge = (gc->clipRect.originX + HingeUI) * KH - G3D.FX;
+	G3D.Ex    = (gc->clipRect.originX + EyeXUI) * KH - G3D.FX;
+	G3D.Ey    = (gc->clipRect.originY + EyeYUI) * KV - G3D.FY;
 	G3D.D     = DistUI * KH;
 	G3D.Sn    = RISin( A );
 	G3D.Cs    = RICos( A );
@@ -309,9 +315,9 @@ UBOOL RINativeSet3DUI( XGC* gc, FLOAT HingeUI, FLOAT EyeXUI, FLOAT EyeYUI, FLOAT
 	// anywhere on screen (the scale changes by about sin / D per pixel).
 	{
 		FLOAT Rate = (G3D.Sn < 0 ? -G3D.Sn : G3D.Sn) / G3D.D * (G3D.Ey > 1.f ? G3D.Ey : 1.f);
-		G3D.Grid = Rate > 0.f ? (INT)(0.25f / Rate) : 64;
+		G3D.Grid = Rate > 0.f ? (INT)(0.1f / Rate) : 16;
 		if( G3D.Grid < 1 )  G3D.Grid = 1;
-		if( G3D.Grid > 64 ) G3D.Grid = 64;
+		if( G3D.Grid > 16 ) G3D.Grid = 16;
 	}
 	G3D.Gc    = gc;
 	G3D.On    = 1;
@@ -345,7 +351,7 @@ void RINativeProject3DUI( XGC* gc, FLOAT X, FLOAT Y, FLOAT* OX, FLOAT* OY )
 
 // One horizontal band of a slice: screen rows PY0..PY1, card rows CY0..CY1,
 // tinted by Cov (the share of the edge pixel the card really covers)
-static void Slice3D( XGC* gc, UTexture* Tex, INT CA, INT CB, FLOAT PY0, FLOAT PY1,
+static void Slice3D( XGC* gc, UTexture* Tex, FLOAT CA, FLOAT CB, FLOAT PY0, FLOAT PY1,
                      FLOAT CY0, FLOAT CY1, FLOAT Y0, FLOAT UA, FLOAT UL, FLOAT V, FLOAT VScale, FLOAT Cov )
 {
 	FPlane C = gc->tilePlane;
@@ -354,7 +360,9 @@ static void Slice3D( XGC* gc, UTexture* Tex, INT CA, INT CB, FLOAT PY0, FLOAT PY
 		return;
 	if( Cov < 0.996f )
 		C = FPlane( C.X * Cov, C.Y * Cov, C.Z * Cov, C.W * Cov );
-	gc->canvas->DrawTile( Tex, (FLOAT)CA, PY0, (FLOAT)(CB - CA), PY1 - PY0,
+	if( CB <= CA )
+		return;
+	gc->canvas->DrawTile( Tex, CA, PY0, CB - CA, PY1 - PY0,
 		UA, V + (CY0 - Y0) * VScale, UL, (CY1 - CY0) * VScale,
 		NULL, gc->canvas->Z, C, FPlane(0,0,0,0), gc->polyFlags );
 }
@@ -418,52 +426,69 @@ static void AddCol( XGC* gc, UTexture* Tex, FRIRun& R, INT Kind, INT C, FLOAT XA
 }
 
 // One tile of the card (already clipped, absolute pixels), drawn in perspective.
-// Translucent (additive) tiles are anti-aliased: every screen column gets its
-// own depth, and the part-covered top and bottom rows are drawn dimmer by the
-// covered fraction, so a slanted edge slopes smoothly with no steps (tiles
-// sharing an edge still add up to exactly one). Neighbouring columns that
-// come out the same are merged, which keeps the number of tiles down. Other
-// styles (masked, modulated, normal) are drawn in slices on a shared column
-// grid with edges rounded to whole pixels.
+// Nothing is snapped to whole pixels: every edge sits where the projection
+// puts it, so letters keep their exact widths and nothing hops between
+// neighbouring pixels as the HUD moves.
+// Translucent (additive) tiles are anti-aliased in both directions: every
+// screen column gets its own depth, and each pixel the card only partly
+// covers (left, right, top or bottom edge) is drawn dimmer by the covered
+// fraction, so edges slope and slide smoothly (tiles sharing an edge still
+// add up to exactly one). Neighbouring columns that come out the same are
+// merged into one tile. Other styles (masked, modulated, normal) can't be
+// dimmed that way; they are drawn in narrow slices on a shared column grid
+// with exact, unrounded edges.
 static void DrawTile3D( XGC* gc, UTexture* Tex, FLOAT X0, FLOAT Y0, FLOAT X1, FLOAT Y1,
                         FLOAT U, FLOAT V, FLOAT UScale, FLOAT VScale )
 {
-	INT P0, P1, C, G = G3D.Grid;
+	INT   P0, P1, C, G = G3D.Grid;
+	FLOAT SX0, SX1;
 	UBOOL bAA = (gc->polyFlags & PF_Translucent) && !(gc->polyFlags & PF_Modulated);
 
-	P0 = appFloor( P3X( X0 ) + 0.5f );
-	P1 = appFloor( P3X( X1 ) + 0.5f );
-	if( P1 <= P0 ) P1 = P0 + 1;             // a hairline never vanishes
+	X0 -= G3D.FX; X1 -= G3D.FX;
+	Y0 -= G3D.FY; Y1 -= G3D.FY;
+	SX0 = P3X( X0 );
+	SX1 = P3X( X1 );
+	if( SX1 <= SX0 )
+		return;
 
 	if( bAA )
 	{
 		FRIRun RT, RM, RB;
 		RT.On = RM.On = RB.On = 0;
+		P0 = appFloor( SX0 );
+		P1 = appFloor( SX1 );
+		if( (FLOAT)P1 < SX1 ) P1++;           // columns P0 .. P1-1 are touched
 		for( C = P0; C < P1; C++ )
 		{
-			FLOAT XA, XB, Sc, FYA, FYB, TA, TB;
+			FLOAT SA, SB, HC, XA, XB, Sc, FYA, FYB, TA, TB;
 
-			XA = (C == P0)     ? X0 : P3InvX( (FLOAT)C );
-			XB = (C + 1 == P1) ? X1 : P3InvX( (FLOAT)(C + 1) );
+			// the part of this pixel column the card covers
+			SA = (FLOAT)C;     if( SA < SX0 ) SA = SX0;
+			SB = (FLOAT)C + 1; if( SB > SX1 ) SB = SX1;
+			HC = SB - SA;
+			if( HC <= 0.f )
+				continue;
+			XA = (SA == SX0) ? X0 : P3InvX( SA );
+			XB = (SB == SX1) ? X1 : P3InvX( SB );
 			if( XA < X0 ) XA = X0;
 			if( XB > X1 ) XB = X1;
 			if( XB <= XA )
 				continue;
-			Sc  = P3Scale( (P1 - P0 == 1) ? (X0 + X1) * 0.5f : P3InvX( C + 0.5f ) );
+			Sc  = P3Scale( (XA + XB) * 0.5f );
 			FYA = G3D.Ey + (Y0 - G3D.Ey) * Sc;
 			FYB = G3D.Ey + (Y1 - G3D.Ey) * Sc;
 			TA  = (FLOAT)appFloor( FYA );
 			TB  = (FLOAT)appFloor( FYB );
 			if( TA == TB )
 			{
-				AddCol( gc, Tex, RT, 3, C, XA, XB, TA, TA + 1.f, FYB - FYA, Sc, FYA, X0, Y0, Y1, U, V, UScale, VScale );
+				AddCol( gc, Tex, RT, 3, C, XA, XB, TA, TA + 1.f, (FYB - FYA) * HC, Sc, FYA, X0, Y0, Y1, U, V, UScale, VScale );
 				continue;
 			}
-			AddCol( gc, Tex, RT, 0, C, XA, XB, TA, TA + 1.f, TA + 1.f - FYA, Sc, FYA, X0, Y0, Y1, U, V, UScale, VScale );
+			AddCol( gc, Tex, RT, 0, C, XA, XB, TA, TA + 1.f, (TA + 1.f - FYA) * HC, Sc, FYA, X0, Y0, Y1, U, V, UScale, VScale );
 			if( TB > TA + 1.f )
-				AddCol( gc, Tex, RM, 1, C, XA, XB, TA + 1.f, TB, 1.f, Sc, FYA, X0, Y0, Y1, U, V, UScale, VScale );
+				AddCol( gc, Tex, RM, 1, C, XA, XB, TA + 1.f, TB, HC, Sc, FYA, X0, Y0, Y1, U, V, UScale, VScale );
 			if( FYB > TB )
-				AddCol( gc, Tex, RB, 2, C, XA, XB, TB, TB + 1.f, FYB - TB, Sc, FYA, X0, Y0, Y1, U, V, UScale, VScale );
+				AddCol( gc, Tex, RB, 2, C, XA, XB, TB, TB + 1.f, (FYB - TB) * HC, Sc, FYA, X0, Y0, Y1, U, V, UScale, VScale );
 		}
 		FlushRun( gc, Tex, RT, X0, Y0, Y1, U, V, UScale, VScale );
 		FlushRun( gc, Tex, RM, X0, Y0, Y1, U, V, UScale, VScale );
@@ -471,31 +496,31 @@ static void DrawTile3D( XGC* gc, UTexture* Tex, FLOAT X0, FLOAT Y0, FLOAT X1, FL
 		return;
 	}
 
-	for( C = P0; C < P1; )
+	// Masked / modulated / normal: slices whose inner edges sit on the shared
+	// grid (so stacked tiles agree) and whose outer edges are exact
+	P0 = appFloor( SX0 );
+	for( C = P0; (FLOAT)C < SX1; )
 	{
-		INT   CA = C, Cell, CB;
-		FLOAT XA, XB, Sc, PYA, PYB, CYA, CYB;
+		INT   Cell, CB;
+		FLOAT SA, SB, XA, XB, Sc, FYA, FYB;
 
-		Cell = CA >= 0 ? CA / G : -((G - 1 - CA) / G);
+		Cell = C >= 0 ? C / G : -((G - 1 - C) / G);
 		CB = (Cell + 1) * G;
-		if( CB > P1 ) CB = P1;
+		SA = (FLOAT)C;  if( SA < SX0 ) SA = SX0;
+		SB = (FLOAT)CB; if( SB > SX1 ) SB = SX1;
 		C = CB;
-		XA = (CA == P0) ? X0 : P3InvX( (FLOAT)CA );
-		XB = (CB == P1) ? X1 : P3InvX( (FLOAT)CB );
+		if( SB <= SA )
+			continue;
+		XA = (SA == SX0) ? X0 : P3InvX( SA );
+		XB = (SB == SX1) ? X1 : P3InvX( SB );
 		if( XA < X0 ) XA = X0;
 		if( XB > X1 ) XB = X1;
 		if( XB <= XA )
 			continue;
 		Sc  = P3Scale( P3InvX( Cell * G + G * 0.5f ) );
-		PYA = RIRound( G3D.Ey + (Y0 - G3D.Ey) * Sc );
-		PYB = RIRound( G3D.Ey + (Y1 - G3D.Ey) * Sc );
-		if( PYB <= PYA ) PYB = PYA + 1.f;
-		CYA = G3D.Ey + (PYA - G3D.Ey) / Sc;
-		CYB = G3D.Ey + (PYB - G3D.Ey) / Sc;
-		if( CYA < Y0 ) CYA = Y0;
-		if( CYB > Y1 ) CYB = Y1;
-		if( CYB <= CYA ) { CYA = Y0; CYB = Y1; }
-		Slice3D( gc, Tex, CA, CB, PYA, PYB, CYA, CYB, Y0, U + (XA - X0) * UScale, (XB - XA) * UScale, V, VScale, 1.f );
+		FYA = G3D.Ey + (Y0 - G3D.Ey) * Sc;
+		FYB = G3D.Ey + (Y1 - G3D.Ey) * Sc;
+		Slice3D( gc, Tex, SA, SB, FYA, FYB, Y0, Y1, Y0, U + (XA - X0) * UScale, (XB - XA) * UScale, V, VScale, 1.f );
 	}
 }
 

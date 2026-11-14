@@ -296,7 +296,7 @@ function DrawPage(GC gc, float a)
 	CGlow(gc, bx - 200 * S, by - 60 * S, bw + 400 * S, bh + 120 * S, C3(30, 25, 11, a));
 	gc.SetStyle(DSTY_Masked);
 	gc.SetTileColor(C3(255, 255, 255, a));
-	gc.DrawStretchedTexture(bx, by, bw, bh, 0, 0, 465, 888, Texture'ReimaginedUI.UI.RI_HealthBody');
+	Class'RIText'.static.Tex(gc, bx, by, bw, bh, 0, 0, 465, 888, Texture'ReimaginedUI.UI.RI_HealthBody');
 
 	// Where each part's line meets the body (fractions of the figure, AE's layout)
 	DrawPartGlow(gc, bx, by, bw, bh, a);
@@ -384,7 +384,7 @@ function PartTex(GC gc, int i, float bx, float by, float bw, float bh, Color Col
 {
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(Col);
-	gc.DrawStretchedTexture(bx + bw * HX0[i] / 465.0, by + bh * HY0[i] / 888.0,
+	Class'RIText'.static.Tex(gc, bx + bw * HX0[i] / 465.0, by + bh * HY0[i] / 888.0,
 		bw * (HX1[i] - HX0[i]) / 465.0, bh * (HY1[i] - HY0[i]) / 888.0,
 		HX0[i], HY0[i] + 32, HX1[i] - HX0[i], HY1[i] - HY0[i], Texture'ReimaginedUI.UI.RI_HealthHi');
 }
@@ -651,7 +651,7 @@ function DrawVPPage(GC gc, float a)
 	by = 250 * S;
 	gc.SetStyle(DSTY_Masked);
 	gc.SetTileColor(C3(255, 255, 255, a));
-	gc.DrawStretchedTexture(bx, by, bw, bh, 0, 0, 465, 888, Texture'ReimaginedUI.UI.RI_HealthBody');
+	Class'RIText'.static.Tex(gc, bx, by, bw, bh, 0, 0, 465, 888, Texture'ReimaginedUI.UI.RI_HealthBody');
 
 	DrawPartGlow(gc, bx, by, bw, bh, a);
 	SetAnchors(bx, by, bw, bh);
