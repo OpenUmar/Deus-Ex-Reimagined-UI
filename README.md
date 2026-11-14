@@ -15,6 +15,9 @@ Menus, HUD, inventory, augmentations, dialogue and every in-game screen, rebuilt
 > [!NOTE]
 > This is a beta for friends and testers. It is stable enough to play through, but expect rough edges. If something breaks, see [Reporting a bug](#reporting-a-bug) at the bottom.
 
+> [!IMPORTANT]
+> **About other mods (Revision, GMDX, GMDX: Augmented Edition and the rest).** Reimagined UI was first built as an add-on for GMDX: Augmented Edition 1.2, and partway through development the project moved over to the original, unmodded Deus Ex as its main base. The current beta is made and tested for vanilla Deus Ex only. The older AE adapter is still in the source tree, though it has fallen behind and is unsupported for now. Running the mod alongside Revision, GMDX, AE or other overhauls is likely to break screens or features at this stage. Compatibility with those mods is planned and will be added in upcoming releases.
+
 ## What it changes
 
 | Area | What you get |
