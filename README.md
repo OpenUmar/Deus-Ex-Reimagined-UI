@@ -90,7 +90,6 @@ Delete `System\Play_ReimaginedUI_Vanilla.cmd`, `System\RINative.dll` and the `Mo
 
 ## Known issues
 
-- Builds after 88 have not all been through a full playtest yet, so the newest changes (Modern style tweaks, the Augs figure boxes, crosshair presets) may still have rough edges.
 - Sound effects can play quieter while a third-person conversation is paused.
 - Toggling fullscreen from inside the game can crash some third-party DirectX 12 renderers. Change it in the ini file instead if that happens.
 - The game cannot draw anything during a level load, so the loading screen is a single still frame.
