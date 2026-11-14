@@ -34,3 +34,7 @@ Release/
 Art/*hologram*
 # Upscale comparison sheets and extracted game art (scratch)
 Tools/esrgan/compare/
+
+# One-off patch scripts and old mask backups (kept locally, not part of the mod)
+Tools/patch_*.py
+Art/masks_v2_backup/

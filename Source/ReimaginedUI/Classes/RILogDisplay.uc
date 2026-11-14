@@ -263,6 +263,19 @@ function DrawBackground(GC gc)
 // stops just past the longest line (no box), newest line at the bottom
 function DrawBorder(GC gc)
 {
+	if (!RIOn())
+	{
+		Super.DrawBorder(gc);
+		return;
+	}
+	if (Class'RIRootWindow'.static.HudTiltDeg() > 0)
+		Class'RIText'.static.Begin3D(Self, gc, -1, Class'RIRootWindow'.static.HudTiltDeg());
+	DrawLog(gc);
+	Class'RIText'.static.End3D();
+}
+
+function DrawLog(GC gc)
+{
 	local int i;
 	local float S, y, lh, a, bh, tw, w, maxw, sc, ox, oy;
 	local string T;

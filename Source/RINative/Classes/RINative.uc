@@ -25,6 +25,16 @@ native static final function float RINativeDescent(int Font, float Size);
 // GC's current style and tile colour.
 native static final function RINativeDrawTile(GC gc, Texture Tex, float X, float Y, float W, float H, float U, float V, float UL, float VL);
 
+// 3D panels (RINative 0.4): until RINativeClear3D, every RINative tile and
+// glyph drawn on this GC is drawn as part of a card turned Yaw degrees about
+// the vertical line x = HingeX, seen in perspective from an eye Dist in front
+// of (EyeX, EyeY). UI units in the GC's window. Positive Yaw pushes the
+// card's right side away, negative its left side. Returns False (and stays
+// flat) for Yaw 0 or a bad distance. Project3D gives where a card point lands.
+native static final function bool RINativeSet3D(GC gc, float HingeX, float EyeX, float EyeY, float Dist, float Yaw);
+native static final function RINativeClear3D();
+native static final function RINativeProject3D(GC gc, float X, float Y, out float OX, out float OY);
+
 defaultproperties
 {
 }

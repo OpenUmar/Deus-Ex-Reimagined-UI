@@ -45,7 +45,7 @@ static final function TileR(GC gc, float X, float Y, float W, float H, float U, 
 	// Ctrl+F10 then Ctrl+F8 (atlas text) turns every native draw off, to test without the plugin
 	if (Class'RIText'.default.bAtlasText)
 	{
-		gc.DrawStretchedTexture(x0, y0, x1 - x0, y1 - y0, U, V, UL, VL, T);
+		Class'RIText'.static.Tex(gc, x0, y0, x1 - x0, y1 - y0, U, V, UL, VL, T);
 		return;
 	}
 	Class'RINative'.static.RINativeDrawTile(gc, T, x0, y0, x1 - x0, y1 - y0, U, V, UL, VL);
@@ -56,14 +56,14 @@ static final function Black(GC gc, float X, float Y, float W, float H)
 {
 	gc.SetStyle(DSTY_Normal);
 	gc.SetTileColor(Class'RIUtil'.static.Raw(255, 255, 255));
-	gc.DrawStretchedTexture(X, Y, W, H, 0, 0, 1, 1, Texture'ReimaginedUI.UI.RI_Clear');
+	Class'RIText'.static.Tex(gc, X, Y, W, H, 0, 0, 1, 1, Texture'ReimaginedUI.UI.RI_Clear');
 }
 
 // Darken what's behind (modulated), for HUD panels over the world
 static final function Dim(GC gc, float X, float Y, float W, float H)
 {
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawStretchedTexture(X, Y, W, H, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dark');
+	Class'RIText'.static.Tex(gc, X, Y, W, H, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dark');
 }
 
 // Rounded 9-slice frame; K is the corner size in pixels

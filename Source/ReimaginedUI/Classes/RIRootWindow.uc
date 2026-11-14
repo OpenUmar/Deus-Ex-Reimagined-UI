@@ -27,6 +27,7 @@ var globalconfig bool bClassicMenus;
 var globalconfig bool bClassicScreens;
 var globalconfig bool bClassicDialogue;
 var globalconfig bool bHudSway;          // the HUD trails the view a little and bobs with walking
+var globalconfig int  HudTilt;           // 3D HUD: the side panels turned toward the eye. 0 flat, 1 tilted, 2 deep
 var globalconfig bool bConBars;          // keep the black letterbox bars in conversations
 var globalconfig int  SubColors;         // speaker colours in subtitles: 0 off, 1 names, 2 names and lines
 var globalconfig bool bClassicHUD;
@@ -837,6 +838,16 @@ static function float HudK()
 	return default.HudScale;
 }
 
+// The 3D HUD's tilt in degrees (Settings > Interface > HUD Depth)
+static function float HudTiltDeg()
+{
+	if (default.HudTilt == 1)
+		return 12.0;
+	if (default.HudTilt >= 2)
+		return 20.0;
+	return 0.0;
+}
+
 static function float BeltK()
 {
 	if ((default.BeltScale < 0.5) || (default.BeltScale > 1.3))
@@ -1510,6 +1521,7 @@ defaultproperties
 {
      ScreenStyle=2
      bHudSway=True
+     HudTilt=1
      SubColors=1
      DeathTitle="AGENT DOWN"
      DeathLoadLast="Load last save"

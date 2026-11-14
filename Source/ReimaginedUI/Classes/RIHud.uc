@@ -30,6 +30,7 @@ var localized string MagLabel, ReserveLabel, TotalLabel, MagsLabel, CountLabel, 
 // if the engine doesn't tick it while hidden
 var float RecvLastT;
 var bool  bAugBarScoped;      // the game's aug bar was hidden for a scope
+var bool  bAugBar3D;          // the game's aug bar hidden while the HUD draws it tilted (3D HUD)
 var Window InfoScoped;        // the InfoLink window hidden for a scope (shown again if it still exists)
 var float BarGoal[2], BarShown[2], BarGhost[2], BarHold[2];   // Vanilla+ BIO / STAMINA bars (eased, with a drain trail)
 var localized string CompassNames[8];
@@ -75,14 +76,14 @@ function CGlow(GC gc, float X, float Y, float W, float H, Color C)
 {
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(C);
-	gc.DrawStretchedTexture(X, Y, W, H, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_GlowC');
+	Class'RIText'.static.Tex(gc, X, Y, W, H, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_GlowC');
 }
 
 // Soft dark backing: darkest in the middle, fading out on every side
 function Shade(GC gc, float X, float Y, float W, float H)
 {
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawStretchedTexture(X, Y, W, H, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_ShadeC');
+	Class'RIText'.static.Tex(gc, X, Y, W, H, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_ShadeC');
 }
 
 // Green at full health, through yellow, to red
@@ -267,6 +268,22 @@ function SkinAugBar(DeusExHUD H)
 	D = H.activeItems;
 	if (D == None)
 		return;
+	// 3D HUD: the game draws its icons in windows of its own, which can't be
+	// tilted, so the whole bar is drawn here instead and the game's is hidden
+	if (AugBarTilts())
+	{
+		if (D.IsVisible(False))
+			D.Hide();
+		bAugBar3D = True;
+	}
+	else if (bAugBar3D)
+	{
+		bAugBar3D = False;
+		if (Class'RIUtil'.static.Scoped(Self))
+			bAugBarScoped = True;      // shown again by ScopeAugBar
+		else if (Player.bAugDisplayVisible)
+			D.Show();
+	}
 	SkinBarBox(D.winAugsContainer);
 	SkinBarBox(D.winItemsContainer);
 }
@@ -296,10 +313,88 @@ function DrawAugBar(GC gc)
 	if (Hud() == None)
 		return;
 	D = Hud().activeItems;
-	if ((D == None) || !D.IsVisible())
+	if (D == None)
 		return;
-	DrawBarBox(gc, D.winAugsContainer);
-	DrawBarBox(gc, D.winItemsContainer);
+	if (bAugBar3D)
+	{
+		if (!Player.bAugDisplayVisible)
+			return;
+	}
+	else if (!D.IsVisible())
+		return;
+	DrawBarSide(gc, D.winAugsContainer);
+	DrawBarSide(gc, D.winItemsContainer);
+}
+
+// Whether the aug bar is drawn tilted (Settings > Interface > HUD Depth)
+function bool AugBarTilts()
+{
+	return (Class'RIRootWindow'.static.HudTiltDeg() > 0) && Class'RIText'.static.Can3D();
+}
+
+// One of the bar's columns, turned toward the eye like the other side
+// panels when the 3D HUD is on (hinged on the nearer screen edge)
+function DrawBarSide(GC gc, HUDActiveItemsBorderBase B)
+{
+	local float bx, by;
+
+	if (!bAugBar3D)
+	{
+		DrawBarBox(gc, B);
+		return;
+	}
+	if ((B == None) || !B.IsVisible(False))
+		return;
+	ConvertCoordinates(B, 0, 0, Self, bx, by);
+	if (bx + B.width * 0.5 > width * 0.5)
+		Begin3D(gc, 1);
+	else
+		Begin3D(gc, -1);
+	DrawBarBox(gc, B);
+	DrawBarIcons(gc, B);
+	End3D();
+}
+
+// The icons and charge bars the game would draw (HUDActiveItemBase.DrawWindow,
+// HUDActiveItem's energy bar), for the tilted bar
+function DrawBarIcons(GC gc, HUDActiveItemsBorderBase B)
+{
+	local Window C;
+	local HUDActiveItemBase I;
+	local ChargedPickup P;
+	local float cx, cy, k, f;
+
+	if ((B == None) || (B.winIcons == None))
+		return;
+	for (C = B.winIcons.GetTopChild(); C != None; C = C.GetLowerSibling())
+	{
+		I = HUDActiveItemBase(C);
+		if ((I == None) || !C.IsVisible(False))
+			continue;
+		ConvertCoordinates(C, 0, 0, Self, cx, cy);
+		k = C.width / 34.0;
+		if (I.icon != None)
+		{
+			gc.SetStyle(I.iconDrawStyle);
+			gc.SetTileColor(I.colItemIcon);
+			Class'RIText'.static.Tex(gc, cx + 2 * k, cy + 2 * k, 32 * k, 32 * k, 0, 0, 32, 32, I.icon);
+		}
+		P = ChargedPickup(I.GetClientObject());
+		if ((HUDActiveItem(C) != None) && (P != None))
+		{
+			f = FClamp(P.GetCurrentCharge() / 100.0, 0, 1);
+			if (f > 0)
+				Fill(gc, cx + 1 * k, cy + 30 * k, 32 * k * f, 2 * k, ChargeColor(f));
+		}
+	}
+}
+
+// The game's scaled progress colour: red when empty, through yellow, to green
+function Color ChargeColor(float f)
+{
+	if (f > 0.5)
+		return Class'RIUtil'.static.Mix(Class'RIUtil'.static.Raw(255, 255, 0), Class'RIUtil'.static.Raw(0, 255, 0), (f - 0.5) * 2);
+	return Class'RIUtil'.static.Mix(Class'RIUtil'.static.Raw(255, 0, 0), Class'RIUtil'.static.Raw(255, 255, 0), f * 2);
 }
 
 // As HUDActiveItemsBorderBase.DrawBorder (top, the middle tiled down,
@@ -314,7 +409,7 @@ function DrawBarBox(GC gc, HUDActiveItemsBorderBase B)
 	local bool bLit;
 	local float rTop, rBot, rX;
 
-	if ((B == None) || !B.IsVisible() || (B.winIcons == None) || (B.iconCount <= 0))
+	if ((B == None) || !B.IsVisible(False) || (B.winIcons == None) || (B.iconCount <= 0))
 		return;
 	ConvertCoordinates(B, 0, 0, Self, bx, by);
 	// Sleek: as the Sleek belt, no boxes. The column floats on one soft
@@ -328,7 +423,7 @@ function DrawBarBox(GC gc, HUDActiveItemsBorderBase B)
 		rX = -1;
 		for (C = B.winIcons.GetTopChild(); C != None; C = C.GetLowerSibling())
 		{
-			if ((HUDActiveItemBase(C) == None) || !C.IsVisible())
+			if ((HUDActiveItemBase(C) == None) || !C.IsVisible(False))
 				continue;
 			ConvertCoordinates(C, 0, 0, Self, cx, cy);
 			if ((rTop < 0) || (cy < rTop))
@@ -344,7 +439,7 @@ function DrawBarBox(GC gc, HUDActiveItemsBorderBase B)
 		for (C = B.winIcons.GetTopChild(); C != None; C = C.GetLowerSibling())
 		{
 			I = HUDActiveItemBase(C);
-			if ((I == None) || !C.IsVisible())
+			if ((I == None) || !C.IsVisible(False))
 				continue;
 			ConvertCoordinates(C, 0, 0, Self, cx, cy);
 			bLit = True;
@@ -380,7 +475,7 @@ function DrawBarBox(GC gc, HUDActiveItemsBorderBase B)
 		rX = -1;
 		for (C = B.winIcons.GetTopChild(); C != None; C = C.GetLowerSibling())
 		{
-			if ((HUDActiveItemBase(C) == None) || !C.IsVisible())
+			if ((HUDActiveItemBase(C) == None) || !C.IsVisible(False))
 				continue;
 			ConvertCoordinates(C, 0, 0, Self, cx, cy);
 			if ((rTop < 0) || (cy < rTop))
@@ -397,7 +492,7 @@ function DrawBarBox(GC gc, HUDActiveItemsBorderBase B)
 		for (C = B.winIcons.GetTopChild(); C != None; C = C.GetLowerSibling())
 		{
 			I = HUDActiveItemBase(C);
-			if ((I == None) || !C.IsVisible())
+			if ((I == None) || !C.IsVisible(False))
 				continue;
 			ConvertCoordinates(C, 0, 0, Self, cx, cy);
 			bLit = True;
@@ -443,14 +538,14 @@ function DrawBarBox(GC gc, HUDActiveItemsBorderBase B)
 	for (C = B.winIcons.GetTopChild(); C != None; C = C.GetLowerSibling())
 	{
 		I = HUDActiveItemBase(C);
-		if ((I == None) || !C.IsVisible())
+		if ((I == None) || !C.IsVisible(False))
 			continue;
 		ConvertCoordinates(C, 0, 0, Self, cx, cy);
 		// the cell: a light see-through grey glass, as the belt slots, body
 		// monitor and weapon box (the world dimmed a little, a faint tint of
 		// the HUD colour), no edge of its own inside the bar's frame
 		gc.SetStyle(DSTY_Modulated);
-		gc.DrawStretchedTexture(cx + 1, cy + 1, C.width - 2, C.height - 2, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dim2');
+		Class'RIText'.static.Tex(gc, cx + 1, cy + 1, C.width - 2, C.height - 2, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dim2');
 		Fill(gc, cx + 1, cy + 1, C.width - 2, C.height - 2, Class'RIVP'.static.Edge(0.16));
 		if (HUDActiveAug(C) != None)
 		{
@@ -539,7 +634,20 @@ event DrawWindow(GC gc)
 {
 	Class'RIText'.default.TextMul = Class'RIRootWindow'.static.HudK();
 	DrawHud(gc);
+	Class'RIText'.static.End3D();     // never leave a tilt open past the HUD
 	Class'RIText'.default.TextMul = 1.0;
+}
+
+// 3D HUD (Settings > Interface > HUD Depth): the side panels are drawn
+// tilted toward the eye. Side -1 left half, +1 right half; End3D after each.
+function Begin3D(GC gc, int Side)
+{
+	Class'RIText'.static.Begin3D(Self, gc, Side, Class'RIRootWindow'.static.HudTiltDeg());
+}
+
+function End3D()
+{
+	Class'RIText'.static.End3D();
 }
 
 function DrawHud(GC gc)
@@ -561,23 +669,33 @@ function DrawHud(GC gc)
 	if (Class'RIVP'.static.On())
 	{
 		DrawVP(gc);
+		Begin3D(gc, -1);
 		DrawReceived(gc);
+		End3D();
 		return;
 	}
 	if (Player.bHitDisplayVisible)
 	{
+		Begin3D(gc, -1);
 		if (Class'RIModern'.static.On())
 			DrawModernVitals(gc);
 		else
 			DrawVitals(gc);
+		End3D();
 	}
 	if (Player.bCompassVisible)
 		DrawCompass(gc);
 	if (Player.bObjectBeltVisible)
 		DrawBelt(gc);
 	if (Player.bAmmoDisplayVisible)
+	{
+		Begin3D(gc, 1);
 		DrawWeapon(gc);
+		End3D();
+	}
+	Begin3D(gc, -1);
 	DrawReceived(gc);
+	End3D();
 }
 
 // Body monitor, top left: the figure, and beside it vertical bars as tall
@@ -782,8 +900,8 @@ function DrawCompass(GC gc)
 		Shade(gc, cx - w * 0.62, y - 12 * S, w * 1.24, h + 26 * S);
 		gc.SetStyle(DSTY_Translucent);
 		gc.SetTileColor(C3(110, 92, 44));
-		gc.DrawStretchedTexture(cx - w * 0.5, y - 4 * S, w, 1.5 * S, 0, 28, 256, 8, Texture'ReimaginedUI.UI.RI_GlowC');
-		gc.DrawStretchedTexture(cx - w * 0.5, y + h + 6 * S, w, 1.5 * S, 0, 28, 256, 8, Texture'ReimaginedUI.UI.RI_GlowC');
+		Class'RIText'.static.Tex(gc, cx - w * 0.5, y - 4 * S, w, 1.5 * S, 0, 28, 256, 8, Texture'ReimaginedUI.UI.RI_GlowC');
+		Class'RIText'.static.Tex(gc, cx - w * 0.5, y + h + 6 * S, w, 1.5 * S, 0, 28, 256, 8, Texture'ReimaginedUI.UI.RI_GlowC');
 	}
 	else
 		Shade(gc, cx - w * 0.75, y - 40 * S, w * 1.5, h + 80 * S);
@@ -1717,26 +1835,34 @@ function float RX(float X) { return width - (1920 - X) * S; }
 function VDim(GC gc, float X, float Y, float W, float H)
 {
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawStretchedTexture(X, Y - H * 0.15, W, H * 1.3, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_ShadeC');
+	Class'RIText'.static.Tex(gc, X, Y - H * 0.15, W, H * 1.3, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_ShadeC');
 }
 
 function Art(GC gc, float X, float Y, float W, float H, float U, float V, float UW, float VH, Texture T)
 {
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(C3(230, 195, 117));
-	gc.DrawStretchedTexture(X, Y, W, H, U, V, UW, VH, T);
+	Class'RIText'.static.Tex(gc, X, Y, W, H, U, V, UW, VH, T);
 }
 
 function DrawVP(GC gc)
 {
 	if (Player.bHitDisplayVisible)
+	{
+		Begin3D(gc, -1);
 		DrawVPVitals(gc);
+		End3D();
+	}
 	if (Player.bCompassVisible)
 		DrawCompass(gc);
 	if (Player.bObjectBeltVisible)
 		DrawVPBelt(gc);
 	if (Player.bAmmoDisplayVisible)
+	{
+		Begin3D(gc, 1);
 		DrawVPWeapon(gc);
+		End3D();
+	}
 }
 
 // A vertical bar, filling from the bottom
@@ -1983,7 +2109,7 @@ function VPAugCell(GC gc, float X, float Y, float C, Texture Icon, bool bOn, str
 function BeltBacking(GC gc, float X, float Y, float W, float H)
 {
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawStretchedTexture(X, Y, W, H, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dark');
+	Class'RIText'.static.Tex(gc, X, Y, W, H, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dark');
 }
 
 // Belt in the board's ten slots, at Settings > Interface > Hotbar size

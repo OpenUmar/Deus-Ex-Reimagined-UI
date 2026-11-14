@@ -15,6 +15,11 @@ const PX = 0.5;     // UI units per atlas pixel
 // overlay's Ctrl+F8 switches between the two for comparison.
 var bool bAtlasText;
 var float TextMul;     // set round a whole part of the UI (HUD size, subtitle size); 0 = 1
+// 3D panels: while b3D is set (between Begin3D and End3D) every texture
+// drawn through Tex / TexAt / Pat goes through the plugin, which draws it in
+// perspective; otherwise they are exactly the GC's own calls
+var bool b3D;
+var int  Native3D;     // the plugin can do 3D: 0 not checked yet, 1 yes, 2 no (an older RINative.dll)
 
 static final function float M()
 {
@@ -130,6 +135,96 @@ static function DrawIn(GC gc, Class<RIFont> F, float X, float Y, float W, float 
 		tx = X + W - tw;
 
 	Draw(gc, F, tx, Y + (H - LineHeight(F, Scale)) * 0.5, S, C, Scale);
+}
+
+// ----------------------------------------------------------------------
+// 3D panels (the HUD's side panels turned toward the eye, as in Human
+// Revolution / Mankind Divided). Side -1 is a panel on the left half of the
+// screen, hinged on the screen's left edge; +1 on the right half, hinged on
+// the right edge. The inner side recedes, so a panel never grows off the
+// screen. Everything drawn with RIText (text, fills, lines) and with Tex /
+// TexAt / Pat until End3D is tilted; windows the game draws itself aren't.
+// ----------------------------------------------------------------------
+
+static final function bool Can3D()
+{
+	local string V;
+
+	if (default.Native3D == 0)
+	{
+		V = Class'RINative'.static.RINativeVersion();
+		default.Native3D = 2;
+		if ((Left(V, 9) == "RINative ") && (float(Mid(V, 9)) >= 0.4))
+			default.Native3D = 1;
+	}
+	return (default.Native3D == 1) && !default.bAtlasText;
+}
+
+static function bool Begin3D(Window W, GC gc, int Side, float Yaw)
+{
+	local Window R;
+	local float hx, hy, ex, ey;
+
+	End3D();
+	if ((W == None) || (gc == None) || (Side == 0) || (Yaw <= 0) || !Can3D())
+		return False;
+	R = W.GetRootWindow();
+	if ((R == None) || (R.width <= 0) || (R.height <= 0))
+		return False;
+	// the hinge (a screen edge) and the eye (screen centre), in W's coordinates
+	if (Side < 0)
+		W.ConvertCoordinates(R, 0, 0, W, hx, hy);
+	else
+		W.ConvertCoordinates(R, R.width, 0, W, hx, hy);
+	W.ConvertCoordinates(R, R.width * 0.5, R.height * 0.5, W, ex, ey);
+	if (Side > 0)
+		Yaw = -Yaw;
+	default.b3D = Class'RINative'.static.RINativeSet3D(gc, hx, ex, ey, R.height * 1.15, Yaw);
+	return default.b3D;
+}
+
+static function End3D()
+{
+	if (!default.b3D)
+		return;
+	Class'RINative'.static.RINativeClear3D();
+	default.b3D = False;
+}
+
+// gc.DrawStretchedTexture, tilted while a 3D panel is open
+static function Tex(GC gc, float X, float Y, float W, float H, float U, float V, float UL, float VL, Texture T)
+{
+	if (default.b3D)
+	{
+		if ((T != None) && (W > 0) && (H > 0))
+			Class'RINative'.static.RINativeDrawTile(gc, T, X, Y, W, H, U, V, UL, VL);
+	}
+	else
+		gc.DrawStretchedTexture(X, Y, W, H, U, V, UL, VL, T);
+}
+
+// gc.DrawTexture (one texel per UI unit), tilted while a 3D panel is open
+static function TexAt(GC gc, float X, float Y, float W, float H, float U, float V, Texture T)
+{
+	if (default.b3D)
+	{
+		if ((T != None) && (W > 0) && (H > 0))
+			Class'RINative'.static.RINativeDrawTile(gc, T, X, Y, W, H, U, V, W, H);
+	}
+	else
+		gc.DrawTexture(X, Y, W, H, U, V, T);
+}
+
+// gc.DrawPattern (the texture repeated), tilted while a 3D panel is open
+static function Pat(GC gc, float X, float Y, float W, float H, float OX, float OY, Texture T)
+{
+	if (default.b3D)
+	{
+		if ((T != None) && (W > 0) && (H > 0))
+			Class'RINative'.static.RINativeDrawTile(gc, T, X, Y, W, H, OX, OY, W, H);
+	}
+	else
+		gc.DrawPattern(X, Y, W, H, OX, OY, T);
 }
 
 // ----------------------------------------------------------------------

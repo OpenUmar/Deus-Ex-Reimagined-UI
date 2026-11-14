@@ -289,7 +289,7 @@ static function SkinDeviceTree(Window W)
 static function GoldPanel(GC gc, float X, float Y, float W, float H, float K, float a, optional string Title)
 {
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawStretchedTexture(X - 60 * K, Y - 60 * K, W + 120 * K, H + 120 * K, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_ShadeC');
+	Class'RIText'.static.Tex(gc, X - 60 * K, Y - 60 * K, W + 120 * K, H + 120 * K, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_ShadeC');
 	Class'RIVP'.static.Dim(gc, X, Y, W, H);
 	Class'RIVP'.static.Dim(gc, X, Y, W, H);
 	FillC(gc, X, Y, W, H, Class'RIUtil'.static.Col(12 * a, 10 * a, 4 * a));
@@ -340,8 +340,8 @@ static final function float KeyArtAspect() { return 1920.0 / 1080.0; }
 
 static function DrawKeyArt(GC gc, float X, float Y, float W, float H)
 {
-	gc.DrawStretchedTexture(X, Y, W * 0.5, H, 0, 0, 1015.54, 1024, Texture'ReimaginedUI.UI.RI_KeyArtL');
-	gc.DrawStretchedTexture(X + W * 0.5, Y, W * 0.5, H, 8.46, 0, 1015.54, 1024, Texture'ReimaginedUI.UI.RI_KeyArtR');
+	Class'RIText'.static.Tex(gc, X, Y, W * 0.5, H, 0, 0, 1015.54, 1024, Texture'ReimaginedUI.UI.RI_KeyArtL');
+	Class'RIText'.static.Tex(gc, X + W * 0.5, Y, W * 0.5, H, 8.46, 0, 1015.54, 1024, Texture'ReimaginedUI.UI.RI_KeyArtR');
 }
 
 // ----------------------------------------------------------------------
@@ -367,7 +367,7 @@ static function DrawDim(GC gc, float X, float Y, float W, float H, float Amount)
 		default: return;
 	}
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawStretchedTexture(X, Y, W, H, 0, 0, 16, 16, T);
+	Class'RIText'.static.Tex(gc, X, Y, W, H, 0, 0, 16, 16, T);
 }
 
 // ----------------------------------------------------------------------
@@ -396,12 +396,12 @@ static function DrawAmbience(GC gc, float W, float H, float Amt, float T)
 	g = (0.75 + 0.25 * Sin(T * 0.6)) * Amt;
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(Class'RIUtil'.static.Col(10 * g, 11 * g, 34 * g));
-	gc.DrawStretchedTexture(W * 0.15, -H * 0.25, W * 0.7, H * 0.7, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
+	Class'RIText'.static.Tex(gc, W * 0.15, -H * 0.25, W * 0.7, H * 0.7, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
 
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawStretchedTexture(0, H * 0.55, W, H * 0.45, 0, 2, 8, 252, Texture'ReimaginedUI.UI.RI_FadeV');
+	Class'RIText'.static.Tex(gc, 0, H * 0.55, W, H * 0.45, 0, 2, 8, 252, Texture'ReimaginedUI.UI.RI_FadeV');
 	if (Amt > 0.6)
-		gc.DrawPattern(0, 0, W, H, 0, 0, Texture'ReimaginedUI.UI.RI_Scan');
+		Class'RIText'.static.Pat(gc, 0, 0, W, H, 0, 0, Texture'ReimaginedUI.UI.RI_Scan');
 }
 
 // ----------------------------------------------------------------------
@@ -415,7 +415,7 @@ static function DrawBackdrop(GC gc, float W, float H, float T)
 	gc.EnableSmoothing(True);
 	gc.SetStyle(DSTY_Normal);
 	gc.SetTileColor(Class'RIUtil'.static.Col(70, 70, 80));
-	gc.DrawStretchedTexture(0, 0, W, H, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Navy');
+	Class'RIText'.static.Tex(gc, 0, 0, W, H, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Navy');
 	DrawDim(gc, 0, 0, W, H, 0.5);
 	DrawAmbience(gc, W, H, 1.0, T);
 }
@@ -451,7 +451,7 @@ static function GlowC(GC gc, float X, float Y, float W, float H, float Spread, C
 {
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(C);
-	gc.DrawStretchedTexture(X - Spread, Y - Spread, W + Spread * 2, H + Spread * 2, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_GlowC');
+	Class'RIText'.static.Tex(gc, X - Spread, Y - Spread, W + Spread * 2, H + Spread * 2, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_GlowC');
 }
 
 // The big glowing frame every full-screen page sits in
@@ -502,7 +502,7 @@ static function MockSelRow(GC gc, float X, float Y, float W, float H, float S, f
 {
 	gc.SetStyle(DSTY_Translucent);
 	gc.SetTileColor(K(46, 48, 132, a));
-	gc.DrawStretchedTexture(X, Y, W, H, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
+	Class'RIText'.static.Tex(gc, X, Y, W, H, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_Glow');
 	Class'RIText'.static.Box(gc, X, Y, W, H, K(150, 154, 230, a));
 }
 

@@ -76,7 +76,7 @@ static final function Reset()
 	default.bNoPackage = False;
 }
 
-// Drop-in for gc.DrawTexture(x, y, w, h, tx, ty, T): same texel coordinates in
+// Drop-in for Class'RIText'.static.TexAt(gc, x, y, w, h, tx, ty, T): same texel coordinates in
 // the original's space, drawn from the remaster
 static final function Draw(GC gc, float X, float Y, float W, float H, float TX, float TY, Texture T)
 {
@@ -86,14 +86,14 @@ static final function Draw(GC gc, float X, float Y, float W, float H, float TX, 
 	R = HD(T);
 	if ((R == T) || (T.USize == 0))
 	{
-		gc.DrawTexture(X, Y, W, H, TX, TY, T);
+		Class'RIText'.static.TexAt(gc, X, Y, W, H, TX, TY, T);
 		return;
 	}
 	K = float(R.USize) / float(T.USize);
-	gc.DrawStretchedTexture(X, Y, W, H, TX * K, TY * K, W * K, H * K, R);
+	Class'RIText'.static.Tex(gc, X, Y, W, H, TX * K, TY * K, W * K, H * K, R);
 }
 
-// Drop-in for gc.DrawStretchedTexture(...) with source coords in the original's space
+// Drop-in for Class'RIText'.static.Tex(gc, ...) with source coords in the original's space
 static final function DrawStretched(GC gc, float X, float Y, float W, float H, float SX, float SY, float SW, float SH, Texture T)
 {
 	local Texture R;
@@ -103,7 +103,7 @@ static final function DrawStretched(GC gc, float X, float Y, float W, float H, f
 	K = 1.0;
 	if ((R != T) && (T.USize > 0))
 		K = float(R.USize) / float(T.USize);
-	gc.DrawStretchedTexture(X, Y, W, H, SX * K, SY * K, SW * K, SH * K, R);
+	Class'RIText'.static.Tex(gc, X, Y, W, H, SX * K, SY * K, SW * K, SH * K, R);
 }
 
 // An aug icon fitted into X,Y,W,H. Large aug icons are 64 x 64 with the art

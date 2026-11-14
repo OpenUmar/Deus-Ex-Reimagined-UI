@@ -25,6 +25,8 @@ if not exist "%OUT%" mkdir "%OUT%"
 echo Base: %BASE%
 
 echo [1/3] Staging source...
+rem A rebuilt plugin dropped in the mod folder (Native\RINative.dll.new) goes in first
+if exist "..\Mods\ReimaginedUI\Native\RINative.dll.new" copy /y "..\Mods\ReimaginedUI\Native\RINative.dll.new" "RINative.dll.new" >nul && del "..\Mods\ReimaginedUI\Native\RINative.dll.new"
 rem A newer native plugin may be waiting (written while the game had the old one open)
 if exist "RINative.dll.new" (
     move /y "RINative.dll.new" "RINative.dll" >nul

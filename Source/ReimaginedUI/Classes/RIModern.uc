@@ -59,7 +59,7 @@ static final function Darken(GC gc, float X, float Y, float W, float H)
 	if ((x1 <= x0) || (y1 <= y0))
 		return;
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawStretchedTexture(x0, y0, x1 - x0, y1 - y0, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dark');
+	Class'RIText'.static.Tex(gc, x0, y0, x1 - x0, y1 - y0, 0, 0, 16, 16, Texture'ReimaginedUI.UI.RI_Dark');
 }
 
 // One piece of a shape: Mode 0 darkens, 1 adds Col
@@ -162,7 +162,7 @@ static final function Scan(GC gc, float X, float Y, float W, float H)
 	if ((W <= 0) || (H <= 0))
 		return;
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawPattern(X, Y, W, H, 0, 0, Texture'ReimaginedUI.UI.RI_Scan');
+	Class'RIText'.static.Pat(gc, X, Y, W, H, 0, 0, Texture'ReimaginedUI.UI.RI_Scan');
 }
 
 static final function Pip(GC gc, float X, float Y, float Z, Color Col)
@@ -378,9 +378,9 @@ static final function float Slot(GC gc, float X, float Y, float W, float H, floa
 	{
 		gc.SetStyle(DSTY_Translucent);
 		gc.SetTileColor(C(150, 100, 18, 1));
-		gc.DrawStretchedTexture(X + W * 0.06, Y + th + (H - th) * 0.02, W * 0.88, (H - th) * 0.9, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_GlowC');
+		Class'RIText'.static.Tex(gc, X + W * 0.06, Y + th + (H - th) * 0.02, W * 0.88, (H - th) * 0.9, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_GlowC');
 		gc.SetTileColor(C(90, 58, 10, 1));
-		gc.DrawStretchedTexture(X + W * 0.2, Y + th + (H - th) * 0.15, W * 0.6, (H - th) * 0.6, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_GlowC');
+		Class'RIText'.static.Tex(gc, X + W * 0.2, Y + th + (H - th) * 0.15, W * 0.6, (H - th) * 0.6, 0, 0, 256, 64, Texture'ReimaginedUI.UI.RI_GlowC');
 	}
 
 	if (State == 2)

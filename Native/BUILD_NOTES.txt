@@ -40,3 +40,34 @@ Compile: clang++ --target=i686-pc-windows-msvc -fms-compatibility -fms-extension
 Link: lld-link /dll /entry:RIDllEntry /nodefaultlib /base:0x10000000
 Layout re-checked: UTexture::Mips 0xA4, FMipmap 40, XWindow parent 0x138,
   firstChild 0x13C, nextSibling 0x148, XRootWindow initCount 0x5D4.
+
+Build 0.4 (3D panels) was built in the cloud without the game folder:
+  headers   github.com/onnoj/deus-ex-headers-fixed, with the clang 18 edits
+            above (UnMem.h, UnActor.h, UnObjBas.h both IMPLEMENT_CLASS lines,
+            UnTemplate.h, UnAudio.h, UnCid.h copy)
+  libs      Core.lib / Engine.lib / Extension.lib from
+            github.com/onnoj/DeusExEchelonRenderer (LIB/deusex/*/Lib);
+            MSVCRT import lib from a .def (ceil fabs floor free malloc memcpy
+            memset sqrt) via llvm-dlltool -m i386
+  check     the 0.3 source rebuilt this way gave imports and exports
+            identical to the shipped 0.3 DLL, symbol for symbol
+  0.4 adds one import, Core's GPropAddr (used by out parameters).
+
+3D panels (RIText.cpp): a panel turned about a vertical axis keeps vertical
+lines vertical, so it is drawn as vertical slices, each an ordinary
+UCanvas::DrawTile. Slices sit on one global column grid with one scale per
+cell, so tiles stacked in the same columns share their rounded edges exactly
+(checked with a Python port: one big tile and 1,400 small tiles cover the same
+pixels, no holes, no overlaps). No 3D polygons, no depth buffer: renderer
+independent.
+
+3D panels, anti-aliased edges (2026-11-14, same cloud setup; imports
+unchanged from 0.4): translucent tiles drawn tilted no longer round their top
+and bottom edges to whole pixels. Each slice is split into a part-covered top
+row, the fully covered rows and a part-covered bottom row; the edge rows are
+drawn with the tile colour scaled by the covered fraction (additive, so tiles
+sharing an edge still add up to exactly one). Texture rows follow the
+projection exactly. Other styles (masked, modulated, normal) keep the rounded
+edges. Column grid tightened from half a pixel of height error to a quarter.
+Install: the DLL is dropped as Native\RINative.dll.new; the build script
+moves it into System (via System\RINative.dll.new) on the next build.

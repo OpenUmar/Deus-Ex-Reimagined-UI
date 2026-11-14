@@ -21,7 +21,7 @@ Menus, HUD, inventory, augmentations, dialogue and every in-game screen, rebuilt
 | Area | What you get |
 | --- | --- |
 | **Menus** | New main menu, pause menu, settings, load and save screens, and key binding (click a row, then press a key). |
-| **HUD** | A redesigned heads-up display with a body monitor, bioelectric bar, compass, aug bar, hotbar and a shooter-style ammo readout. Pickups, goals and messages share one compact log on the left. The HUD hides itself when you look through a scope or binoculars, and can trail your view slightly for a sense of depth (HUD Motion). |
+| **HUD** | A redesigned heads-up display with a body monitor, bioelectric bar, compass, aug bar, hotbar and a shooter-style ammo readout. Pickups, goals and messages share one compact log on the left. The HUD hides itself when you look through a scope or binoculars, and can be given depth: the side panels turn toward you in perspective, as in Human Revolution and Mankind Divided, and the HUD can trail your view slightly as you look around (HUD Depth). |
 | **Crosshair** | A fully customisable crosshair in the spirit of CS:GO, with a live preview and a dozen presets (Default, Classic, Dot, T-shape, Circle, Brackets and more). Its spread follows each weapon's real accuracy and closes fully when you are on target. |
 | **In-game screens** | Inventory (with item rotation, drag-and-drop, outfits, ammo and nano keys in one place), Health, Augmentations, Skills and a combined Journal for goals, notes, images and conversations. Q and E cycle between them. |
 | **Health and Augs** | New body figures. Health lights up damaged parts and lists traumas, while Augs shows each installed aug on the figure in its own box, wired to its slot like the original screen, along with its toggle key. |
@@ -56,6 +56,16 @@ Colours follow the HUD and menu themes you pick in Settings, and the size of the
 
 Your normal `DeusEx.exe` still launches the untouched original game, and both share the same save folder.
 
+### Launching from Steam instead
+
+Steam's **Play** button starts the game with Kentie's own default settings, which load the mod's files but keep the original menus, so the new interface never appears. To make Steam start the mod, right-click Deus Ex in your library, open **Properties › General › Launch Options**, and enter:
+
+```
+INI="..\Mods\ReimaginedUI\System\Vanilla\DeusEx.ini"
+```
+
+Clear the launch options again whenever you want to play the untouched game from Steam.
+
 > [!TIP]
 > The included settings file defaults to Direct3D 9 at 1920×1080. If your screen differs, change the resolution in **Settings › Display** on first launch.
 
@@ -86,7 +96,7 @@ Delete `System\Play_ReimaginedUI_Vanilla.cmd`, `System\RINative.dll` and the `Mo
 | Conversation Bars | Restore the original black cinematic bars during conversations (toggles live, even mid-conversation) |
 | Crosshair | Opens the crosshair editor: presets, colour, length, gap, thickness, centre dot, outline, T-shape, dynamic spread and rifle scopes |
 | Speaker colours | Colour subtitles by who is speaking: names only, or names and lines |
-| HUD Motion | Lets the HUD trail your view slightly and glide back; the crosshair never moves |
+| HUD Depth | Flat, Motion (the HUD trails your view slightly and glides back), 3D Tilt (the side panels turn toward you in perspective), or both; the crosshair never moves |
 | Textures | Use the upscaled (HD) interface textures or the originals |
 
 ## Known issues
