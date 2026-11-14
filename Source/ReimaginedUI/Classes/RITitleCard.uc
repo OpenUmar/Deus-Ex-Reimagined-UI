@@ -135,9 +135,9 @@ event DrawWindow(GC gc)
 
 	// Darken the bottom (text) and the left edge (logo)
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawStretchedTexture(0, height * 0.45, width, height * 0.55, 0, 0, 8, 256, Texture'ReimaginedUI.UI.RI_FadeV');
-	gc.DrawStretchedTexture(0, height * 0.62, width, height * 0.38, 0, 0, 8, 256, Texture'ReimaginedUI.UI.RI_FadeV');
-	gc.DrawStretchedTexture(0, 0, width * 0.25, height, 0, 0, 256, 8, Texture'ReimaginedUI.UI.RI_FadeH');
+	gc.DrawStretchedTexture(0, height * 0.45, width, height * 0.55, 0, 2, 8, 252, Texture'ReimaginedUI.UI.RI_FadeV');
+	gc.DrawStretchedTexture(0, height * 0.62, width, height * 0.38, 0, 2, 8, 252, Texture'ReimaginedUI.UI.RI_FadeV');
+	gc.DrawStretchedTexture(0, 0, width * 0.25, height, 2, 0, 252, 8, Texture'ReimaginedUI.UI.RI_FadeH');
 
 	// Scanlines
 	gc.SetStyle(DSTY_Modulated);

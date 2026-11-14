@@ -3,9 +3,10 @@
 // The death screen as a real (modal) window, so its buttons take the mouse as
 // well as the keyboard. RIRootWindow opens it by itself a moment after the
 // player dies and acts on the choice in BoxOptionSelected:
-//   0  load the last save     (Enter / Space on the first button)
-//   1  load game              (L)
-//   2  main menu              (Escape)
+//   0  last checkpoint        (Enter / Space on the first button)
+//   1  restart mission        (R)
+//   2  load game              (L)
+//   3  main menu              (Escape)
 // Drawn in the selected UI style: Sleek gold, or the Vanilla+ frame and
 // chamfered buttons. Built on RIMessageBox for its input handling.
 //=============================================================================
@@ -14,11 +15,11 @@ class RIDeathScreen extends RIMessageBox;
 var string LocStr;
 var float  TitleY, CY;
 
-function SetDeath(string Title, string Location, string A, string B, string C)
+function SetDeath(string Title, string Location, string A, string B, string C, string D)
 {
 	TitleStr = Title;
 	LocStr = Location;
-	SetCustomButtons(A, B, C);
+	SetCustomButtons(A, B, C, D);
 }
 
 function UpdateFrame(float deltaSeconds)
@@ -62,9 +63,14 @@ event bool VirtualKeyPressed(EInputKey key, bool bRepeat)
 {
 	if (bRepeat)
 		return True;
-	if (key == IK_L)
+	if (key == IK_R)
 	{
 		Choose(1);
+		return True;
+	}
+	if (key == IK_L)
+	{
+		Choose(2);
 		return True;
 	}
 	return Super.VirtualKeyPressed(key, bRepeat);
@@ -83,7 +89,7 @@ event DrawWindow(GC gc)
 	Class'RITheme'.static.SetMode(2);
 
 	Class'RISkin'.static.DrawDim(gc, 0, 0, width, height, 0.55 * a);
-	Class'RISkin'.static.DrawDim(gc, 0, CY - 140 * UIS, width, 360 * UIS, 0.35 * a);
+	Class'RISkin'.static.DrawDim(gc, 0, CY - 140 * UIS, width, 410 * UIS, 0.35 * a);
 
 	if (Class'RIVP'.static.On())
 	{
@@ -110,6 +116,8 @@ event DrawWindow(GC gc)
 		if (b == 0)
 			K = "ENTER";
 		else if (b == 1)
+			K = "R";
+		else if (b == 2)
 			K = "L";
 		else
 			K = "ESC";

@@ -62,6 +62,8 @@ var localized string AmmoTitle, KeysTitle, NoAmmoLabel, NoKeysLabel, ListHint, R
 var localized string RotateLabel, NoTurnLabel, NoTurnRoomLabel;
 var localized string KindWeapon, KindAmmo, KindItem, SlotWord, EquippedWord;
 var localized string StatsLabel, ClickLoadLabel;
+var localized string ModsTitle, ModsHint, ModNames[8], NoneWord;
+var bool bModsDone;       // the weapon's MODS section is drawn
 var localized string InvTitle, CreditsLabel, KeysLabel, BeltLabel, ClassicLabel, PickLabel, NoRoomLabel, HintText;
 
 // Vanilla+: the item page sits on the Inventory board (grid, belt, buttons)
@@ -126,6 +128,18 @@ function bool LocalSub(int Id)
 	DragItem = None;
 	bDragging = False;
 	return True;
+}
+
+// Nothing selected (a click on an empty cell)
+function Deselect()
+{
+	if (SelItem == None)
+		return;
+	SelItem = None;
+	DescAge = 0;
+	InfoScroll = 0;
+	InfoScrollTarget = 0;
+	PlaySound(Sound'Menu_Focus', 0.2);
 }
 
 function Select(Inventory I)
@@ -583,8 +597,9 @@ function PageClick(int Id, EInputKey button, int numClicks)
 				StartDrag(I, False, col - I.invPosX, row - I.invPosY);
 			}
 		}
+		// an empty cell deselects; items move only by dragging
 		else if (SelItem != None)
-			MoveTo(col, row);
+			Deselect();
 		return;
 	}
 	if ((Id >= HOT_BELT) && (Id < HOT_BELT + 12))
@@ -764,12 +779,19 @@ function DrawPage(GC gc, float a)
 			if (VPlus())
 			{
 				Class'RIText'.static.Box(gc, x, y, Cell + 1, Cell + 1, ADim(a));
-				if (bHot && (SelItem != None))
+				if (bHot && bDragging)
 					Class'RIText'.static.Box(gc, x + 2, y + 2, Cell - 4, Cell - 4, AHi(a));
 				continue;
 			}
+			if (Class'RIModern'.static.On())
+			{
+				Class'RIModern'.static.Cell(gc, x + 3, y + 3, Cell - 6, Cell - 6, S, False, a);
+				if (bHot && bDragging)
+					Class'RIText'.static.Box(gc, x + 3, y + 3, Cell - 6, Cell - 6, AHi(a));
+				continue;
+			}
 			Fill(gc, x + 2, y + 2, Cell - 4, Cell - 4, C3(30, 25, 11, 0.55 * a));
-			if (bHot && (SelItem != None) && (ItemAt(c, r) == None))
+			if (bHot && bDragging && (ItemAt(c, r) == None))
 				Class'RIText'.static.Box(gc, x + 2, y + 2, Cell - 4, Cell - 4, AHi(a));
 			else
 				Class'RIText'.static.Box(gc, x + 2, y + 2, Cell - 4, Cell - 4, C3(70, 58, 28, a));
@@ -801,6 +823,8 @@ function DrawPage(GC gc, float a)
 			Fill(gc, x, y, cw, ch, C3(61, 50, 23, 0.6 * a));
 		if (bSel)
 			SelRow(gc, x, y, cw, ch, a);
+		else if (Class'RIModern'.static.On())
+			Class'RIModern'.static.Cell(gc, x + 1, y + 1, cw - 2, ch - 2, S, False, a);
 		else
 			Class'RIText'.static.Box(gc, x, y, cw, ch, AEdge(a));
 		// while dragging, what the dragged item can be dropped on shows green
@@ -810,12 +834,14 @@ function DrawPage(GC gc, float a)
 		{
 			iw = FMax(1, I.largeIconWidth);
 			ih = FMax(1, I.largeIconHeight);
-			k = FMin((cw - 12 * S) / iw, (ch - 30 * S) / ih);
+			// kept clear of the frame's corners and the name line: centred in
+			// the space between a top margin and the label
+			k = FMin((cw - 24 * S) / iw, (ch - 50 * S) / ih);
 			if (k >= 1)
 				k = float(int(k));      // whole-number scale: even pixels
 			gc.SetStyle(DSTY_Masked);
 			gc.SetTileColor(C3(255, 255, 255, a));
-			Class'RIHD'.static.DrawStretched(gc, x + (cw - iw * k) * 0.5, y + 6 * S + (ch - 30 * S - ih * k) * 0.5, iw * k, ih * k,
+			Class'RIHD'.static.DrawStretched(gc, x + (cw - iw * k) * 0.5, y + 14 * S + (ch - 40 * S - ih * k) * 0.5, iw * k, ih * k,
 				0, 0, iw, ih, I.largeIcon);
 		}
 		N = I.beltDescription;
@@ -1115,7 +1141,7 @@ function DrawBelt(GC gc, float a)
 	}
 	for (n = 0; n < cnt; n++)
 	{
-		sx = bx0 + n * pitch;
+		sx = bx0 + Class'RIUtil'.static.BeltPos(n) * pitch;
 		I = BeltItem(n);
 		bHot = (HoverId == HOT_BELT + n);
 		if (!VPlus())
@@ -1201,6 +1227,7 @@ function DrawInfo(GC gc, float X, float Top, float W, float Bottom, float da)
 	AmmoRowX = -1;
 	BtnRowX = -1;
 	bStatsHead = False;
+	bModsDone = False;
 	InfoDesc = "";
 	if (!VPlus())
 	{
@@ -1560,6 +1587,14 @@ function float InfoTree(GC gc, Window Parent, float X, float y, float W, float d
 				// the ammo tiles already show what's loaded and what fits
 				if ((DeusExWeapon(SelItem) != None) && (Left(Caps(L), 4) == "AMMO"))
 					continue;
+				// the attachments are shown as the MODS section instead
+				if (IsAttachRow(L))
+					continue;
+				if (!bModsDone && (StatCol == 0) && (DeusExWeapon(SelItem) != None))
+				{
+					bModsDone = True;
+					y = DrawMods(gc, X, y + 14 * S, W, da);
+				}
 				if (!bStatsHead && (StatCol == 0))
 				{
 					bStatsHead = True;
@@ -1591,6 +1626,13 @@ function float InfoTree(GC gc, Window Parent, float X, float y, float W, float d
 					y += 34 * S;
 				}
 				continue;
+			}
+			if (IsAttachRow(L))
+				continue;
+			if (!bModsDone && (DeusExWeapon(SelItem) != None))
+			{
+				bModsDone = True;
+				y = DrawMods(gc, X, y + 6 * S, W, da);
 			}
 			lw = W * 0.38;
 			Class'RIText'.static.Draw(gc, Class'RIFontSmall', X, y + 3 * S, Caps(L), ALbl(da), 0.5);
@@ -1641,6 +1683,124 @@ function float InfoTree(GC gc, Window Parent, float X, float y, float W, float d
 		y = InfoTree(gc, C, X, y, W, da);
 	}
 	return y;
+}
+
+// A stat row that's one of the attachments (scope / laser / silencer), shown
+// in the MODS section instead
+function bool IsAttachRow(string L)
+{
+	local DeusExWeapon Wp;
+
+	Wp = DeusExWeapon(SelItem);
+	if (Wp == None)
+		return False;
+	L = Caps(L);
+	return (L == Caps(NoColon(Wp.msgInfoScope))) || (L == Caps(NoColon(Wp.msgInfoLaser))) || (L == Caps(NoColon(Wp.msgInfoSilencer)));
+}
+
+function string NoColon(string T)
+{
+	if (Right(T, 1) == ":")
+		return Left(T, Len(T) - 1);
+	return T;
+}
+
+// The weapon's mods, as one section: the attachments it can take (scope,
+// laser, silencer) as tags, lit when fitted; then each upgrade it can take
+// (accuracy, clip, range, recoil, reload) with five pips for its level and
+// the bonus. Slots the weapon can't use aren't listed.
+function float DrawMods(GC gc, float X, float y, float W, float da)
+{
+	local DeusExWeapon Wp;
+	local float tx, tw, cw, lw, ax, v;
+	local int i, n, lv, col;
+	local bool bCan, bHas;
+	local string T;
+
+	Wp = DeusExWeapon(SelItem);
+	if (Wp == None)
+		return y;
+	SectionHead(gc, X, y, W, ModsTitle, ModsHint, da);
+	y += 28 * S;
+
+	// attachments
+	tx = X;
+	for (i = 0; i < 3; i++)
+	{
+		switch (i)
+		{
+			case 0: bCan = Wp.bCanHaveScope;    bHas = Wp.bHasScope;    break;
+			case 1: bCan = Wp.bCanHaveLaser;    bHas = Wp.bHasLaser;    break;
+			case 2: bCan = Wp.bCanHaveSilencer; bHas = Wp.bHasSilencer; break;
+		}
+		if (!bCan && !bHas)
+			continue;
+		T = Caps(ModNames[i]);
+		tw = Class'RIText'.static.Width(Class'RIFontSmall', T, 0.5) + 30 * S;
+		if (bHas)
+		{
+			Fill(gc, tx, y, tw, 26 * S, C3(46, 38, 17, da));
+			Class'RIText'.static.Box(gc, tx, y, tw, 26 * S, C3(242, 211, 107, da));
+			Fill(gc, tx + 8 * S, y + 11 * S, 4 * S, 4 * S, C3(159, 212, 138, da));
+			Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', tx + 16 * S, y, tw - 20 * S, 26 * S, T, C3(255, 241, 194, da), 0, 0.5);
+		}
+		else
+		{
+			Class'RIText'.static.Box(gc, tx, y, tw, 26 * S, C3(70, 58, 28, da));
+			Class'RIText'.static.HLine(gc, tx + 7 * S, y + 13 * S, 6 * S, C3(110, 94, 50, da));
+			Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', tx + 16 * S, y, tw - 20 * S, 26 * S, T, C3(130, 112, 64, da), 0, 0.5);
+		}
+		tx += tw + 8 * S;
+		n++;
+	}
+	if (n > 0)
+		y += 38 * S;
+
+	// upgrades: two columns
+	lw = (W - 52 * S) / 2;
+	col = 0;
+	for (i = 3; i < 8; i++)
+	{
+		switch (i)
+		{
+			case 3: bCan = Wp.bCanHaveModBaseAccuracy;   v = Wp.ModBaseAccuracy;   break;
+			case 4: bCan = Wp.bCanHaveModReloadCount;    v = Wp.ModReloadCount;    break;
+			case 5: bCan = Wp.bCanHaveModAccurateRange;  v = Wp.ModAccurateRange;  break;
+			case 6: bCan = Wp.bCanHaveModRecoilStrength; v = Wp.ModRecoilStrength; break;
+			case 7: bCan = Wp.bCanHaveModReloadTime;     v = Wp.ModReloadTime;     break;
+		}
+		if (!bCan && (v == 0))
+			continue;
+		lv = Clamp(int(Abs(v) * 10 + 0.5), 0, 5);
+		ax = X + col * (lw + 40 * S);
+		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', ax, y, lw * 0.45, 26 * S, Caps(ModNames[i]), C3(140, 119, 64, da), 0, 0.48);
+		// five pips
+		for (n = 0; n < 5; n++)
+		{
+			if (n < lv)
+				Fill(gc, ax + lw * 0.45 + n * 13 * S, y + 10 * S, 10 * S, 6 * S, C3(242, 211, 107, da));
+			else
+				Fill(gc, ax + lw * 0.45 + n * 13 * S, y + 10 * S, 10 * S, 6 * S, C3(46, 38, 18, da));
+		}
+		if (lv > 0)
+		{
+			T = "+" $ string(lv * 10) $ "%";
+			Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', ax, y, lw, 26 * S, T, C3(159, 212, 138, da), 2, 0.48);
+		}
+		else
+			Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', ax, y, lw, 26 * S, Caps(NoneWord), C3(110, 94, 50, da), 2, 0.46);
+		Class'RIText'.static.HLine(gc, ax, y + 27 * S, lw, C3(30, 25, 11, da));
+		if (col == 0)
+			col = 1;
+		else
+		{
+			col = 0;
+			y += 30 * S;
+		}
+	}
+	if (col == 1)
+		y += 30 * S;
+	return y + 6 * S;
 }
 
 // AE separates list values with line breaks ("10mm Ammo" / "10mm AP Ammo"),
@@ -2000,6 +2160,17 @@ function string KindLine(Inventory I)
 
 defaultproperties
 {
+     ModsTitle="Mods"
+     ModsHint="Drop a mod on the weapon to fit it"
+     ModNames(0)="Scope"
+     ModNames(1)="Laser"
+     ModNames(2)="Silencer"
+     ModNames(3)="Accuracy"
+     ModNames(4)="Clip"
+     ModNames(5)="Range"
+     ModNames(6)="Recoil"
+     ModNames(7)="Reload"
+     NoneWord="None"
      InvTitle="Inventory"
      StatsLabel="Stats"
      ClickLoadLabel="Click to load"

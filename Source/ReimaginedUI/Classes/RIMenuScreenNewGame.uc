@@ -136,9 +136,10 @@ function ConfigurationChanged()
 	FrameW = 1800 * S;
 	FrameH = 960 * S;
 
-	KX = OX + 100 * S;
+	// Agent on the left (who you are first), skills on the right
+	KX = OX + 640 * S;
 	KY = 186 * S;
-	KW = 1100 * S;
+	KW = 1180 * S;
 	KH = 600 * S;
 	RowH = 40 * S;
 	RowStep = 43 * S;
@@ -149,9 +150,9 @@ function ConfigurationChanged()
 	DW = KW;
 	DH = 118 * S;
 
-	AX = OX + 1240 * S;
+	AX = OX + 100 * S;
 	AY = 186 * S;
-	AW = 580 * S;
+	AW = 500 * S;
 
 	BtnY = 948 * S;
 	BtnH = 48 * S;
@@ -296,7 +297,7 @@ function PressButton(int b)
 		CancelScreen();
 	else if (b == BTN_RESET)
 		ResetToDefaults();
-	else if (b == BTN_MODS)
+	else if ((b == BTN_MODS) && Class'RIBase'.static.Has("MODIFIERS"))
 		ProcessAction("MODIFIERS");
 	else if (b == BTN_HELP)
 		ProcessAction("HELP");
@@ -605,7 +606,8 @@ event DrawWindow(GC gc)
 
 	Class'RISkin'.static.DrawDim(gc, 0, 0, width, height, 0.55 * a);
 	Class'RISkin'.static.MockFrame(gc, FrameX, FrameY, FrameW, FrameH, S, a);
-	Class'RISkin'.static.MockTitle(gc, OX + 100 * S, 96 * S, HeaderText, 880 * S, S, a);
+	Class'RISkin'.static.MockTitle(gc, OX + 100 * S, 96 * S, HeaderText, 0, S, a);
+	DrawPoints(gc, a);
 
 	DrawSkills(gc, a * Class'RIUtil'.static.Phase(AnimTime, 0.05, 0.35));
 	DrawDetail(gc, a * Class'RIUtil'.static.Phase(AnimTime, 0.10, 0.35));
@@ -725,9 +727,18 @@ function DrawDetail(GC gc, float a)
 	else
 		Para = D;
 	st = gc.PushGC();
-	gc.Intersect(x, DY + 40 * S, DX + DW - 22 * S - x, DH - 48 * S);
-	Class'RIText'.static.DrawWrapped(gc, Class'RIFontBody', x, DY + 44 * S, DX + DW - 22 * S - x, Para, C3(185, 189, 235, da), 0.8, 1.35);
+	gc.Intersect(x, DY + 40 * S, DX + DW - 190 * S - x, DH - 48 * S);
+	Class'RIText'.static.DrawWrapped(gc, Class'RIFontBody', x, DY + 44 * S, DX + DW - 190 * S - x, Para, C3(185, 189, 235, da), 0.8, 1.35);
 	gc.PopGC(st);
+
+	// lower / raise the selected skill, right of its description
+	x = DX + DW - 22 * S - BtnH * 2 - 12 * S;
+	y = DY + (DH - BtnH) * 0.5;
+	DrawRound(gc, x, y, "-", Sk.GetCurrentLevel() > 0, HoverId == HOT_DOWN, a);
+	AddHot(HOT_DOWN, x, y, BtnH, BtnH);
+	x += BtnH + 12 * S;
+	DrawRound(gc, x, y, "+", (Sk.GetCurrentLevel() < 3) && Sk.CanAffordToUpgrade(player.SkillPointsAvail), HoverId == HOT_UP, a);
+	AddHot(HOT_UP, x, y, BtnH, BtnH);
 }
 
 function DrawField(GC gc, float X, float Y, float W, string Label, string Value, bool bEdit, int Id, float a)
@@ -814,7 +825,7 @@ function DrawAgent(GC gc, float a)
 	bZone = (Zone == 1);
 
 	// Portrait box with the appearance arrows in its bottom corners
-	ph = 480 * S;
+	ph = 430 * S;
 	if (FemaleOn())
 		ph -= 84 * S;
 	y = AY;
@@ -822,12 +833,13 @@ function DrawAgent(GC gc, float a)
 	T = texPortraits[portraitIndex];
 	if (T != None)
 	{
-		// Smaller card, centred, sampled 1px inside the texture's edge (its
-		// border pixels are magenta padding)
-		pw = (ph * 0.72) * 112.0 / 159.0;
+		// Smaller card, centred, sampled 3 texels inside the texture's edge:
+		// its border is magenta padding, and smoothing (more so on the 4x HD
+		// copy) bled it in as purple specks on the edge
+		pw = (ph * 0.72) * 108.0 / 154.0;
 		gc.SetStyle(DSTY_Normal);
 		gc.SetTileColor(Class'RIUtil'.static.Col(255, 255, 255));
-		Class'RIHD'.static.DrawStretched(gc, AX + (AW - pw) * 0.5, y + ph * 0.13, pw, ph * 0.72, 1, 1, 112, 159, T);
+		Class'RIHD'.static.DrawStretched(gc, AX + (AW - pw) * 0.5, y + ph * 0.13, pw, ph * 0.72, 3, 3, 108, 154, T);
 		Class'RIText'.static.Box(gc, AX + (AW - pw) * 0.5, y + ph * 0.13, pw, ph * 0.72, C3(59, 63, 196, a));
 		if (a < 0.99)
 			Class'RISkin'.static.DrawDim(gc, AX + (AW - pw) * 0.5, y + ph * 0.13, pw, ph * 0.72, 1.0 - a);
@@ -891,42 +903,46 @@ function DrawAgent(GC gc, float a)
 		AddHot(HOT_BTN + BTN_HELP, bx, y - 10 * S, 170 * S, 36 * S);
 		bx -= 12 * S;
 	}
-	bx -= 190 * S;
-	Class'RISkin'.static.MockButton(gc, bx, y - 10 * S, 190 * S, 36 * S, BtnLabels[BTN_MODS], S, a, HoverId == HOT_BTN + BTN_MODS, True);
-	AddHot(HOT_BTN + BTN_MODS, bx, y - 10 * S, 190 * S, 36 * S);
+	// gameplay modifiers are GMDX AE's; vanilla has none
+	if (Class'RIBase'.static.Has("MODIFIERS"))
+	{
+		bx -= 190 * S;
+		Class'RISkin'.static.MockButton(gc, bx, y - 10 * S, 190 * S, 36 * S, BtnLabels[BTN_MODS], S, a, HoverId == HOT_BTN + BTN_MODS, True);
+		AddHot(HOT_BTN + BTN_MODS, bx, y - 10 * S, 190 * S, 36 * S);
+	}
+}
+
+// Skill points, over the skills panel at the title's height (flashes red
+// when an upgrade can't be afforded)
+function DrawPoints(GC gc, float a)
+{
+	local float x, w, tw, y, h;
+	local string P;
+	local Color PC;
+
+	y = 96 * S;
+	h = 58 * S;
+	P = string(player.SkillPointsAvail);
+	w = FMax(140 * S, Class'RIText'.static.Width(Class'RIFontTitle', P, 0.55) + 36 * S);
+	x = KX + KW - w;
+	PC = Class'RIUtil'.static.Mix(C3(143, 147, 255, a), C3(255, 107, 142, a), PointsFlash);
+	Class'RISkin'.static.GlowC(gc, x, y, w, h, 6 * S, C3(30, 32, 100, a));
+	Class'RISkin'.static.Box2(gc, x, y, w, h, PC);
+	Class'RIText'.static.DrawIn(gc, Class'RIFontTitle', x + Sin(PointsFlash * 30) * PointsFlash * 6 * S, y, w, h, P,
+		Class'RIUtil'.static.Mix(C3(255, 255, 255, a), C3(255, 107, 142, a), PointsFlash), 1, 0.55);
+	tw = Class'RIText'.static.Width(Class'RIFontHead', Caps(PointsLabel), 0.62);
+	Class'RIText'.static.DrawIn(gc, Class'RIFontHead', x - tw - 20 * S, y, tw, h, Caps(PointsLabel), C3(201, 204, 245, a), 0, 0.62);
 }
 
 function DrawBottom(GC gc, float a)
 {
-	local float x, w, tw;
-	local string P;
-	local Color PC;
+	local float x, w;
 
-	// Restore default, + / -
-	x = OX + 100 * S;
+	// Reset, under the skills it resets
+	x = KX;
 	w = 260 * S;
 	Class'RISkin'.static.MockButton(gc, x, BtnY, w, BtnH, BtnLabels[BTN_RESET], S, a, HoverId == HOT_BTN + BTN_RESET, True);
 	AddHot(HOT_BTN + BTN_RESET, x, BtnY, w, BtnH);
-	x += w + 24 * S;
-	DrawRound(gc, x, BtnY, "+", (SkillAt(SkillSel) != None) && (SkillAt(SkillSel).GetCurrentLevel() < 3)
-		&& SkillAt(SkillSel).CanAffordToUpgrade(player.SkillPointsAvail), HoverId == HOT_UP, a);
-	AddHot(HOT_UP, x, BtnY, BtnH, BtnH);
-	x += BtnH + 10 * S;
-	DrawRound(gc, x, BtnY, "-", (SkillAt(SkillSel) != None) && (SkillAt(SkillSel).GetCurrentLevel() > 0), HoverId == HOT_DOWN, a);
-	AddHot(HOT_DOWN, x, BtnY, BtnH, BtnH);
-
-	// Skill points box (flashes red when an upgrade can't be afforded)
-	x = OX + 880 * S;
-	Class'RIText'.static.DrawIn(gc, Class'RIFontHead', x, BtnY, 200 * S, BtnH, Caps(PointsLabel), C3(201, 204, 245, a), 0, 0.62);
-	tw = Class'RIText'.static.Width(Class'RIFontHead', Caps(PointsLabel), 0.62);
-	x += tw + 18 * S;
-	P = string(player.SkillPointsAvail);
-	w = FMax(120 * S, Class'RIText'.static.Width(Class'RIFontTitle', P, 0.5) + 32 * S);
-	PC = Class'RIUtil'.static.Mix(C3(143, 147, 255, a), C3(255, 107, 142, a), PointsFlash);
-	Class'RISkin'.static.GlowC(gc, x, BtnY, w, BtnH, 6 * S, C3(30, 32, 100, a));
-	Class'RISkin'.static.Box2(gc, x, BtnY, w, BtnH, PC);
-	Class'RIText'.static.DrawIn(gc, Class'RIFontTitle', x + Sin(PointsFlash * 30) * PointsFlash * 6 * S, BtnY, w, BtnH, P,
-		Class'RIUtil'.static.Mix(C3(255, 255, 255, a), C3(255, 107, 142, a), PointsFlash), 1, 0.5);
 
 	// Key hints, bottom right: ENTER START, ESC BACK
 	x = OX + 1820 * S - Class'RISkin'.static.MockKeyHintWidth(BtnLabels[BTN_BACK], S);
@@ -943,6 +959,7 @@ function DrawBottom(GC gc, float a)
 function DrawRound(GC gc, float X, float Y, string L, bool bLive, bool bHot, float a)
 {
 	local Color E;
+	local float t, gl, cx, cy;
 
 	if (!bLive)
 		E = C3(46, 50, 144, a);
@@ -953,7 +970,14 @@ function DrawRound(GC gc, float X, float Y, string L, bool bLive, bool bHot, flo
 	if (bLive)
 		Class'RISkin'.static.GlowC(gc, X, Y, BtnH, BtnH, 6 * S, C3(30, 32, 100, a));
 	Class'RISkin'.static.Box2(gc, X, Y, BtnH, BtnH, E);
-	Class'RIText'.static.DrawIn(gc, Class'RIFontTitle', X, Y, BtnH, BtnH, L, E, 1, 0.6);
+	// the glyph drawn as bars, dead centre (the font's + and - sat off it)
+	t = Class'RIModern'.static.P(FMax(1.0, BtnH * 0.07));
+	gl = Class'RIModern'.static.P(BtnH * 0.38);
+	cx = Class'RIModern'.static.P(X + (BtnH - gl) * 0.5);
+	cy = Class'RIModern'.static.P(Y + (BtnH - t) * 0.5);
+	Fill(gc, cx, cy, gl, t, E);
+	if (L == "+")
+		Fill(gc, Class'RIModern'.static.P(X + (BtnH - t) * 0.5), Class'RIModern'.static.P(Y + (BtnH - gl) * 0.5), t, gl, E);
 }
 
 defaultproperties
@@ -973,7 +997,7 @@ defaultproperties
      LevelNames(2)="Advanced"
      LevelNames(3)="Master"
      BtnLabels(0)="Back"
-     BtnLabels(1)="Restore default"
+     BtnLabels(1)="Reset"
      BtnLabels(2)="Modifiers"
      BtnLabels(3)="LDDP Help"
      BtnLabels(4)="Start Game"

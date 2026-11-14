@@ -12,6 +12,26 @@ function bool RIOn()
 	return (RIDeusExHUD(GetParent()) != None) && RIDeusExHUD(GetParent()).bRI;
 }
 
+// The game's accuracy reticle (brackets round the centre, placed half a unit
+// off) is replaced by RICrosshair, which spreads with the weapon's accuracy
+// on the exact centre. Everything else this does still runs (target tracking,
+// the crosshair's friend / foe colour); with the Targeting aug on it draws as
+// the game's, since that aug's readouts are drawn here too.
+function DrawTargetAugmentation(GC gc)
+{
+	local bool bWas;
+
+	if (!RIOn() || bTargetActive)
+	{
+		Super.DrawTargetAugmentation(gc);
+		return;
+	}
+	bWas = gc.IsDrawingEnabled();
+	gc.EnableDrawing(False);
+	Super.DrawTargetAugmentation(gc);
+	gc.EnableDrawing(bWas);
+}
+
 function DrawDropShadowBox(GC gc, float x, float y, float w, float h)
 {
 	local Color oldColor, cEdge, cAcc;
@@ -156,20 +176,47 @@ function string StripDots(string S)
 	return S;
 }
 
-// An L-shaped corner bracket at X,Y opening toward DX,DY (+1 / -1)
+// A corner bracket at X,Y opening toward DX,DY (+1 / -1): two arms, 2 thick,
+// joined by a quarter circle (radius 10) so it follows the frame's rounded
+// corners rather than meeting square
 function Bracket(GC gc, float X, float Y, float DX, float DY, float K, Color C)
 {
-	local float L;
+	local float L, R, r2, cx, cy, hy, vx, th, px, py;
+	local int i;
 
+	// drawn solid: overlapping translucent squares would bead along the curve
+	gc.SetStyle(DSTY_Normal);
+	gc.SetTileColor(C);
 	L = 26 * K;
+	R = 10 * K;
+	hy = Y + DY * K;          // the arms' centre lines
+	vx = X + DX * K;
+	// horizontal arm, from the end of the curve out to L
 	if (DX > 0)
-		Class'RISkin'.static.FillC(gc, X, Y - FMax(0, -DY) * 2 * K, L, 2 * K, C);
+		Solid(gc, X + R, hy - K, L - R, 2 * K);
 	else
-		Class'RISkin'.static.FillC(gc, X - L, Y - FMax(0, -DY) * 2 * K, L, 2 * K, C);
+		Solid(gc, X - L, hy - K, L - R, 2 * K);
+	// vertical arm
 	if (DY > 0)
-		Class'RISkin'.static.FillC(gc, X - FMax(0, -DX) * 2 * K, Y, 2 * K, L, C);
+		Solid(gc, vx - K, Y + R, 2 * K, L - R);
 	else
-		Class'RISkin'.static.FillC(gc, X - FMax(0, -DX) * 2 * K, Y - L, 2 * K, L, C);
+		Solid(gc, vx - K, Y - L, 2 * K, L - R);
+	// the curve: small squares along a quarter circle through both centre lines
+	cx = X + DX * R;
+	cy = Y + DY * R;
+	r2 = R - K;
+	for (i = 0; i <= 12; i++)
+	{
+		th = (i / 12.0) * 1.5707963;
+		px = cx - DX * r2 * Cos(th);
+		py = cy - DY * r2 * Sin(th);
+		Solid(gc, px - K, py - K, 2 * K, 2 * K);
+	}
+}
+
+function Solid(GC gc, float X, float Y, float W, float H)
+{
+	Class'RIText'.static.Fill(gc, X, Y, W, H);
 }
 
 defaultproperties

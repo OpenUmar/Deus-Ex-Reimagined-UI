@@ -113,6 +113,7 @@ function DrawBorder(GC gc)
 	if ((lowerConWindow != None) && lowerConWindow.IsVisible(False))
 		lowerConWindow.Hide();
 	Class'RITheme'.static.SetMode(2);
+	Class'RISubs'.default.ColKey = Speaker;
 	y = 0;
 	for (i = 0; i < NumLines; i++)
 	{
@@ -121,6 +122,7 @@ function DrawBorder(GC gc)
 		else
 			y += Class'RISubs'.static.DrawSub(gc, 0, y, width, K(), "", Lines[i], LinePlayer[i] != 0, 1.0) + 6 * K();
 	}
+	Class'RISubs'.default.ColKey = "";
 }
 
 defaultproperties

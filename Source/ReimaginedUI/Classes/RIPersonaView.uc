@@ -34,6 +34,7 @@ var DeusExPlayer Player;
 var int   ActiveTab;
 var float Age;
 var float S, OX;
+var localized string PersonaTitle;   // Modern: the big frame's tab
 var bool  bReady;
 var bool  bLoggedStyle;
 var float HoleX, HoleY, HoleW, HoleH;   // Vanilla+: a part of the screen left unpainted (Outfit's 3D preview)
@@ -101,7 +102,12 @@ function float Scale()
 	local float k;
 
 	k = Class'RIRootWindow'.default.PersonaScale;
-	if (!VPlus() || (k < 0.7) || (k > 1.0))
+	if ((k < 0.7) || (k > 1.0))
+		k = 1.0;
+	// Modern: a touch smaller than the screen, so the frame has breathing room
+	if (Class'RIModern'.static.On())
+		return k * 0.9;
+	if (!VPlus())
 		return 1.0;
 	return k;
 }
@@ -302,6 +308,11 @@ function Panel(GC gc, float X, float Y, float W, float H, float a)
 		VPanel(gc, X, Y, W, H, a);
 		return;
 	}
+	if (Class'RIModern'.static.On())
+	{
+		Class'RIModern'.static.Frame(gc, X, Y, W, H, S, a);
+		return;
+	}
 	Fill(gc, X, Y, W, H, C3(16, 13, 6, 0.85 * a));
 	Glow(gc, X, Y, W, H * 0.5, C3(14, 11, 5, a));
 	Class'RIText'.static.Box(gc, X, Y, W, H, C3(58, 48, 22, a));
@@ -314,6 +325,11 @@ function SelRow(GC gc, float X, float Y, float W, float H, float a)
 		VSelRow(gc, X, Y, W, H, a);
 		return;
 	}
+	if (Class'RIModern'.static.On())
+	{
+		Class'RIModern'.static.Cell(gc, X, Y, W, H, S, True, a);
+		return;
+	}
 	Fill(gc, X, Y, W, H, C3(46, 38, 17, 0.8 * a));
 	Glow(gc, X, Y, W, H, C3(40, 33, 15, a));
 	Class'RIText'.static.Box(gc, X, Y, W, H, C3(242, 211, 107, a));
@@ -324,6 +340,11 @@ function DrawBtn(GC gc, float X, float Y, float W, float H, string L, bool bLive
 	if (VPlus())
 	{
 		VBtn(gc, X, Y, W, H, L, bLive, bHot, bPrimary, a);
+		return;
+	}
+	if (Class'RIModern'.static.On())
+	{
+		Class'RIModern'.static.Btn(gc, X, Y, W, H, S, L, bLive, bHot, bPrimary, a);
 		return;
 	}
 	// Refined: hairline buttons; the main action lit, disabled ones faint
@@ -344,6 +365,66 @@ function DrawBtn(GC gc, float X, float Y, float W, float H, string L, bool bLive
 	{
 		Class'RIText'.static.Box(gc, X, Y, W, H, C3(110, 94, 46, a));
 		Class'RIText'.static.DrawIn(gc, Class'RIFontHead', X, Y, W, H, Caps(L), AAcc(a), 1, 0.52);
+	}
+}
+
+// A callout line from a card (px, py) to a point on a figure (ax, ay): out
+// level from the card, then into the point at 45 degrees (or, short of
+// room, a stub, 45 degrees, then straight up or down), 1 px throughout
+function LeaderLine(GC gc, float px, float py, float ax, float ay, Color Col)
+{
+	local float dx, dy, adx, ady, sgn, ex, stub, h, ye;
+
+	dx = ax - px;
+	dy = ay - py;
+	adx = Abs(dx);
+	ady = Abs(dy);
+	if (dx >= 0)
+		sgn = 1;
+	else
+		sgn = -1;
+	stub = FMin(18 * S, adx);
+	if (ady <= adx - stub)
+	{
+		ex = ax - sgn * ady;
+		Class'RIText'.static.HLine(gc, FMin(px, ex), py, Abs(ex - px), Col);
+		DiagSeg(gc, ex, py, ax, ay, Col);
+	}
+	else
+	{
+		ex = px + sgn * stub;
+		Class'RIText'.static.HLine(gc, FMin(px, ex), py, stub, Col);
+		h = adx - stub;
+		if (dy > 0)
+			ye = py + h;
+		else
+			ye = py - h;
+		DiagSeg(gc, ex, py, ax, ye, Col);
+		Class'RIText'.static.VLine(gc, ax, FMin(ye, ay), Abs(ay - ye), Col);
+	}
+}
+
+// A 45 degree segment between two points (drawn from its left end)
+function DiagSeg(GC gc, float x0, float y0, float x1, float y1, Color Col)
+{
+	local float L;
+
+	L = Abs(x1 - x0);
+	if (L <= 0)
+		return;
+	if (x1 >= x0)
+	{
+		if (y1 >= y0)
+			Class'RIModern'.static.Diag(gc, x0, y0, L, 0.5, 1, Col);
+		else
+			Class'RIModern'.static.Diag(gc, x0, y0, L, 0.5, -1, Col);
+	}
+	else
+	{
+		if (y0 >= y1)
+			Class'RIModern'.static.Diag(gc, x1, y1, L, 0.5, 1, Col);
+		else
+			Class'RIModern'.static.Diag(gc, x1, y1, L, 0.5, -1, Col);
 	}
 }
 
@@ -577,6 +658,8 @@ function DrawTabs(GC gc, float a)
 	x = OX + 120 * S;
 	KeyX = x;
 	y = 30 * S;
+	if (Class'RIModern'.static.On())
+		y = 46 * S;       // clear of the frame's top edge
 	h = 46 * S;
 	ly = y + h + 6 * S;
 
@@ -687,6 +770,9 @@ function DrawFrame(GC gc, float a)
 	}
 	// Refined: no outer frame; the page darkens behind the content
 	Fill(gc, 0, 0, width, height, C3(6, 5, 3, 0.55 * a));
+	// Modern: one big digitized frame round the whole page, its tab above the screen row
+	if (Class'RIModern'.static.On())
+		Class'RIModern'.static.Frame(gc, OX + 48 * S, 4 * S, 1824 * S, 1066 * S, S, a, PersonaTitle, True);
 }
 
 // ----------------------------------------------------------------------
@@ -855,18 +941,18 @@ function DrawVPBeltItems(GC gc, float a)
 	ih = 94 * S;
 	y = 912 * S;
 	for (n = 0; n < 10; n++)
-		Class'RIText'.static.Draw(gc, Class'RIFontSmall', OX + (BeltSlotX(n) + 6) * S, y + 4 * S, Mid("0123456789", n, 1), AAcc(a), 0.6);
+		Class'RIText'.static.Draw(gc, Class'RIFontSmall', OX + (BeltSlotX(Class'RIUtil'.static.BeltPos(n)) + 6) * S, y + 4 * S, Mid("0123456789", n, 1), AAcc(a), 0.6);
 	for (I = Player.Inventory; I != None; I = I.Inventory)
 	{
 		if (!I.bInObjectBelt || (I.beltPos < 0) || (I.beltPos >= 10) || (I.icon == None))
 			continue;
-		sx = OX + BeltSlotX(I.beltPos) * S;
-		k = FMin((w - 16 * S) / 42.0, (ih - 30 * S) / 37.0);
-		if (k >= 1)
-			k = float(int(k));
+		sx = OX + BeltSlotX(Class'RIUtil'.static.BeltPos(I.beltPos)) * S;
+		// sized to sit well inside the slot (clear of its number, frame and
+		// the name strip), as on the HUD belt
+		k = FMin((w - 40 * S) / 42.0, (72 * S - 26 * S) / 37.0);
 		gc.SetStyle(DSTY_Masked);
 		gc.SetTileColor(C3(255, 255, 255, a));
-		Class'RIHD'.static.DrawStretched(gc, sx + (w - 42 * k) * 0.5, y + 6 * S + (72 * S - 6 * S - 37 * k) * 0.5, 42 * k, 37 * k, 0, 0, 42, 37, I.icon);
+		Class'RIHD'.static.DrawStretched(gc, sx + (w - 42 * k) * 0.5, y + 8 * S + (72 * S - 10 * S - 37 * k) * 0.5, 42 * k, 37 * k, 0, 0, 42, 37, I.icon);
 		BName = I.beltDescription;
 		if (BName == "")
 			BName = I.ItemName;
@@ -1410,6 +1496,12 @@ event DrawWindow(GC gc)
 		DrawFrame(gc, a);
 		DrawTabs(gc, a);
 	}
+	else if (Class'RIModern'.static.On())
+	{
+		// the frame darkens what's under it, so it goes down first
+		DrawFrame(gc, a);
+		DrawTabs(gc, a);
+	}
 	else
 	{
 		DrawTabs(gc, a);
@@ -1441,6 +1533,7 @@ function DrawPage(GC gc, float a)
 defaultproperties
 {
      CloseHint="Esc close"
+     PersonaTitle="Persona"
      DetailLabel="Details"
      TabNames(1)="Inventory"
      TabNames(2)="Health"

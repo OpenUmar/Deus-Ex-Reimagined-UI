@@ -26,11 +26,17 @@ var ConEventSpeech HeldSpeech[2];
 var globalconfig bool bClassicMenus;
 var globalconfig bool bClassicScreens;
 var globalconfig bool bClassicDialogue;
+var globalconfig bool bHudSway;          // the HUD trails the view a little and bobs with walking
 var globalconfig bool bConBars;          // keep the black letterbox bars in conversations
+var globalconfig int  SubColors;         // speaker colours in subtitles: 0 off, 1 names, 2 names and lines
 var globalconfig bool bClassicHUD;
 // Settings > Interface: original (not 4x HD) textures, and the in-game screen style (0 Sleek, 1 Vanilla+)
 var globalconfig bool bNoHDTextures;
 var globalconfig int  ScreenStyle;
+// Checkpoints (the death screen's Last Checkpoint / Restart Mission): saved
+// by the mod into two save slots of their own
+var globalconfig int  CkptMission;      // mission whose start is in the mission-start slot
+var globalconfig bool bHasCkpt, bHasMissionCkpt;
 var globalconfig float PersonaScale;
 var globalconfig float HudScale;       // the rebuilt HUD's size (0 = 1)
 var globalconfig float SubScale;
@@ -41,6 +47,12 @@ var float  DeathLoadT;       // a choice was made on the death screen
 var RIDeathScreen DeathBox;  // the death screen's window, while it is up
 var int    BeltCursor;      // the belt slot the wheel is on (an empty slot holds nothing to read it from)
 var localized string DeathTitle, DeathLoadLast, DeathLoadGame, DeathMainMenu, DeathWaitLabel;
+var localized string DeathCheckpoint, DeathRestart, CkptTitle, MissionStartTitle;
+var LevelInfo CkptLevel;     // the level the last arrival was noticed in
+var float CkptWait;          // time since arriving, toward the checkpoint save
+var int   CkptStep;          // 0 nothing to save, 1 mission start then checkpoint, 2 checkpoint
+const CKPT_SLOT = 998;       // save slots of their own (AE refuses 1000 and up)
+const MISSION_SLOT = 997;
 var float  DrawClock;        // advances per drawn frame (loading screens' wheel)         // re-read the colour themes a few times a second          // the rebuilt HUD, over AE's
 var bool    bHudRestored;     // AE's own HUD pieces were brought back (classic)
 var bool  bAEMask;          // AE asked for its darkening mask (UI screens over the game)
@@ -53,6 +65,7 @@ var Window DebugBox;        // test dialog opened from the overlay
 
 // initCount guard (see GuardInitCount)
 var int    InitFixes;       // corrections made this session
+var Window ConHid[2];     // conversation windows hidden under the pause menu
 var int    InitDumps;       // window-tree dumps written for them (capped)
 
 event InitWindow()
@@ -189,12 +202,77 @@ function UIPauseGame()
 	bWas = bUIPaused;
 	Super.UIPauseGame();
 	if (!bWas && bUIPaused)
+	{
 		HoldSpeech();
+		HideConWins();
+	}
+}
+
+// The conversation's windows sit above the root's dim and snapshot, so the
+// menu over them looked see-through: hide them while paused, back on resume
+function HideConWins()
+{
+	local DeusExPlayer P;
+
+	ConHid[0] = None;
+	ConHid[1] = None;
+	P = DeusExPlayer(parentPawn);
+	if ((P == None) || (P.conPlay == None))
+		return;
+	if ((P.conPlay.conWinThird != None) && P.conPlay.conWinThird.IsVisible())
+	{
+		ConHid[0] = P.conPlay.conWinThird;
+		ConHid[0].Hide();
+	}
+	if ((P.conPlay.conWinFirst != None) && P.conPlay.conWinFirst.IsVisible())
+	{
+		ConHid[1] = P.conPlay.conWinFirst;
+		ConHid[1].Hide();
+	}
+}
+
+function ShowConWins()
+{
+	local DeusExPlayer P;
+	local int i;
+
+	P = DeusExPlayer(parentPawn);
+	for (i = 0; i < 2; i++)
+	{
+		if ((ConHid[i] != None) && (P != None) && (P.conPlay != None) && !P.conPlay.bEndingConversation)
+			ConHid[i].Show();
+		ConHid[i] = None;
+	}
+}
+
+// The game re-shows the whole HUD on unpause (and when a menu's background
+// mask lifts) without checking for a conversation: the original couldn't be
+// paused mid-conversation. A third-person conversation keeps it hidden
+// (ConPlay shows it again itself when the conversation ends).
+function ShowHud(bool bShow)
+{
+	if (bShow && InThirdPersonCon())
+	{
+		if (hud != None)
+			hud.Hide();
+		return;
+	}
+	Super.ShowHud(bShow);
+}
+
+function bool InThirdPersonCon()
+{
+	local DeusExPlayer P;
+
+	P = DeusExPlayer(parentPawn);
+	return (P != None) && (P.conPlay != None) && !P.conPlay.bEndingConversation
+		&& (P.conPlay.GetDisplayMode() == DM_ThirdPerson);
 }
 
 function UnPauseGame()
 {
 	Super.UnPauseGame();
+	ShowConWins();
 	ResumeSpeech();
 }
 
@@ -291,6 +369,7 @@ event Tick(float deltaSeconds)
 
 	GuardInitCount("Tick");
 	DeathTick();
+	CheckpointTick(deltaSeconds);
 	ApplyGoldHUD();
 	Class'RITheme'.static.SetMode(0);   // colours made outside drawing stay unthemed
 	ThemeAge += deltaSeconds;
@@ -390,10 +469,16 @@ function MaskBackground(bool bMask)
 }
 
 // In-game devices (keypads, computers, ATMs, bots) get the rebuilt look in
-// the Sleek style only; Vanilla+ and Classic screens keep AE's for now
+// the Sleek and Modern styles; Vanilla+ has its own, Classic keeps AE's
 function bool IsDeviceStyle()
 {
-	return !bClassicScreens && !Class'RIPersonaView'.default.bClassic && (ScreenStyle == 0);
+	return !bClassicScreens && !Class'RIPersonaView'.default.bClassic && (ScreenStyle != 1);
+}
+
+// Vanilla+ devices: the game's own computer screens, recoloured (RITerminalSkin.bVP)
+function bool IsVPDeviceStyle()
+{
+	return !bClassicScreens && !Class'RIPersonaView'.default.bClassic && (ScreenStyle == 1);
 }
 
 // A device window at the top of the stack: dimmed plainly, no menu glow
@@ -511,6 +596,19 @@ function DeusExBaseWindow PushWindow(
 	if ((NetworkTerminal(NewWin) != None) && IsDeviceStyle())
 	{
 		TermSkin = RITerminalSkin(NewWin.NewChild(Class'RITerminalSkin'));
+		TermSkin.Term = NetworkTerminal(NewWin);
+		TermSkin.SetConfiguration(0, 0, NewWin.width, NewWin.height);
+		TermSkin.Lower();
+		GuardInitCount("Push " $ ClassOf(NewWin));
+		return NewWin;
+	}
+
+	// Computers and ATMs (Vanilla+): the game's own screens, recoloured to
+	// the HUD theme
+	if ((NetworkTerminal(NewWin) != None) && IsVPDeviceStyle())
+	{
+		TermSkin = RITerminalSkin(NewWin.NewChild(Class'RITerminalSkin'));
+		TermSkin.bVP = True;
 		TermSkin.Term = NetworkTerminal(NewWin);
 		TermSkin.SetConfiguration(0, 0, NewWin.width, NewWin.height);
 		TermSkin.Lower();
@@ -763,7 +861,7 @@ function bool DrawPersonaMargins(GC gc, Window Top)
 	for (C = Top.GetTopChild(); C != None; C = C.GetLowerSibling())
 		if (RIPersonaView(C) != None)
 		{
-			if (!RIPersonaView(C).VPlus())
+			if (!RIPersonaView(C).VPlus() && !Class'RIModern'.static.On())
 				return False;
 			RIPersonaView(C).DrawVeil(gc, width, height);
 			return True;
@@ -788,6 +886,8 @@ event bool VirtualKeyPressed(EInputKey key, bool bRepeat)
 		return True;
 	}
 	if (((key == IK_MouseWheelUp) || (key == IK_MouseWheelDown)) && WheelBelt(key))
+		return True;
+	if (!bRepeat && BeltToggle(key))
 		return True;
 	if (IsKeyDown(IK_Ctrl) && !bRepeat)
 	{
@@ -823,6 +923,46 @@ event bool VirtualKeyPressed(EInputKey key, bool bRepeat)
 // to NextBeltItem / PrevBeltItem, nothing is open, and no scope or
 // binoculars want the wheel for zoom; otherwise the game handles it.
 // ----------------------------------------------------------------------
+
+// A belt slot's key while that slot's item is already in hand (or on its
+// way) puts it away, as modern shooters do: 1 draws the pistol, 1 again
+// holsters it. Only for keys bound to ActivateBelt, with nothing open.
+function bool BeltToggle(EInputKey key)
+{
+	local DeusExPlayer P;
+	local Inventory Cur, Item;
+	local string B, KName;
+	local int i, slot;
+
+	P = DeusExPlayer(parentPawn);
+	if ((P == None) || (winCount > 0) || (hud == None) || (hud.belt == None) || (P.Health <= 0))
+		return False;
+	KName = string(GetEnum(enum'EInputKey', key));
+	if (Left(KName, 3) != "IK_")
+		return False;
+	B = Caps(P.ConsoleCommand("KEYBINDING " $ Mid(KName, 3)));
+	i = InStr(B, "ACTIVATEBELT");
+	if (i < 0)
+		return False;
+	B = Mid(B, i + 12);
+	while (Left(B, 1) == " ")
+		B = Mid(B, 1);
+	if ((Left(B, 1) < "0") || (Left(B, 1) > "9"))
+		return False;
+	slot = int(B);
+	if (P.RestrictInput() || (P.CarriedDecoration != None))
+		return False;
+	Cur = P.inHandPending;
+	if (Cur == None)
+		Cur = P.inHand;
+	if (Cur == None)
+		return False;
+	Item = hud.belt.GetObjectFromBelt(slot);
+	if ((Item == None) || (Item != Cur))
+		return False;
+	P.PutInHand(None);
+	return True;
+}
 
 function bool WheelBelt(EInputKey key)
 {
@@ -938,7 +1078,7 @@ function DeathTick()
 	DeathBox = RIDeathScreen(PushWindow(Class'RIDeathScreen', False, True));
 	if (DeathBox == None)
 		return;
-	DeathBox.SetDeath(DeathTitle, Loc, DeathLoadLast, DeathLoadGame, DeathMainMenu);
+	DeathBox.SetDeath(DeathTitle, Loc, DeathCheckpoint, DeathRestart, DeathLoadGame, DeathMainMenu);
 	DeathBox.SetNotifyWindow(Self);
 	DeathBox.SetFocusWindow(DeathBox);
 	ShowCursor(True);
@@ -947,18 +1087,13 @@ function DeathTick()
 
 function DeathChoice(int n)
 {
-	local DeusExPlayer P;
-
-	P = DeusExPlayer(parentPawn);
 	PopWindow(True);
 	DeathBox = None;
 	if (n == 0)
-	{
-		DeathLoadT = 1;
-		Log("RI: death screen - load last save");
-		P.QuickLoadConfirmed();
-	}
+		LoadCheckpoint();
 	else if (n == 1)
+		RestartMission();
+	else if (n == 2)
 	{
 		Log("RI: death screen - load game");
 		InvokeMenuScreen(Class'DeusEx.MenuScreenLoadGame', True);
@@ -971,6 +1106,113 @@ function DeathChoice(int n)
 	}
 }
 
+// ----------------------------------------------------------------------
+// Checkpoints. The original game makes none (only the quick save), so the
+// mod saves one into a slot of its own each time the player arrives in a
+// map, once things are calm (alive, no conversation, transmission or menu,
+// a couple of seconds in). The first arrival in a new mission also saves
+// the mission's start into a second slot. Both show in Load Game as
+// "Checkpoint" / "Mission Start". Not made under AE's hardcore or
+// restricted saving.
+// ----------------------------------------------------------------------
+
+function CheckpointTick(float DT)
+{
+	local DeusExPlayer P;
+	local DeusExLevelInfo Info;
+
+	P = DeusExPlayer(parentPawn);
+	if ((P == None) || (P.Level == None))
+		return;
+	if (P.Level != CkptLevel)
+	{
+		CkptLevel = P.Level;
+		CkptWait = 0;
+		CkptStep = 2;
+		Info = P.GetLevelInfo();
+		if ((Info != None) && (Info.MissionNumber != CkptMission))
+			CkptStep = 1;
+		return;
+	}
+	if (CkptStep == 0)
+		return;
+	CkptWait += DT;
+	if ((CkptWait < 2.0) || !CanCheckpoint(P))
+		return;
+	Info = P.GetLevelInfo();
+	if (CkptStep == 1)
+	{
+		Log("RI: mission start save, mission" @ Info.MissionNumber);
+		P.SaveGame(MISSION_SLOT, MissionStartTitle $ " - " $ Info.MissionLocation);
+		CkptMission = Info.MissionNumber;
+		bHasMissionCkpt = True;
+		SaveConfig();
+		CkptStep = 2;
+		CkptWait = 1.5;          // the checkpoint half a second later
+		return;
+	}
+	Log("RI: checkpoint save");
+	P.SaveGame(CKPT_SLOT, CkptTitle $ " - " $ Info.MissionLocation);
+	bHasCkpt = True;
+	SaveConfig();
+	CkptStep = 0;
+}
+
+// The quick save's own rules, plus: no conversation, menu or loading
+function bool CanCheckpoint(DeusExPlayer P)
+{
+	local DeusExLevelInfo Info;
+
+	Info = P.GetLevelInfo();
+	if ((Info == None) || (Info.MissionNumber < 0) || IsIntroMap() || bGoMainMenu)
+		return False;
+	if (P.IsInState('Dying') || P.IsInState('Paralyzed') || P.IsInState('Interpolating') || (P.Health <= 0))
+		return False;
+	if ((P.dataLinkPlay != None) || (P.conPlay != None) || (P.Level.NetMode != NM_Standalone) || (winCount > 0))
+		return False;
+	if (Class'RIUtil'.static.PBool(P, "bHardCoreMode") || Class'RIUtil'.static.PBool(P, "bRestrictedSaving"))
+		return False;
+	return True;
+}
+
+// Death screen: the last checkpoint (the quick save if there's none yet)
+function LoadCheckpoint()
+{
+	local DeusExPlayer P;
+
+	P = DeusExPlayer(parentPawn);
+	DeathLoadT = 1;
+	if (bHasCkpt)
+	{
+		Log("RI: death screen - last checkpoint");
+		P.LoadGame(CKPT_SLOT);
+	}
+	else
+	{
+		Log("RI: death screen - no checkpoint yet, quick save");
+		P.QuickLoadConfirmed();
+	}
+}
+
+// Death screen: this mission's start (the last checkpoint if it's from
+// another mission or there's none)
+function RestartMission()
+{
+	local DeusExPlayer P;
+	local DeusExLevelInfo Info;
+
+	P = DeusExPlayer(parentPawn);
+	Info = P.GetLevelInfo();
+	if (bHasMissionCkpt && (Info != None) && (Info.MissionNumber == CkptMission))
+	{
+		DeathLoadT = 1;
+		Log("RI: death screen - restart mission");
+		P.LoadGame(MISSION_SLOT);
+	}
+	else
+		LoadCheckpoint();
+}
+
 function DeathKey(EInputKey key)
 {
 	local DeusExPlayer P;
@@ -979,11 +1221,9 @@ function DeathKey(EInputKey key)
 	if (DeathLoadT > 0)
 		return;
 	if ((key == IK_Enter) || (key == IK_Space))
-	{
-		DeathLoadT = 1;
-		Log("RI: death screen - load last save");
-		P.QuickLoad();
-	}
+		LoadCheckpoint();
+	else if (key == IK_R)
+		RestartMission();
 	else if (key == IK_L)
 	{
 		Log("RI: death screen - load game");
@@ -1268,9 +1508,17 @@ function ClientMessageSafe(string M)
 
 defaultproperties
 {
+     ScreenStyle=2
+     bHudSway=True
+     SubColors=1
      DeathTitle="AGENT DOWN"
      DeathLoadLast="Load last save"
      DeathLoadGame="Load game"
      DeathMainMenu="Main menu"
      DeathWaitLabel="Loading..."
+     DeathCheckpoint="Last checkpoint"
+     DeathRestart="Restart mission"
+     CkptTitle="Checkpoint"
+     MissionStartTitle="Mission Start"
+     CkptMission=-99
 }

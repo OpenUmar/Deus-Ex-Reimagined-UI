@@ -100,7 +100,8 @@ function bool Replaced(Window W)
 		return False;
 	if ((W == hit) || (W == compass) || (W == ammo) || ((W != None) && (W == Class'RIBase'.static.HudAmmo2(Self))))
 		return True;
-	if ((W == belt) || (W == activeItems) || (W == receivedItems))
+	// (activeItems, the game's own aug bar, is kept: it's the HUD's aug bar)
+	if ((W == belt) || (W == receivedItems))
 		return True;
 	return False;
 }
@@ -128,8 +129,6 @@ function HideReplaced()
 	if (HideOne(Class'RIBase'.static.HudAmmo2(Self)))
 		bAny = True;
 	if (HideOne(belt))
-		bAny = True;
-	if (HideOne(activeItems))
 		bAny = True;
 	if (HideOne(receivedItems))
 		bAny = True;

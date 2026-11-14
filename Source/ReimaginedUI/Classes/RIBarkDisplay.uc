@@ -94,8 +94,10 @@ function DrawBorder(GC gc)
 		a = 1.0;
 		if (It.timeToDisplay > 0)
 			a = FClamp((It.timeToDisplay - It.timeDisplayed) / 0.5, 0, 1) * FClamp(It.timeDisplayed / 0.15, 0.3, 1);
+		Class'RISubs'.default.ColKey = SpeakerOf(It);
 		y += Class'RISubs'.static.DrawSub(gc, 0, y, width, K(), SpeakerOf(It), It.winBark.GetText(), False, a) + 10 * K();
 	}
+	Class'RISubs'.default.ColKey = "";
 }
 
 defaultproperties

@@ -32,3 +32,5 @@ System/Vanilla/*.bak*
 Release/
 # Old hologram body art (unused)
 Art/*hologram*
+# Upscale comparison sheets and extracted game art (scratch)
+Tools/esrgan/compare/

@@ -26,6 +26,7 @@ static function bool Has(string Feature)
 		case "TRAUMAS":
 		case "PERKS":
 		case "ROTATION":        // turning items in the inventory grid
+		case "MODIFIERS":       // New Game: gameplay modifiers
 			return True;
 	}
 	return False;
@@ -626,6 +627,31 @@ static function Sound SkillUpSound()
 static function bool OwnVision()
 {
 	return False;
+}
+
+// ----------------------------------------------------------------------
+// Crosshair spread: how far a shot can stray off the aim, as the tangent of
+// that angle (RICrosshair turns it into pixels with the view's FOV).
+// GMDX AE: instant-hit shots land up to +-500 x accuracy across, aimed at
+// 4000 units out (1024 for short-range weapons) (TraceFire); zoomed or
+// lasing shots are dead on (no unzoomed-scope penalty). Projectiles turn
+// their aim by up to +-512 x accuracy rotation units (ProjectileFire).
+// ----------------------------------------------------------------------
+
+static function float ShotSpread(DeusExWeapon W)
+{
+	local float acc;
+
+	if ((W == None) || W.bHandToHand)
+		return 0;
+	acc = FMax(0, W.currentAccuracy);
+	if (!W.bInstantHit)
+		return Tan(acc * 512.0 * Pi / 32768.0);
+	if (W.bLasing || W.bZoomed)
+		acc = 0;
+	if (W.MaxRange >= 1024)
+		return acc * 500.0 / 4000.0;
+	return acc * 500.0 / 1024.0;
 }
 
 defaultproperties

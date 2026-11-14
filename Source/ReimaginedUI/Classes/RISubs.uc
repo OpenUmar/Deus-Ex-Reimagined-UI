@@ -7,6 +7,59 @@
 class RISubs extends Object
 	abstract;
 
+var string ColKey;     // whose colour the lines of the next DrawSub take (set round the call)
+
+// ----------------------------------------------------------------------
+// Speaker colours (Settings > Interface > Speaker colours: off, names,
+// names and lines). The player always one colour; everyone else one of
+// eight picked from their name, so a person keeps theirs all game.
+// ----------------------------------------------------------------------
+
+static function int ColMode()
+{
+	return Class'RIRootWindow'.default.SubColors;
+}
+
+static function Color SpeakerCol(string Who, bool bPlayer, float a)
+{
+	local int i, h;
+	local string U;
+
+	if (bPlayer)
+		return Class'RIUtil'.static.Raw(185 * a, 225 * a, 255 * a);
+	U = Caps(Who);
+	h = 7;
+	for (i = 0; i < Len(U); i++)
+		h = (h * 31 + Asc(Mid(U, i, 1))) % 8191;
+	switch (h % 8)
+	{
+		case 0: return Class'RIUtil'.static.Raw(255 * a, 196 * a, 110 * a);
+		case 1: return Class'RIUtil'.static.Raw(120 * a, 170 * a, 255 * a);
+		case 2: return Class'RIUtil'.static.Raw(150 * a, 230 * a, 140 * a);
+		case 3: return Class'RIUtil'.static.Raw(245 * a, 150 * a, 205 * a);
+		case 4: return Class'RIUtil'.static.Raw(200 * a, 165 * a, 255 * a);
+		case 5: return Class'RIUtil'.static.Raw(255 * a, 232 * a, 130 * a);
+		case 6: return Class'RIUtil'.static.Raw(120 * a, 230 * a, 215 * a);
+	}
+	return Class'RIUtil'.static.Raw(255 * a, 155 * a, 125 * a);
+}
+
+// A speaker's name: their colour, or Def with colours off
+static function Color NameCol(string Who, bool bPlayer, float a, Color Def)
+{
+	if ((ColMode() >= 1) && (Who != ""))
+		return SpeakerCol(Who, bPlayer, a);
+	return Def;
+}
+
+// A line: tinted toward the speaker's colour with "names and lines" on
+static function Color LineCol(string Who, bool bPlayer, float a, Color Def)
+{
+	if ((ColMode() >= 2) && (Who != ""))
+		return Class'RIUtil'.static.Mix(SpeakerCol(Who, bPlayer, a), Class'RIUtil'.static.Raw(255 * a, 255 * a, 255 * a), 0.45);
+	return Def;
+}
+
 // Word-wrap T into lines no wider than W; returns the count (max 8)
 static function int Wrap(Class<RIFont> F, float Scale, string T, float W, out string L0, out string L1,
 	out string L2, out string L3, out string L4, out string L5, out string L6, out string L7)
@@ -129,7 +182,7 @@ static function float DrawSubIn(GC gc, float X, float Y, float W, float K, strin
 		tw = Class'RIText'.static.Width(Class'RIFontSmall', Caps(Speaker), 0.62);
 		Class'RISkin'.static.DrawDim(gc, X + (W - tw) * 0.5 - 14 * K, y0, tw + 28 * K, 24 * K, 0.35 * a);
 		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', X, y0, W, 24 * K, Caps(Speaker),
-			Class'RIUtil'.static.Col(242 * a, 211 * a, 107 * a), 1, 0.62);
+			NameCol(Speaker, bPlayer, a, Class'RIUtil'.static.Col(242 * a, 211 * a, 107 * a)), 1, 0.62);
 		y0 += 26 * K;
 	}
 	for (i = 0; i < n; i++)
@@ -139,10 +192,10 @@ static function float DrawSubIn(GC gc, float X, float Y, float W, float K, strin
 		Class'RISkin'.static.DrawDim(gc, X + (W - tw) * 0.5 - 18 * K, y0, tw + 36 * K, lh, 0.45 * a);
 		if (bPlayer)
 			Class'RIText'.static.DrawIn(gc, Class'RIFontBody', X, y0, W, lh, Ln,
-				Class'RIUtil'.static.Col(255 * a, 241 * a, 194 * a), 1, 0.82);
+				LineCol(default.ColKey, True, a, Class'RIUtil'.static.Col(255 * a, 241 * a, 194 * a)), 1, 0.82);
 		else
 			Class'RIText'.static.DrawIn(gc, Class'RIFontBody', X, y0, W, lh, Ln,
-				Class'RIUtil'.static.Col(236 * a, 214 * a, 160 * a), 1, 0.82);
+				LineCol(default.ColKey, False, a, Class'RIUtil'.static.Col(236 * a, 214 * a, 160 * a)), 1, 0.82);
 		y0 += lh;
 	}
 	return y0 - Y;
@@ -163,7 +216,7 @@ static function float DrawVPSub(GC gc, float X, float Y, float W, float K, strin
 	{
 		tw = Class'RIText'.static.Width(Class'RIFontSmall', Caps(Speaker), 0.58);
 		Class'RISkin'.static.DrawDim(gc, X + (W - tw) * 0.5 - 16 * K, y0, tw + 32 * K, 26 * K, 0.3 * a);
-		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', X, y0, W, 20 * K, Caps(Speaker), Class'RIVP'.static.Acc(a), 1, 0.58);
+		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', X, y0, W, 20 * K, Caps(Speaker), NameCol(Speaker, bPlayer, a, Class'RIVP'.static.Acc(a)), 1, 0.58);
 		Class'RISkin'.static.FillC(gc, X + W * 0.5 - 14 * K, y0 + 21 * K, 28 * K, 1.5 * K, Class'RIVP'.static.Edge(a));
 		y0 += 28 * K;
 	}
@@ -173,9 +226,9 @@ static function float DrawVPSub(GC gc, float X, float Y, float W, float K, strin
 		tw = Class'RIText'.static.Width(Class'RIFontBody', Ln, 0.82);
 		Class'RISkin'.static.DrawDim(gc, X + (W - tw) * 0.5 - 22 * K, y0, tw + 44 * K, lh, 0.42 * a);
 		if (bPlayer)
-			Class'RIText'.static.DrawIn(gc, Class'RIFontBody', X, y0, W, lh, Ln, Class'RIUtil'.static.Col(255 * a, 241 * a, 194 * a), 1, 0.82);
+			Class'RIText'.static.DrawIn(gc, Class'RIFontBody', X, y0, W, lh, Ln, LineCol(default.ColKey, True, a, Class'RIUtil'.static.Col(255 * a, 241 * a, 194 * a)), 1, 0.82);
 		else
-			Class'RIText'.static.DrawIn(gc, Class'RIFontBody', X, y0, W, lh, Ln, Class'RIVP'.static.Txt(a), 1, 0.82);
+			Class'RIText'.static.DrawIn(gc, Class'RIFontBody', X, y0, W, lh, Ln, LineCol(default.ColKey, False, a, Class'RIVP'.static.Txt(a)), 1, 0.82);
 		y0 += lh;
 	}
 	return y0 - Y;
@@ -265,6 +318,15 @@ static function float ToastRowW(float K, string Label, int Qty)
 	return 14 * K + 42 * K + 14 * K + lw + 14 * K + qw + 16 * K;
 }
 
+// Width ToastBox will use for this title and widest row
+static function float ToastBoxW(float K, string Title, float RowsW)
+{
+	local float w;
+
+	w = FMax(RowsW, Class'RIText'.static.Width(Class'RIFontSmall', Caps(Title), 0.66) + 40 * K) + 12 * K;
+	return FMax(w, 260 * K);
+}
+
 static function float ToastBoxH(float K, int Rows)
 {
 	return 46 * K + Rows * 47 * K + 6 * K;
@@ -280,8 +342,7 @@ static function float ToastBox(GC gc, float RightX, float Top, float K, string T
 	local float w, h, x0;
 
 	Title = Caps(Title);
-	w = FMax(RowsW, Class'RIText'.static.Width(Class'RIFontSmall', Title, 0.66) + 40 * K) + 12 * K;
-	w = FMax(w, 260 * K);
+	w = ToastBoxW(K, Title, RowsW);
 	h = ToastBoxH(K, Rows);
 	x0 = RightX - w;
 	Class'RIVP'.static.Dim(gc, x0 + 3 * K, Top + 3 * K, w - 6 * K, h - 6 * K);

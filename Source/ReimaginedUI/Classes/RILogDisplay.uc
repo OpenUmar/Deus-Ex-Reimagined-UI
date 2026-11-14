@@ -21,6 +21,11 @@ var int    NumL;
 // Pickup lines wait one tick here: AE posts some pickups to its Received
 // list as well (corpses, ammo) and some only as a log line (items picked
 // up from the floor). Those with no Received entry are added to it.
+// The panel as last drawn (window coordinates), for RIHud to stack the
+// Received box under it; MatchW is the Received box's width, so the two
+// boxes share one width while both are up (Vanilla+)
+var float PanelX, PanelY, PanelH, NatW, MatchW;
+
 var string PText[8];
 var int    PTicks[8];
 var int    PNum;
@@ -49,6 +54,10 @@ function AddLog(coerce String newLog, Color linecol)
 {
 	Super.AddLog(newLog, linecol);
 	if (newLog == "")
+		return;
+	// "You found:" (searching a body) only heads the Received box, which
+	// says it already: not repeated as a log line
+	if (RIOn() && (newLog == Class'DeusExCarcass'.default.msgSearching))
 		return;
 	// Pickups appear as item toasts on the right (AE's received list)
 	if (RIOn() && IsPickupLine(newLog))
@@ -265,7 +274,11 @@ function DrawBorder(GC gc)
 	}
 	HideOriginal();
 	if (NumL <= 0)
+	{
+		NatW = 0;
+		PanelH = 0;
 		return;
+	}
 	Class'RITheme'.static.SetMode(2);
 	S = K();
 	sc = 0.6;
@@ -287,6 +300,9 @@ function DrawBorder(GC gc)
 		w = FMax(w, tw);
 	}
 	w = FMin(width - 2 * ox, w + 34 * S);
+	NatW = w;
+	if (Class'RIVP'.static.On())
+		w = FMin(width - 2 * ox, FMax(w, MatchW));
 	if (Class'RIVP'.static.On())
 	{
 		// Vanilla+: darkened game, the mechanical frame and the original DX
@@ -303,6 +319,9 @@ function DrawBorder(GC gc)
 		Class'RISkin'.static.DrawDim(gc, w, 0, FMin(28 * S, width - w), bh, 0.15);
 		Class'RISkin'.static.FillC(gc, 0, 0, 2 * S, bh, Class'RIUtil'.static.Col(242, 211, 107));
 	}
+	PanelX = ox;
+	PanelY = oy;
+	PanelH = bh;
 
 	y = oy + 8 * S;
 	for (i = 0; i < NumL; i++)

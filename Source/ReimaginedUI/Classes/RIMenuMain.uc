@@ -192,10 +192,11 @@ function CreateMenuButtons()
 	btnMainMenu.TextScale = 1.25;
 }
 
-// Buttons that only make sense on the title screen: New Game, Training, Play Intro
+// Buttons that only make sense on the title screen: New Game, Training,
+// Play Intro, Credits
 function bool OnlyOnTitle(int idx)
 {
-	return (idx == 0) || (idx == 4) || (idx == 5);
+	return (idx == 0) || (idx == 4) || (idx == 5) || (idx == 6);
 }
 
 // Buttons that only make sense during a game: Save Game, Back to Game
@@ -429,8 +430,8 @@ event DrawWindow(GC gc)
 
 	// Fade the art's left edge and bottom into the dark
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawStretchedTexture(artX, 0, artW * 0.28, height, 0, 0, 256, 8, Texture'ReimaginedUI.UI.RI_FadeH');
-	gc.DrawStretchedTexture(0, height * 0.62, width, height * 0.38, 0, 0, 8, 256, Texture'ReimaginedUI.UI.RI_FadeV');
+	gc.DrawStretchedTexture(artX, 0, artW * 0.28, height, 2, 0, 252, 8, Texture'ReimaginedUI.UI.RI_FadeH');
+	gc.DrawStretchedTexture(0, height * 0.62, width, height * 0.38, 0, 2, 8, 252, Texture'ReimaginedUI.UI.RI_FadeV');
 
 	// Left panel slides in: solid navy so the art behind can't show through
 	// unevenly, with a soft gradient and a glowing edge

@@ -23,6 +23,7 @@ var int   NumRows;
 var int   HoverRow;
 
 var bool bBandsCleared;
+var bool bBarsLatched;     // Conversation Bars as set when this conversation began
 var bool bCursorForMenu;    // the cursor was shown for the pause menu
 
 // Received (box 0) / Given (box 1): AE's boxes are hidden as soon as they
@@ -50,6 +51,7 @@ event InitWindow()
 function AttachTo(ConWindowActive NewCon)
 {
 	Con = NewCon;
+	bBarsLatched = Class'RIRootWindow'.default.bConBars;
 	SetConfiguration(0, 0, Con.width, Con.height);
 	HideConParts();
 	ClearBands();
@@ -74,10 +76,54 @@ function ClearBands()
 	Con.CalculateWindowSizes();
 }
 
+// Conversation Bars switched in Settings mid-conversation: the bands and
+// the layout are changed over together, at once. Off: the bands go to zero
+// (ClearBands). On: the game's own band sizes come back, the bars shown fully
+// open, and the sizes recalculated, so the text has its lower bar to sit in.
+function ApplyBarsSetting()
+{
+	if (Con.bForcePlay || (bBarsLatched == Class'RIRootWindow'.default.bConBars))
+		return;
+	bBarsLatched = Class'RIRootWindow'.default.bConBars;
+	if (bBarsLatched)
+	{
+		Con.lowerFinalHeightPercent = Con.default.lowerFinalHeightPercent;
+		Con.upperFinalHeightPercent = Con.default.upperFinalHeightPercent;
+		Con.currentWindowPos = 1.0;
+		if (Con.upperConWindow != None)
+			Con.upperConWindow.SetBackground(Con.conTexture);
+		bBandsCleared = False;
+		Con.CalculateWindowSizes();
+	}
+	// off: ClearBands (called right after) zeroes them, now that Bars() says no
+}
+
 // The black letterbox stays: cinematics, or Settings > Interface > Conversation Bars
 function bool Bars()
 {
-	return Con.bForcePlay || Class'RIRootWindow'.default.bConBars;
+	return Con.bForcePlay || bBarsLatched;
+}
+
+// The lower letterbox bar, as the game's CalculateWindowSizes places it.
+// Cinematics: the lower bar is as tall as the upper one on every base (the
+// cinematic height formula differs between bases, so it's read off the
+// upper bar, which stays visible and is kept in place). Conversations with
+// bars on: the bar slides up with currentWindowPos.
+function BarBand(out float BY, out float BH, out float A)
+{
+	if (Con.bForcePlay)
+	{
+		BH = 0;
+		if (Con.upperConWindow != None)
+			BH = Con.upperConWindow.height;
+		BY = height - BH;
+		A = 1;
+		return;
+	}
+	BH = int(height * Con.lowerFinalHeightPercent);
+	BY = int(height - BH * Con.currentWindowPos);
+	BH = height - BY;
+	A = FClamp(Con.currentWindowPos, 0, 1);
 }
 
 // Where AE's bands would have been (fractions of the screen)
@@ -104,6 +150,12 @@ function HideConParts()
 
 	if (Con == None)
 		return;
+	// AE builds a new speech window and new reply buttons inside its lower
+	// band for every line; they drew for a frame before being hidden (the
+	// old boxes flickering). Hidden as a whole, nothing in it ever draws;
+	// the cinematic black bar it painted is drawn in DrawWindow instead.
+	if ((Con.lowerConWindow != None) && Con.lowerConWindow.IsVisible(False))
+		Con.lowerConWindow.Hide();
 	if ((Con.winSpeech != None) && Con.winSpeech.IsVisible(False))
 		Con.winSpeech.Hide();
 	for (i = 0; i < Con.numChoices; i++)
@@ -170,6 +222,12 @@ function string Speaker()
 	return N;
 }
 
+// The line on screen is the player's own
+function bool PlayerSpeaking()
+{
+	return (Con != None) && (Con.conPlay != None) && (DeusExPlayer(Con.conPlay.currentSpeaker) != None);
+}
+
 function string SpeechLine()
 {
 	if ((Con.winSpeech == None) || (Con.winSpeech.txtSpeech == None))
@@ -196,6 +254,8 @@ function PickChoice(int i)
 
 event bool VirtualKeyPressed(EInputKey key, bool bRepeat)
 {
+	local int n;
+
 	if (Con == None)
 		return False;
 	// Escape pauses (the original skipped the line; Enter / Space still do).
@@ -209,6 +269,17 @@ event bool VirtualKeyPressed(EInputKey key, bool bRepeat)
 	}
 	if (Choosing())
 	{
+		// 1-9 and 0 pick that reply directly
+		n = ReplyKey(key);
+		if ((n >= 0) && (n <= 9) && !bRepeat)
+		{
+			if (n < Con.numChoices)
+			{
+				Sel = n;
+				PickChoice(n);
+			}
+			return True;
+		}
 		if ((key == IK_Up) || (key == IK_MouseWheelUp))
 		{
 			Sel = Max(0, Sel - 1);
@@ -228,6 +299,22 @@ event bool VirtualKeyPressed(EInputKey key, bool bRepeat)
 		}
 	}
 	return Con.VirtualKeyPressed(key, bRepeat);
+}
+
+// 1-9 and 0 -> reply 0-9, anything else -1 (enum values can't be cast to int)
+function int ReplyKey(EInputKey key)
+{
+	if (key == IK_1) return 0;
+	if (key == IK_2) return 1;
+	if (key == IK_3) return 2;
+	if (key == IK_4) return 3;
+	if (key == IK_5) return 4;
+	if (key == IK_6) return 5;
+	if (key == IK_7) return 6;
+	if (key == IK_8) return 7;
+	if (key == IK_9) return 8;
+	if (key == IK_0) return 9;
+	return -1;
 }
 
 function int RowAt(float X, float Y)
@@ -288,6 +375,7 @@ event Tick(float deltaSeconds)
 	if ((width != Con.width) || (height != Con.height))
 		SetConfiguration(0, 0, Con.width, Con.height);
 	HideConParts();
+	ApplyBarsSetting();
 	ClearBands();
 	CaptureBox(Con.winReceived, 0);
 	CaptureBox(Class'RIBase'.static.ConTaken(Con), 1);
@@ -414,12 +502,14 @@ event DrawWindow(GC gc)
 		return;
 	if (Bars())
 	{
-		// Cinematic (or bars switched on): AE's letterbox, text in its lower bar
-		bandY = Low.y;
-		bandH = height - bandY;
+		// Cinematic (or bars switched on): the letterbox, text in its lower
+		// bar. The lower bar window is hidden (see HideConParts) and a hidden
+		// window is never repositioned, so its place is worked out here the
+		// way the game does it.
+		BarBand(bandY, bandH, a);
 		if (bandH <= 1)
 			return;
-		a = FClamp(bandH / FMax(1, Low.height), 0, 1);
+		Class'RIVP'.static.Black(gc, 0, bandY, width, bandH);
 	}
 	else
 	{
@@ -432,8 +522,8 @@ event DrawWindow(GC gc)
 
 	// Lower band: see-through, darkened towards the bottom so text reads
 	gc.SetStyle(DSTY_Modulated);
-	gc.DrawStretchedTexture(0, bandY - 120 * S, width, bandH + 120 * S, 0, 0, 8, 256, Texture'ReimaginedUI.UI.RI_FadeV');
-	gc.DrawStretchedTexture(0, bandY, width, bandH, 0, 0, 8, 256, Texture'ReimaginedUI.UI.RI_FadeV');
+	gc.DrawStretchedTexture(0, bandY - 120 * S, width, bandH + 120 * S, 0, 2, 8, 252, Texture'ReimaginedUI.UI.RI_FadeV');
+	gc.DrawStretchedTexture(0, bandY, width, bandH, 0, 2, 8, 252, Texture'ReimaginedUI.UI.RI_FadeV');
 
 
 	// Upper band: credits on the right
@@ -443,11 +533,6 @@ event DrawWindow(GC gc)
 		tw = Class'RIText'.static.Width(Class'RIFontHead', T, 0.62);
 		cx = width - 96 * S - tw;
 		y = FMax(18 * S, (height * UpperFrac() - 40 * S) * 0.5);
-		if (Class'RIVP'.static.On())
-		{
-			Class'RIVP'.static.Dim(gc, cx - 150 * S, y - 4 * S, tw + 186 * S, 48 * S);
-			Class'RIVP'.static.Frame(gc, cx - 154 * S, y - 8 * S, tw + 194 * S, 56 * S, 12 * S, a);
-		}
 		Class'RIText'.static.DrawIn(gc, Class'RIFontHead', cx, y, tw, 40 * S, T, AmberHi(a), 0, 0.62);
 		L = Caps(CreditsLabel);
 		tw = Class'RIText'.static.Width(Class'RIFontSmall', L, 0.75);
@@ -470,8 +555,6 @@ event DrawWindow(GC gc)
 			RowH = FMax(36 * S, (height - 24 * S - bandY - (n - 1) * 6 * S) / n);
 			y = bandY + 12 * S;
 		}
-		if (Class'RIVP'.static.On())
-			Class'RIVP'.static.Panel(gc, RowX - 18 * S, y - 14 * S, RowW + 36 * S, n * (RowH + 8 * S) - 8 * S + 28 * S, 14 * S, a);
 		for (i = 0; i < n; i++)
 		{
 			if (Con.conChoices[i] == None)
@@ -479,9 +562,7 @@ event DrawWindow(GC gc)
 			ra = a * Class'RIUtil'.static.Phase(ChoiceAge, 0.04 * i, 0.25);
 			RowY[i] = y;
 			NumRows = i + 1;
-			if (Class'RIVP'.static.On())
-				Class'RIVP'.static.Btn(gc, RowX, y, RowW, RowH, i == Sel, ra);
-			else if (i == Sel)
+			if (i == Sel)
 				AmberRow(gc, RowX, y, RowW, RowH, ra);
 			// Number in a box
 			if (i == Sel)
@@ -517,53 +598,13 @@ event DrawWindow(GC gc)
 	x = (width - w) * 0.5;
 	h = Class'RIText'.static.DrawWrapped(None, Class'RIFontBody', 0, 0, w, L, C3(0, 0, 0, 0), 1.0, 1.4);
 	y = bandY + FMax(14 * S, (bandH - h - 34 * S) * 0.5);
-	if (Class'RIVP'.static.On())
-	{
-		DrawVPLine(gc, Who, L, w, h, bandY, bandH, a, ca);
-		return;
-	}
 	if (Who != "")
 	{
 		tw = Class'RIText'.static.Width(Class'RIFontSmall', Caps(Who), 0.8);
-		Class'RIText'.static.Draw(gc, Class'RIFontSmall', (width - tw) * 0.5, y, Caps(Who), Amber(ca), 0.8);
+		Class'RIText'.static.Draw(gc, Class'RIFontSmall', (width - tw) * 0.5, y, Caps(Who), Class'RISubs'.static.NameCol(Who, PlayerSpeaking(), ca, Amber(ca)), 0.8);
 		y += 34 * S;
 	}
-	DrawCentered(gc, x, y + (1 - ca) * 6 * S, w, L, WarmText(ca));
-}
-
-// Vanilla+: the line in a framed panel fitted to the text (not full width),
-// the speaker's name on a header tab along its top-left edge, the same kit
-// as the in-game screens
-function DrawVPLine(GC gc, string Who, string L, float W, float TextH, float BandY, float BandH, float a, float ca)
-{
-	local float pw, ph, px, py, tw, hw, padX, padY, tabH;
-
-	padX = 44 * S;
-	padY = 22 * S;
-	tabH = 30 * S;
-	pw = FMin(W, Class'RIText'.static.Width(Class'RIFontBody', L, 1.0)) + padX * 2;
-	if (Who != "")
-		pw = FMax(pw, Class'RIText'.static.Width(Class'RIFontSmall', Caps(Who), 0.66) + 140 * S);
-	pw = FMax(pw, 420 * S);
-	ph = TextH + padY * 2;
-	px = Class'RIText'.static.Snap((width - pw) * 0.5);
-	py = BandY + FMax(tabH * 0.5 + 10 * S, (BandH - ph) * 0.5);
-	if (py + ph > height - 16 * S)
-		py = FMax(BandY, height - 16 * S - ph);
-	py = Class'RIText'.static.Snap(py + (1 - ca) * 6 * S);
-
-	Class'RIVP'.static.Dim(gc, px + 4 * S, py + 4 * S, pw - 8 * S, ph - 8 * S);
-	Class'RIVP'.static.Dim(gc, px + 4 * S, py + 4 * S, pw - 8 * S, ph - 8 * S);
-	Class'RIVP'.static.Frame(gc, px, py, pw, ph, 14 * S, a);
-	if (Who != "")
-	{
-		tw = Class'RIText'.static.Width(Class'RIFontSmall', Caps(Who), 0.66);
-		hw = tw + 80 * S;
-		Class'RIVP'.static.Black(gc, px + 22 * S, py - tabH * 0.5, hw - 30 * S, tabH);
-		Class'RIVP'.static.Hdr(gc, px + 18 * S, py - tabH * 0.5, hw, tabH, ca);
-		Class'RIText'.static.DrawIn(gc, Class'RIFontSmall', px + 34 * S, py - tabH * 0.5, tw + 4 * S, tabH, Caps(Who), Class'RIVP'.static.Txt(ca), 0, 0.66);
-	}
-	DrawCentered(gc, px + padX, py + padY, pw - padX * 2, L, WarmText(ca));
+	DrawCentered(gc, x, y + (1 - ca) * 6 * S, w, L, Class'RISubs'.static.LineCol(Who, PlayerSpeaking(), ca, WarmText(ca)));
 }
 
 // Received / Given, stacked above the text band: a small amber heading,
@@ -572,7 +613,7 @@ function DrawReceived(GC gc, float BandTop, float a)
 {
 	local float y;
 
-	// Same place as in play: right side, a third of the way down
+	// Same side as in play: the left, a third of the way down
 	y = 340 * S;
 	y = DrawItemBox(gc, 0, y, a);
 	y = DrawItemBox(gc, 1, y, a);
@@ -595,7 +636,7 @@ function float DrawItemBox(GC gc, int B, float Top, float a)
 		bw = 0;
 		for (i = 0; i < BoxNum[B]; i++)
 			bw = FMax(bw, Class'RISubs'.static.ToastRowW(S, BoxLabel[B * 12 + i], BoxQty[B * 12 + i]));
-		bx = Class'RISubs'.static.ToastBox(gc, width - 40 * S, Top, S, BoxTitle[B], bw, BoxNum[B], ba);
+		bx = Class'RISubs'.static.ToastBox(gc, 40 * S + Class'RISubs'.static.ToastBoxW(S, BoxTitle[B], bw), Top, S, BoxTitle[B], bw, BoxNum[B], ba);
 		y = Top + 46 * S;
 		for (i = 0; i < BoxNum[B]; i++)
 		{
@@ -605,14 +646,14 @@ function float DrawItemBox(GC gc, int B, float Top, float a)
 		return Top + Class'RISubs'.static.ToastBoxH(S, BoxNum[B]) + 24 * S;
 	}
 
-	// Icon, name and quantity per row, right-aligned over a soft shadow
+	// Icon, name and quantity per row, on the left over a soft shadow
 	y = Top;
-	Class'RISubs'.static.ToastTitle(gc, width - 40 * S, y, S, BoxTitle[B], ba);
+	Class'RIText'.static.Draw(gc, Class'RIFontSmall', 54 * S, y, BoxTitle[B], Class'RIUtil'.static.Col(242 * ba, 211 * ba, 107 * ba), 0.66);
 	y += 30 * S;
 	for (i = 0; i < BoxNum[B]; i++)
 	{
 		k = B * 12 + i;
-		y += Class'RISubs'.static.ToastRow(gc, width - 40 * S, y, S, BoxIcon[k], BoxLabel[k], BoxQty[k], BoxDeclined[k] != 0, ba);
+		y += Class'RISubs'.static.ToastRow(gc, 40 * S + Class'RISubs'.static.ToastRowW(S, BoxLabel[k], BoxQty[k]), y, S, BoxIcon[k], BoxLabel[k], BoxQty[k], BoxDeclined[k] != 0, ba);
 	}
 	return y + 16 * S;
 }

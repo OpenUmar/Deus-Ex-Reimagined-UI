@@ -113,6 +113,31 @@ static final function float Phase(float Time, float Delay, float Duration)
 	return EaseOut((Time - Delay) / Duration);
 }
 
+// A scope or binoculars view is up (the HUD steps aside for it)
+static function bool Scoped(Window W)
+{
+	local DeusExRootWindow R;
+
+	if (W == None)
+		return False;
+	R = DeusExRootWindow(W.GetRootWindow());
+	// AE sets bActive; the original game never does (only bViewVisible)
+	return (R != None) && (R.scopeView != None) && (R.scopeView.bActive || R.scopeView.bViewVisible)
+		&& R.scopeView.IsVisible(False);
+}
+
+// Where belt slot N is drawn, left to right, following the keyboard's
+// number row: slots 1-9 first, then 0 (the key ring), then - and = on the
+// 12-slot belt
+static function int BeltPos(int N)
+{
+	if (N == 0)
+		return 9;
+	if (N <= 9)
+		return N - 1;
+	return N;
+}
+
 defaultproperties
 {
 }

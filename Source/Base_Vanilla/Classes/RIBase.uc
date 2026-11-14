@@ -529,6 +529,31 @@ static function bool OwnVision()
 	return True;
 }
 
+// ----------------------------------------------------------------------
+// Crosshair spread: how far a shot can stray off the aim, as the tangent of
+// that angle (RICrosshair turns it into pixels with the view's FOV).
+// The original game: instant-hit shots land up to +-500 x accuracy across at
+// max(1024, range) (TraceFire); a scope adds 0.2 unless zoomed; zoomed or
+// lasing shots are dead on. Projectiles turn their aim by up to +-512 x
+// accuracy rotation units (ProjectileFire).
+// ----------------------------------------------------------------------
+
+static function float ShotSpread(DeusExWeapon W)
+{
+	local float acc;
+
+	if ((W == None) || W.bHandToHand)
+		return 0;
+	acc = FMax(0, W.currentAccuracy);
+	if (!W.bInstantHit)
+		return Tan(acc * 512.0 * Pi / 32768.0);
+	if (W.bHasScope && !W.bZoomed)
+		acc += 0.2;
+	else if (W.bLasing || W.bZoomed)
+		acc = 0;
+	return acc * 500.0 / FMax(1024.0, W.MaxRange);
+}
+
 defaultproperties
 {
      BaseName="Deus Ex"

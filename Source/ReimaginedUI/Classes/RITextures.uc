@@ -37,11 +37,27 @@ class RITextures extends Object
 
 // Additive (translucent) glows: black = no effect
 #exec TEXTURE IMPORT NAME=RI_Glow FILE=Textures\RI_Glow.pcx GROUP=UI MIPS=Off
-// Remade body figures (Health: 443 x 888, Augmentations: 435 x 891), each in
+// Body figures (V3, Umar's updated art; Health: 465 x 888, Augmentations: 477 x 891), each in
 // the top-left of a 512 x 1024 texture, masked. RI_AugBody.pcx (the original
 // art with its leg completed) stays in Textures as a fallback.
-#exec TEXTURE IMPORT NAME=RI_HealthBody FILE=Textures\RI_HealthBodyV2.pcx GROUP=UI MIPS=Off FLAGS=2
-#exec TEXTURE IMPORT NAME=RI_AugBody FILE=Textures\RI_AugBodyV2.pcx GROUP=UI MIPS=Off FLAGS=2
+#exec TEXTURE IMPORT NAME=RI_HealthBody FILE=Textures\RI_HealthBodyV3.pcx GROUP=UI MIPS=Off FLAGS=2
+#exec TEXTURE IMPORT NAME=RI_AugBody FILE=Textures\RI_AugBodyV3.pcx GROUP=UI MIPS=Off FLAGS=2
+// Aug locations lit on the figure (additive, greyscale, tinted in code): each
+// location's part of RI_AugBody, lifted and feathered, in the same place
+#exec TEXTURE IMPORT NAME=RI_AugHi FILE=Textures\RI_AugHi.pcx GROUP=UI MIPS=Off
+// Augs: installed-location art over the figure (the original screen's idea):
+// arm and leg muscle cut from the Health figure, fitted to the Augs pose
+#exec TEXTURE IMPORT NAME=RI_AugLocArm FILE=Textures\RI_AugLocArm.pcx GROUP=UI MIPS=Off FLAGS=2
+#exec TEXTURE IMPORT NAME=RI_AugLocLeg FILE=Textures\RI_AugLocLeg.pcx GROUP=UI MIPS=Off FLAGS=2
+// cranial, eyes, torso, subdermal: the game's own pieces, upscaled 4x with
+// the PBRify RPLKSRd V3 model (Kim2091)
+#exec TEXTURE IMPORT NAME=RI_AugLocCerebral FILE=Textures\RI_AugLocCerebral.pcx GROUP=UI MIPS=Off FLAGS=2
+#exec TEXTURE IMPORT NAME=RI_AugLocEyes FILE=Textures\RI_AugLocEyes.pcx GROUP=UI MIPS=Off FLAGS=2
+#exec TEXTURE IMPORT NAME=RI_AugLocTorso FILE=Textures\RI_AugLocTorso.pcx GROUP=UI MIPS=Off FLAGS=2
+#exec TEXTURE IMPORT NAME=RI_AugLocSubdermal FILE=Textures\RI_AugLocSubdermal.pcx GROUP=UI MIPS=Off FLAGS=2
+// Health: each part's glow (rim round the silhouette plus a lift inside),
+// additive, tinted in code by the part's state; parts in their own places
+#exec TEXTURE IMPORT NAME=RI_HealthHi FILE=Textures\RI_HealthHi.pcx GROUP=UI MIPS=Off
 // HUD body monitor: the remade figure in six greyscale parts, tinted by
 // each part's health (masked). Figure 173 x 360; offsets are in RIHud
 #exec TEXTURE IMPORT NAME=RI_HudHead FILE=Textures\RI_HudHead.pcx GROUP=UI MIPS=Off FLAGS=2
